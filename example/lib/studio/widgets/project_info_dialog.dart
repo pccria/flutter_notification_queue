@@ -251,21 +251,21 @@ class ProjectInfoDialog extends StatelessWidget {
                             icon: Icons.menu_book_outlined,
                             label: 'API Reference',
                             onTap: () => _launchUrl(
-                              'https://pooriaaskarim.github.io/flutter_notification_queue/api/',
+                              'https://pccria.github.io/flutter_notification_queue/api/',
                             ),
                           ),
                           _LinkChip(
                             icon: Icons.code_rounded,
                             label: 'GitHub Repository',
                             onTap: () => _launchUrl(
-                              'https://github.com/pooriaaskarim/flutter_notification_queue',
+                              'https://github.com/pccria/flutter_notification_queue',
                             ),
                           ),
                           _LinkChip(
                             icon: Icons.bug_report_outlined,
                             label: 'Issue Tracker',
                             onTap: () => _launchUrl(
-                              'https://github.com/pooriaaskarim/flutter_notification_queue/issues',
+                              'https://github.com/pccria/flutter_notification_queue/issues',
                             ),
                           ),
                           _LinkChip(
@@ -273,7 +273,7 @@ class ProjectInfoDialog extends StatelessWidget {
                             label: 'Sponsor Project',
                             accent: true,
                             onTap: () => _launchUrl(
-                              'https://github.com/sponsors/pooriaaskarim',
+                              'https://github.com/sponsors/pccria',
                             ),
                           ),
                         ],
