@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.1] - 2026-10-27
+
+### Maintenance
+- **Account Migration**: Updated repository, homepage, issue tracker, documentation, demo URL, and sponsorship links to reflect account migration to `pccria`.
+
 ## [0.5.0] - 2026-10-14
 
 ### Architectural Governance & Design System

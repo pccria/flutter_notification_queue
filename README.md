@@ -1,6 +1,6 @@
 # FlutterNotificationQueue
 
-[![CI](https://github.com/pooriaaskarim/flutter_notification_queue/actions/workflows/ci.yml/badge.svg)](https://github.com/pooriaaskarim/flutter_notification_queue/actions/workflows/ci.yml)
+[![CI](https://github.com/pccria/flutter_notification_queue/actions/workflows/ci.yml/badge.svg)](https://github.com/pccria/flutter_notification_queue/actions/workflows/ci.yml)
 [![Pub Version](https://img.shields.io/pub/v/flutter_notification_queue)](https://pub.dev/packages/flutter_notification_queue)
 [![Pub Likes](https://img.shields.io/pub/likes/flutter_notification_queue)](https://pub.dev/packages/flutter_notification_queue)
 [![Pub Points](https://img.shields.io/pub/points/flutter_notification_queue)](https://pub.dev/packages/flutter_notification_queue)
@@ -9,7 +9,7 @@
 
 A production-grade, overlay-based spatial notification engine for Flutter applications.
 
-[![Try NFQ Studio Web Demo](https://img.shields.io/badge/Try_Live_Demo-NFQ_Studio-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://pooriaaskarim.github.io/flutter_notification_queue/)
+[![Try NFQ Studio Web Demo](https://img.shields.io/badge/Try_Live_Demo-NFQ_Studio-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://pccria.github.io/flutter_notification_queue/)
 
 `FlutterNotificationQueue` (FNQ) provides a comprehensive solution for displaying in-app notifications with spatial queue placement, Intent-First interactive drag/reorder/relocate gestures, notification bundling, priority triage preemption, permanent queue relocation, real-time observability, and deep theming.
 
