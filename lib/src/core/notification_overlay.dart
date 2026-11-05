@@ -259,7 +259,7 @@ class _QueueOverlayLayoutDelegate extends MultiChildLayoutDelegate {
   /// the FlutterView without touching MediaQuery, so this delegate never
   /// subscribes to inherited widget changes.
   EdgeInsets _viewPadding() {
-    final view = flutterView ?? PlatformDispatcher.instance.implicitView;
+    final view = flutterView;
     if (view == null) {
       return EdgeInsets.zero;
     }
@@ -416,12 +416,12 @@ class _QueueOverlayLayoutDelegate extends MultiChildLayoutDelegate {
   bool shouldRelayout(
     covariant final _QueueOverlayLayoutDelegate oldDelegate,
   ) {
-    // Only relayout when the set of queues actually changes — not on
-    // every resize frame. Since the delegate is only recreated when
-    // _NotificationQueueStack rebuilds (i.e. when activeQueues notifier
-    // fires), this is already quite rare. We compare queue positions and
-    // their key layout properties so a configuration change still triggers
-    // a correct relayout.
+    if (flutterView != oldDelegate.flutterView ||
+        flutterView?.viewPadding != oldDelegate.flutterView?.viewPadding ||
+        flutterView?.devicePixelRatio !=
+            oldDelegate.flutterView?.devicePixelRatio) {
+      return true;
+    }
     if (activePositions.length != oldDelegate.activePositions.length) {
       return true;
     }

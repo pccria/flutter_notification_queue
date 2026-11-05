@@ -234,6 +234,7 @@ class DraggableTransitionsState extends State<DraggableTransitions>
           _isSnapBackAnimating = false;
           _fsm.reset();
         });
+        widget.notification.key.currentState?.resumeDismissTimer();
       }
     });
   }
@@ -273,6 +274,8 @@ class DraggableTransitionsState extends State<DraggableTransitions>
       queueKey.currentState?.setActiveDragGroup(
         widget.notification.resolvedGroupKey,
       );
+
+      widget.notification.key.currentState?.pauseDismissTimer();
 
       plugin.onDragStart(this);
     }
@@ -321,6 +324,12 @@ class DraggableTransitionsState extends State<DraggableTransitions>
         final position = widget.notification.queue.position;
         final queueKey = coordinator.getWidgetKey(position);
         queueKey.currentState?.setActiveDragGroup(null);
+        if (!_isSnapBackAnimating) {
+          widget.notification.key.currentState?.resumeDismissTimer();
+        }
+      } else {
+        final originQueueKey = coordinator.getWidgetKey(_fsm.initialPosition);
+        originQueueKey.currentState?.setActiveDragGroup(null);
       }
     }
 

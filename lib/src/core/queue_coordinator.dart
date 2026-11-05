@@ -54,6 +54,30 @@ class QueueCoordinator implements NotificationScopeState {
   /// Registry of keys to communicate with active queue widgets.
   final _widgetStateKeys = <QueuePosition, GlobalKey<QueueWidgetState>>{};
 
+  /// Registry of notification IDs to their current queue position.
+  final _positionById = <String, QueuePosition>{};
+
+  /// Unregisters an ID if it is currently registered to [position].
+  @internal
+  void unregisterEntryId(final String id, final QueuePosition position) {
+    if (_positionById[id] == position) {
+      _positionById.remove(id);
+    }
+  }
+
+  void _removeEntryFromPosition(final String id, final QueuePosition position) {
+    final key = _widgetStateKeys[position];
+    if (key?.currentState != null) {
+      key!.currentState!.removeById(id);
+    } else {
+      _initializationQueue[position]?.removeWhere((final n) => n.id == id);
+      unregisterEntryId(id, position);
+      if (_initializationQueue[position]?.isEmpty ?? false) {
+        _unmountQueue(position);
+      }
+    }
+  }
+
   /// Holds notifications for queues that are initializing (mounting).
   ///
   /// This bridges the gap between a logical enqueue request and the visual
@@ -91,6 +115,7 @@ class QueueCoordinator implements NotificationScopeState {
     _controller = null;
     _widgetStateKeys.clear();
     _initializationQueue.clear();
+    _positionById.clear();
     if (!_isDisposed) {
       try {
         _activeQueuesNotifier.value = {};
@@ -163,10 +188,21 @@ class QueueCoordinator implements NotificationScopeState {
       return;
     }
 
+    final id = notification.id;
+    final notificationQueue = notification.queue;
+    final targetPosition = notificationQueue.position;
+
+    // Cross-queue same-ID dispatch: if already at a different position,
+    // remove first.
+    final existingPosition = _positionById[id];
+    if (existingPosition != null && existingPosition != targetPosition) {
+      _removeEntryFromPosition(id, existingPosition);
+    }
+    _positionById[id] = targetPosition;
+
     _eventController.add(NotificationQueued(notification: notification));
 
-    final notificationQueue = notification.queue;
-    final key = _widgetStateKeys[notificationQueue.position];
+    final key = _widgetStateKeys[targetPosition];
     final isMounted = key?.currentState != null;
 
     final entry = NotificationEntry(
@@ -208,6 +244,36 @@ class QueueCoordinator implements NotificationScopeState {
     final AppNotification notification, {
     final DismissReason reason = DismissReason.programmatic,
   }) {
+    final id = notification.id;
+    if (id != null) {
+      final pos = _positionById[id];
+      if (pos != null) {
+        final key = _widgetStateKeys[pos];
+        if (key?.currentState != null && key!.currentState!.containsId(id)) {
+          key.currentState!.dismissById(id, reason: reason);
+          return;
+        }
+        final initQueue = _initializationQueue[pos];
+        if (initQueue != null) {
+          final index = initQueue.indexWhere((final n) => n.id == id);
+          if (index != -1) {
+            final entry = initQueue.removeAt(index);
+            unregisterEntryId(id, pos);
+            _eventController.add(
+              NotificationDismissed(
+                notification: entry.blueprint,
+                reason: reason,
+              ),
+            );
+            if (initQueue.isEmpty) {
+              _unmountQueue(pos);
+            }
+            return;
+          }
+        }
+      }
+    }
+
     for (final n in activeNotifications) {
       if (n.id == notification.id) {
         dismissWidget(n, reason: reason);
@@ -232,23 +298,28 @@ class QueueCoordinator implements NotificationScopeState {
     var key = _widgetStateKeys[notificationQueue.position];
     if (key?.currentState == null ||
         !key!.currentState!.containsId(notification.id)) {
-      for (final candidate in _widgetStateKeys.values) {
-        if (candidate.currentState != null &&
-            candidate.currentState!.containsId(notification.id)) {
-          key = candidate;
-          break;
+      final pos = _positionById[notification.id];
+      if (pos != null &&
+          _widgetStateKeys[pos]?.currentState?.containsId(notification.id) ==
+              true) {
+        key = _widgetStateKeys[pos];
+      } else {
+        for (final candidate in _widgetStateKeys.values) {
+          if (candidate.currentState != null &&
+              candidate.currentState!.containsId(notification.id)) {
+            key = candidate;
+            break;
+          }
         }
       }
     }
     if (key?.currentState != null) {
-      key!.currentState!.dismiss(notification, reason: reason);
+      key!.currentState!.dismissById(notification.id, reason: reason);
     } else {
-      // If not mounted, check initialization queue (rare race condition where
-      // we dismiss before mount?)
       _initializationQueue[notificationQueue.position]
           ?.removeWhere((final n) => n.id == notification.id);
+      unregisterEntryId(notification.id, notificationQueue.position);
 
-      // If we emptied the init queue before it even mounted, cancel mount?
       if (_initializationQueue[notificationQueue.position]?.isEmpty ?? false) {
         _unmountQueue(notificationQueue.position);
       }
@@ -258,13 +329,18 @@ class QueueCoordinator implements NotificationScopeState {
   /// Dismisses the newest active notification across all active queues.
   @override
   void dismissNewest() {
-    final active = activeNotifications;
-    if (active.isEmpty) {
-      return;
+    NotificationWidget? newest;
+    for (final key in _widgetStateKeys.values) {
+      final candidate = key.currentState?.newestActiveNotification;
+      if (candidate != null) {
+        if (newest == null || candidate.createdAt.isAfter(newest.createdAt)) {
+          newest = candidate;
+        }
+      }
     }
-    // Sort by createdAt descending to find the newest
-    active.sort((final a, final b) => b.createdAt.compareTo(a.createdAt));
-    dismissWidget(active.first, reason: DismissReason.programmatic);
+    if (newest != null) {
+      dismissWidget(newest, reason: DismissReason.programmatic);
+    }
   }
 
   /// Dismisses all active notifications across all active queues.
@@ -278,7 +354,7 @@ class QueueCoordinator implements NotificationScopeState {
     }
   }
 
-  /// Dismisses all active notifications that share [groupKey].
+  /// Dismisses all active and pending notifications that share [groupKey].
   @override
   void dismissGroup(
     final String groupKey, {
@@ -287,15 +363,35 @@ class QueueCoordinator implements NotificationScopeState {
     for (final entry in _widgetStateKeys.entries) {
       final position = entry.key;
       final state = entry.value.currentState;
-      if (state != null) {
-        final hasGroup = state.activeNotifications.any(
-          (final n) => n.resolvedGroupKey == groupKey,
-        );
-        if (hasGroup) {
-          _eventController.add(
-            NotificationGroupDismissed(groupKey: groupKey, position: position),
-          );
-          state.dismissGroup(groupKey, reason: reason);
+      final hasActive = state != null && state.hasActiveGroup(groupKey);
+      final hasPending =
+          state != null && state.countPendingForGroup(groupKey) > 0;
+      final initQueue = _initializationQueue[position];
+      final hasInit = initQueue != null &&
+          initQueue.any((final e) => e.resolvedGroupKey == groupKey);
+
+      if (hasActive || hasPending) {
+        emitGroupDismissed(groupKey: groupKey, position: position);
+        state.dismissGroup(groupKey, reason: reason);
+      }
+
+      if (hasInit) {
+        if (!hasActive && !hasPending) {
+          emitGroupDismissed(groupKey: groupKey, position: position);
+        }
+        initQueue.removeWhere((final entry) {
+          if (entry.resolvedGroupKey == groupKey) {
+            unregisterEntryId(entry.id, position);
+            emitDismissed(
+              notification: entry.blueprint,
+              reason: reason,
+            );
+            return true;
+          }
+          return false;
+        });
+        if (initQueue.isEmpty) {
+          _unmountQueue(position);
         }
       }
     }
@@ -307,11 +403,36 @@ class QueueCoordinator implements NotificationScopeState {
     final String groupKey, {
     final DismissReason reason = DismissReason.programmatic,
   }) {
-    _eventController.add(
-      NotificationGroupDismissed(groupKey: groupKey, position: position),
-    );
-    final key = _widgetStateKeys[position];
-    key?.currentState?.dismissGroup(groupKey, reason: reason);
+    final state = _widgetStateKeys[position]?.currentState;
+    final hasActive = state != null && state.hasActiveGroup(groupKey);
+    final hasPending =
+        state != null && state.countPendingForGroup(groupKey) > 0;
+    final initQueue = _initializationQueue[position];
+    final hasInit = initQueue != null &&
+        initQueue.any((final e) => e.resolvedGroupKey == groupKey);
+
+    if (hasActive || hasPending || hasInit) {
+      emitGroupDismissed(groupKey: groupKey, position: position);
+    }
+
+    state?.dismissGroup(groupKey, reason: reason);
+
+    if (hasInit) {
+      initQueue.removeWhere((final entry) {
+        if (entry.resolvedGroupKey == groupKey) {
+          unregisterEntryId(entry.id, position);
+          emitDismissed(
+            notification: entry.blueprint,
+            reason: reason,
+          );
+          return true;
+        }
+        return false;
+      });
+      if (initQueue.isEmpty) {
+        _unmountQueue(position);
+      }
+    }
   }
 
   // ── Relocate ─────────────────────────────────────────────────────────────
@@ -322,6 +443,18 @@ class QueueCoordinator implements NotificationScopeState {
     final AppNotification notification,
     final QueuePosition newPosition,
   ) {
+    final id = notification.id;
+    if (id != null) {
+      final pos = _positionById[id];
+      if (pos != null) {
+        final widget =
+            _widgetStateKeys[pos]?.currentState?.getNotificationWidget(id);
+        if (widget != null) {
+          relocateWidget(widget, newPosition);
+          return;
+        }
+      }
+    }
     for (final n in activeNotifications) {
       if (n.id == notification.id) {
         relocateWidget(n, newPosition);
@@ -424,6 +557,7 @@ class QueueCoordinator implements NotificationScopeState {
       final targetQueue = newPosition.generateQueueFrom(notification.queue);
       final migrated = notification.copyToQueue(targetQueue);
       newNotification = migrated;
+      _positionById[notification.id] = newPosition;
 
       // Register dragged notification callback first
       WidgetsBinding.instance.addPostFrameCallback((final _) {
@@ -479,6 +613,18 @@ class QueueCoordinator implements NotificationScopeState {
   /// Reorders [notification] to [targetIndex] within its queue.
   @override
   void reorder(final AppNotification notification, final int targetIndex) {
+    final id = notification.id;
+    if (id != null) {
+      final pos = _positionById[id];
+      if (pos != null) {
+        final widget =
+            _widgetStateKeys[pos]?.currentState?.getNotificationWidget(id);
+        if (widget != null) {
+          reorderWidget(widget, targetIndex);
+          return;
+        }
+      }
+    }
     for (final n in activeNotifications) {
       if (n.id == notification.id) {
         reorderWidget(n, targetIndex);
@@ -506,6 +652,18 @@ class QueueCoordinator implements NotificationScopeState {
   /// Temporarily hides [notification] and re-enqueues it after [duration].
   @override
   void snooze(final AppNotification notification, final Duration duration) {
+    final id = notification.id;
+    if (id != null) {
+      final pos = _positionById[id];
+      if (pos != null) {
+        final widget =
+            _widgetStateKeys[pos]?.currentState?.getNotificationWidget(id);
+        if (widget != null) {
+          snoozeWidget(widget, duration);
+          return;
+        }
+      }
+    }
     for (final n in activeNotifications) {
       if (n.id == notification.id) {
         snoozeWidget(n, duration);
@@ -529,6 +687,7 @@ class QueueCoordinator implements NotificationScopeState {
     } else {
       _initializationQueue[notificationQueue.position]
           ?.removeWhere((final n) => n.id == notification.id);
+      unregisterEntryId(notification.id, notificationQueue.position);
     }
 
     // 2. Emit NotificationSnoozed event
@@ -554,6 +713,18 @@ class QueueCoordinator implements NotificationScopeState {
   /// Pins [notification], making it persistent and immune to swipe gestures.
   @override
   void pin(final AppNotification notification) {
+    final id = notification.id;
+    if (id != null) {
+      final pos = _positionById[id];
+      if (pos != null) {
+        final widget =
+            _widgetStateKeys[pos]?.currentState?.getNotificationWidget(id);
+        if (widget != null) {
+          pinWidget(widget);
+          return;
+        }
+      }
+    }
     for (final n in activeNotifications) {
       if (n.id == notification.id) {
         pinWidget(n);
@@ -566,17 +737,29 @@ class QueueCoordinator implements NotificationScopeState {
   ///
   /// Used internally by gesture plugins.
   void pinWidget(final NotificationWidget notification) {
-    final stateKey = GlobalObjectKey<NotificationWidgetState>(notification.id);
-    final state = stateKey.currentState;
     notification.isPinnedNotifier.value = true;
     _eventController.add(
-      NotificationPinned(notification: state?.widget ?? notification),
+      NotificationPinned(
+        notification: notification.key.currentState?.widget ?? notification,
+      ),
     );
   }
 
   /// Releases the pin on [notification].
   @override
   void unpin(final AppNotification notification) {
+    final id = notification.id;
+    if (id != null) {
+      final pos = _positionById[id];
+      if (pos != null) {
+        final widget =
+            _widgetStateKeys[pos]?.currentState?.getNotificationWidget(id);
+        if (widget != null) {
+          unpinWidget(widget);
+          return;
+        }
+      }
+    }
     for (final n in activeNotifications) {
       if (n.id == notification.id) {
         unpinWidget(n);
@@ -589,11 +772,11 @@ class QueueCoordinator implements NotificationScopeState {
   ///
   /// Used internally by gesture plugins.
   void unpinWidget(final NotificationWidget notification) {
-    final stateKey = GlobalObjectKey<NotificationWidgetState>(notification.id);
-    final state = stateKey.currentState;
     notification.isPinnedNotifier.value = false;
     _eventController.add(
-      NotificationUnpinned(notification: state?.widget ?? notification),
+      NotificationUnpinned(
+        notification: notification.key.currentState?.widget ?? notification,
+      ),
     );
   }
 
@@ -702,6 +885,28 @@ class QueueCoordinator implements NotificationScopeState {
                 position: position,
                 count: count,
               ),
+      );
+
+  /// Emits a [NotificationGroupDismissed] event.
+  ///
+  /// Called by [QueueWidgetState] when a group is swiped or dismissed.
+  void emitGroupDismissed({
+    required final String groupKey,
+    required final QueuePosition position,
+  }) =>
+      emitEvent(
+        NotificationGroupDismissed(groupKey: groupKey, position: position),
+      );
+
+  /// Emits a [NotificationDismissed] event.
+  ///
+  /// Called by [QueueWidgetState] when a notification is dismissed.
+  void emitDismissed({
+    required final NotificationWidget notification,
+    required final DismissReason reason,
+  }) =>
+      emitEvent(
+        NotificationDismissed(notification: notification, reason: reason),
       );
 
   /// Exposed for overlay.

@@ -81,13 +81,14 @@ void main() {
         ),
       );
 
-      NotificationWidget(
-        id: 'n1',
-        title: 'Flat Notification',
-        message: 'This is a flat queue style notification.',
-        icon: const Icon(Icons.info_outline, color: Colors.blue),
-        coordinator: controller.coordinator,
-      ).show();
+      controller.show(
+        const AppNotification(
+          id: 'n1',
+          title: 'Flat Notification',
+          message: 'This is a flat queue style notification.',
+          icon: Icon(Icons.info_outline, color: Colors.blue),
+        ),
+      );
 
       await tester.pump();
       for (int i = 0; i < 10; i++) {
@@ -138,13 +139,14 @@ void main() {
         ),
       );
 
-      NotificationWidget(
-        id: 'n1',
-        title: 'Filled Notification',
-        message: 'This is a filled queue style notification.',
-        icon: const Icon(Icons.star, color: Colors.white),
-        coordinator: controller.coordinator,
-      ).show();
+      controller.show(
+        const AppNotification(
+          id: 'n1',
+          title: 'Filled Notification',
+          message: 'This is a filled queue style notification.',
+          icon: Icon(Icons.star, color: Colors.white),
+        ),
+      );
 
       await tester.pump();
       for (int i = 0; i < 10; i++) {
@@ -195,13 +197,14 @@ void main() {
         ),
       );
 
-      NotificationWidget(
-        id: 'n1',
-        title: 'Outlined Notification',
-        message: 'This is an outlined queue style notification.',
-        icon: const Icon(Icons.check, color: Colors.green),
-        coordinator: controller.coordinator,
-      ).show();
+      controller.show(
+        const AppNotification(
+          id: 'n1',
+          title: 'Outlined Notification',
+          message: 'This is an outlined queue style notification.',
+          icon: Icon(Icons.check, color: Colors.green),
+        ),
+      );
 
       await tester.pump();
       for (int i = 0; i < 10; i++) {
@@ -255,22 +258,24 @@ void main() {
           ),
         );
 
-        NotificationWidget(
-          id: 'n_tr',
-          message: 'Top Right Queue Position',
-          channelName: 'ch_tr',
-          coordinator: controller.coordinator,
-        ).show();
+        controller.show(
+          const AppNotification(
+            id: 'n_tr',
+            message: 'Top Right Queue Position',
+            channelName: 'ch_tr',
+          ),
+        );
 
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
 
-        NotificationWidget(
-          id: 'n_bc',
-          message: 'Bottom Center Queue Position',
-          channelName: 'ch_bc',
-          coordinator: controller.coordinator,
-        ).show();
+        controller.show(
+          const AppNotification(
+            id: 'n_bc',
+            message: 'Bottom Center Queue Position',
+            channelName: 'ch_bc',
+          ),
+        );
 
         await tester.pump();
         for (int i = 0; i < 10; i++) {
@@ -325,21 +330,23 @@ void main() {
         ),
       );
 
-      NotificationWidget(
-        id: 'n1',
-        title: 'First Notification',
-        message: 'This is the first notification in the group.',
-        coordinator: controller.coordinator,
-      ).show();
+      controller.show(
+        const AppNotification(
+          id: 'n1',
+          title: 'First Notification',
+          message: 'This is the first notification in the group.',
+        ),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      NotificationWidget(
-        id: 'n2',
-        title: 'Second Notification',
-        message: 'This is the second notification in the group.',
-        coordinator: controller.coordinator,
-      ).show();
+      controller.show(
+        const AppNotification(
+          id: 'n2',
+          title: 'Second Notification',
+          message: 'This is the second notification in the group.',
+        ),
+      );
 
       await tester.pump();
       for (int i = 0; i < 15; i++) {

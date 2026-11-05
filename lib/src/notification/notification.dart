@@ -149,7 +149,7 @@ class NotificationWidget extends StatefulWidget {
     );
   }
   NotificationWidget._({
-    required final GlobalObjectKey<NotificationWidgetState> key,
+    required final GlobalKey<NotificationWidgetState> key,
     required this.message,
     required this.id,
     required this.queue,
@@ -381,7 +381,7 @@ class NotificationWidget extends StatefulWidget {
     final NotificationQueue targetQueue,
   ) =>
       NotificationWidget._(
-        key: GlobalObjectKey<NotificationWidgetState>(id),
+        key: key,
         id: id,
         message: message,
         queue: targetQueue,
@@ -410,7 +410,7 @@ class NotificationWidget extends StatefulWidget {
     final DateTime? snoozedAt,
   }) =>
       NotificationWidget._(
-        key: GlobalObjectKey<NotificationWidgetState>(id),
+        key: key,
         id: id,
         message: message,
         queue: queue,
@@ -479,6 +479,7 @@ class NotificationWidgetState extends State<NotificationWidget>
 
   AnimationController? _dismissProgressController;
   bool _isMouseHovering = false;
+  bool _isDragPaused = false;
   static final Timer _dummyTimer = Timer(Duration.zero, () {});
   Timer? get dismissTimer =>
       _dismissProgressController != null ? _dummyTimer : null;
@@ -509,7 +510,9 @@ class NotificationWidgetState extends State<NotificationWidget>
     )..value = 1.0;
 
     widget.isPinnedNotifier.addListener(_handlePinChanged);
-    initDismissTimer();
+    if (NotificationTimerScope.isEnabledNonSubscribing(context)) {
+      initDismissTimer();
+    }
   }
 
   @override
@@ -526,6 +529,18 @@ class NotificationWidgetState extends State<NotificationWidget>
         widget,
       );
     }
+
+    final timerAllowed = NotificationTimerScope.isEnabled(context);
+    if (!timerAllowed) {
+      ditchDismissTimer();
+    } else if (_dismissProgressController == null &&
+        !widget.isPinned &&
+        !isExpanded.value &&
+        !_isMouseHovering &&
+        !_isDragPaused) {
+      initDismissTimer();
+    }
+
     _logger.debugBuffer
       ?..writeAll([
         'NotificationState: $this',
@@ -606,6 +621,13 @@ class NotificationWidgetState extends State<NotificationWidget>
   }
 
   void initDismissTimer() {
+    if (_isDragPaused) {
+      return;
+    }
+    if (mounted && !NotificationTimerScope.isEnabledNonSubscribing(context)) {
+      ditchDismissTimer();
+      return;
+    }
     if (resolvedDismissDuration != null) {
       if (_dismissProgressController == null) {
         _dismissProgressController = AnimationController(
@@ -631,6 +653,24 @@ class NotificationWidgetState extends State<NotificationWidget>
     _dismissProgressController?.stop(canceled: false);
     _dismissProgressController?.dispose();
     _dismissProgressController = null;
+  }
+
+  /// Pauses the auto-dismiss timer (e.g. while being dragged or hovered).
+  void pauseDismissTimer() {
+    _isDragPaused = true;
+    _dismissProgressController?.stop(canceled: false);
+  }
+
+  /// Resumes the auto-dismiss timer if not paused by expansion or hover.
+  void resumeDismissTimer() {
+    _isDragPaused = false;
+    if (!_isMouseHovering && !isExpanded.value) {
+      if (_dismissProgressController != null) {
+        _dismissProgressController!.forward();
+      } else {
+        initDismissTimer();
+      }
+    }
   }
 
   void _toggleExpanded() {
@@ -927,4 +967,36 @@ class NotificationWidgetState extends State<NotificationWidget>
           ),
         ),
       );
+}
+
+/// Scope widget controlling whether dismiss timers are allowed to run for
+/// descendant [NotificationWidget]s.
+///
+/// When [enabled] is false (e.g. for peek cards underneath lifted group
+/// representatives or paused bundles), descendant notifications ditch their
+/// dismiss timers and remain in a dormant state.
+class NotificationTimerScope extends InheritedWidget {
+  const NotificationTimerScope({
+    required this.enabled,
+    required super.child,
+    super.key,
+  });
+
+  final bool enabled;
+
+  static bool isEnabled(final BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<NotificationTimerScope>()
+          ?.enabled ??
+      true;
+
+  static bool isEnabledNonSubscribing(final BuildContext context) =>
+      context
+          .getInheritedWidgetOfExactType<NotificationTimerScope>()
+          ?.enabled ??
+      true;
+
+  @override
+  bool updateShouldNotify(covariant final NotificationTimerScope oldWidget) =>
+      enabled != oldWidget.enabled;
 }

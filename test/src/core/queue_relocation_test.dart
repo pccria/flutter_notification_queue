@@ -297,6 +297,64 @@ void main() {
       );
     });
 
+    testWidgets(
+      'cross-queue same-ID dispatch: moves notification to new position',
+      (final tester) async {
+        final controller = NotificationController(
+          channels: {
+            const NotificationChannel(
+              name: 'default',
+              position: QueuePosition.topRight,
+              defaultDismissDuration: null,
+            ),
+          },
+          queues: {
+            const NotificationQueue(position: QueuePosition.topRight),
+            const NotificationQueue(position: QueuePosition.bottomLeft),
+          },
+        );
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(body: SizedBox.expand()),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'moving_notif',
+            message: 'Original Top Right',
+          ),
+          targetPosition: QueuePosition.topRight,
+        );
+        await tester.pump();
+        await tester.pump();
+        await _driveAnimation(tester);
+
+        expect(find.text('Original Top Right'), findsOneWidget);
+
+        // Dispatch with same id to bottomLeft
+        controller.show(
+          const AppNotification(
+            id: 'moving_notif',
+            message: 'Updated Bottom Left',
+          ),
+          targetPosition: QueuePosition.bottomLeft,
+        );
+        await tester.pump();
+        await tester.pump();
+        await _driveAnimation(tester);
+
+        expect(find.text('Original Top Right'), findsNothing);
+        expect(find.text('Updated Bottom Left'), findsOneWidget);
+      },
+    );
+
     test(
         'Cluster Invariance: configuring target landing pad as standalone '
         'queue throws', () {

@@ -19,6 +19,7 @@ void main() {
       controller = NotificationController(
         queues: {
           const NotificationQueue(position: QueuePosition.topRight),
+          const NotificationQueue(position: QueuePosition.bottomLeft),
         },
         channels: {
           const NotificationChannel(
@@ -86,6 +87,38 @@ void main() {
         final items2 =
             coordinator.consumeInitializationQueue(QueuePosition.topRight);
         expect(items2.isEmpty, isTrue);
+      });
+
+      test('same-ID dispatch to different queue removes from old position', () {
+        final notif1 = NotificationWidget(
+          id: 'cross_queue_1',
+          message: 'Top Right Message',
+          position: QueuePosition.topRight,
+          coordinator: coordinator,
+        );
+        coordinator.queue(notif1);
+
+        // Dispatch same id to bottomLeft before consume
+        final notif2 = NotificationWidget(
+          id: 'cross_queue_1',
+          message: 'Bottom Left Message',
+          position: QueuePosition.bottomLeft,
+          coordinator: coordinator,
+        );
+        coordinator.queue(notif2);
+
+        // topRight initialization queue should now be empty
+        expect(
+          coordinator
+              .consumeInitializationQueue(QueuePosition.topRight)
+              .isEmpty,
+          isTrue,
+        );
+        // bottomLeft should have the entry
+        final blItems =
+            coordinator.consumeInitializationQueue(QueuePosition.bottomLeft);
+        expect(blItems.length, 1);
+        expect(blItems.first.blueprint.message, 'Bottom Left Message');
       });
     });
 
