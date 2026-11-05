@@ -48,7 +48,7 @@ Add `flutter_notification_queue` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_notification_queue: ^0.5.0
+  flutter_notification_queue: ^0.5.2
 ```
 
 ### 2. Initialize and Mount Scope
@@ -258,14 +258,17 @@ NotificationQueue(
     maxBeforeGrouping: 2,         // Bundle after 2 notifications arrive
     maxStackedLayers: 3,          // Background card layers in bundle deck
     stackStepOffset: 6.0,         // Pixels offset per background card
-    stackScaleMultiplier: 0.04,   // Scale reduction per background card
+    stackScaleMultiplier: 0.05,   // Scale reduction per background card
     enableGroupSwipeDismiss: true,// Swipe top card or whole bundle
+    pauseTimersWhenExpanded: true,// Suspend timers while reading expanded deck
+    countBehavior: const HiddenCount(), // '+N' hidden count, or TotalCount()
   ),
 )
 ```
 
-* **Single-Card Swipe**: Swiping the top card in a bundle dismisses only that notification and automatically surfaces the next hidden member.
-* **Group Indicator Bar**: Displays non-overlapping bundle indicators with dynamic padding and theme adaptation.
+* **Representative Card**: Top card surfaces the newest message with a count toggle pill (`HiddenCount (+N)`, `TotalCount (N)`, `NoCount`, or `CustomCount`).
+* **Peek Card Timer Stasis**: Dragging the top card reveals the peek card in visual stasis (`opacity = 0.55`) and pauses auto-dismiss timers during touch interaction.
+* **Atomic Bundle Dismissal**: Swiping the bundle dismisses active cards and purges all pending backlog items in a single frame.
 
 ---
 
