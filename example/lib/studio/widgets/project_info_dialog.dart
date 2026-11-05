@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Modal dialog displaying comprehensive project metadata, version info,
 /// core architectural features, and documentation links.
 class ProjectInfoDialog extends StatelessWidget {
   const ProjectInfoDialog({
-    required this.version,
+    this.version,
     super.key,
   });
 
-  /// The version string dynamically loaded from pubspec.yaml.
+  /// The package version string, defaulting to
+  /// [NotificationController.version].
   final String? version;
 
   /// Helper to launch external URLs safely.
@@ -42,8 +44,8 @@ class ProjectInfoDialog extends StatelessWidget {
   Widget build(final BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final displayVersion =
-        version != null && version!.isNotEmpty ? 'v$version' : 'v0.5.0';
+    final resolvedVersion = version ?? NotificationController.version;
+    final displayVersion = 'v$resolvedVersion';
 
     return Dialog(
       backgroundColor: Colors.transparent,

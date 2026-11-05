@@ -568,7 +568,64 @@ final _scenarios = [
     },
   ),
 
-  // ── 12. Interactive Snooze & Return ──
+  // ── 12. Group Count: Total Count & Backlog ──
+  _Scenario(
+    title: 'Group Count: Total Count & Backlog',
+    subtitle: 'Queue limit 2, 5-message burst. TotalCount displays '
+        'total volume (5) accounting for un-rendered pending backlog cards.',
+    icon: Icons.filter_9_plus_outlined,
+    color: const Color(0xFF8B5CF6),
+    onFire: (final context) {
+      final scope = NotificationScope.of(context);
+      final setupBloc = context.read<SetupBloc>();
+      final existingQueue =
+          setupBloc.state.setup.queues[QueuePosition.topRight] ??
+              const QueueSetup();
+      setupBloc
+        ..add(
+          AddQueue(
+            QueuePosition.topRight,
+            existingQueue.copyWith(
+              groupingEnabled: true,
+              groupingThreshold: 2,
+              maxStackSize: 2,
+              groupingCountType: GroupCountType.totalCount,
+              groupingCountIncludePending: true,
+            ),
+          ),
+        )
+        ..add(
+          const AddChannel(
+            ChannelSetup(
+              name: 'chat',
+              description: 'Social Chat Messages',
+              color: Color(0xFF8B5CF6),
+              position: QueuePosition.topRight,
+              dismissSeconds: 45,
+              iconPreset: ChannelIconPreset.notification,
+            ),
+          ),
+        );
+
+      Future.delayed(const Duration(milliseconds: 50), () {
+        _stagger(
+          scope,
+          [
+            for (var i = 1; i <= 5; i++)
+              AppNotification(
+                title: 'Alice',
+                message: 'Burst message #$i',
+                channelName: 'chat',
+                dismissDuration: const Duration(seconds: 45),
+              ),
+          ],
+          const Duration(milliseconds: 250),
+        );
+      });
+    },
+  ),
+
+  // ── 13. Interactive Snooze & Return ──
   _Scenario(
     title: 'Interactive Snooze & Return',
     subtitle: 'Tap SNOOZE — programmatic snooze hides and resurfaces after 5s.',
@@ -593,7 +650,7 @@ final _scenarios = [
     },
   ),
 
-  // ── 13. Pinned Critical Alert ──
+  // ── 14. Pinned Critical Alert ──
   _Scenario(
     title: 'Pinned Critical Alert',
     subtitle: 'Sticky card — immune to swipe dismiss & timers until unpinned.',
@@ -623,7 +680,7 @@ final _scenarios = [
     },
   ),
 
-  // ── 14. Content Accent Tint (v0.5.0) ──
+  // ── 15. Content Accent Tint (v0.5.0) ──
   _Scenario(
     title: 'Content Accent Tint',
     subtitle: 'AppNotification.accentColor — dynamic content-driven accent',
@@ -642,7 +699,7 @@ final _scenarios = [
     },
   ),
 
-  // ── 15. Contextual Dispatch Routing (v0.5.0) ──
+  // ── 16. Contextual Dispatch Routing (v0.5.0) ──
   _Scenario(
     title: 'Contextual Dispatch Routing',
     subtitle: 'controller.show(..., targetPosition:) — dynamic corner override',

@@ -7,6 +7,7 @@ import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
 import '../bloc/notification_bloc.dart';
 import '../bloc/setup_bloc.dart';
+import '../models/queue_setup.dart';
 import '../studio_theme.dart';
 
 /// A persistent, tactile quick-action toolbar that allows developers to
@@ -175,6 +176,13 @@ class QuickFireCockpit extends StatelessWidget {
             onTap: () => _fireBurst(context),
           ),
           const SizedBox(width: 6),
+          _CockpitChip(
+            label: 'Group 4x',
+            icon: Icons.layers_outlined,
+            accentColor: const Color(0xFF0EA5E9),
+            onTap: () => _fireGroupBurst(context),
+          ),
+          const SizedBox(width: 6),
 
           // ── Stage Utility: Clear All ──
           IconButton(
@@ -243,6 +251,47 @@ class QuickFireCockpit extends StatelessWidget {
             message: sample.$1,
             channelName: sample.$2,
             dismissDuration: const Duration(seconds: 6),
+          ),
+          targetPosition: targetPosition,
+        );
+      });
+    }
+  }
+
+  static void _fireGroupBurst(final BuildContext context) {
+    final setupBloc = context.read<SetupBloc>();
+    final targetPosition = setupBloc.state.activeQueuePosition;
+
+    final currentQueue =
+        setupBloc.state.setup.queues[targetPosition] ?? const QueueSetup();
+    if (!currentQueue.groupingEnabled) {
+      setupBloc.add(
+        AddQueue(
+          targetPosition,
+          currentQueue.copyWith(
+            groupingEnabled: true,
+            groupingThreshold: 2,
+          ),
+        ),
+      );
+    }
+
+    final messages = [
+      'Hey, are you free this afternoon?',
+      'Updates on the design sprint ready.',
+      'Review moved to Friday!',
+      'Let me know if you need the deck.',
+    ];
+
+    for (var i = 0; i < messages.length; i++) {
+      final msg = messages[i];
+      Timer(Duration(milliseconds: i * 160), () {
+        setupBloc.controller.show(
+          AppNotification(
+            title: 'Alice',
+            message: msg,
+            channelName: 'chat',
+            dismissDuration: const Duration(seconds: 30),
           ),
           targetPosition: targetPosition,
         );
@@ -471,6 +520,29 @@ class _QuickFireBottomSheet extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).pop();
                     QuickFireCockpit._fireBurst(context);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(
+                    Icons.layers_outlined,
+                    size: 16,
+                  ),
+                  label: const Text(
+                    'Group 4x',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    QuickFireCockpit._fireGroupBurst(context);
                   },
                 ),
               ),

@@ -912,6 +912,89 @@ class _QueueEditorState extends State<_QueueEditor> {
                   ),
                 ),
           ),
+          const SizedBox(height: 12),
+          StudioDropdownTile<GroupCountType>(
+            label: 'GROUP COUNT STRATEGY',
+            value: setup.groupingCountType,
+            items: GroupCountType.values,
+            itemLabel: (final type) => type.label,
+            onChanged: (final type) {
+              if (type != null) {
+                context.read<SetupBloc>().add(
+                      UpdateQueue(
+                        position,
+                        setup.copyWith(groupingCountType: type),
+                      ),
+                    );
+              }
+            },
+          ),
+          if (setup.groupingCountType != GroupCountType.noCount) ...[
+            const SizedBox(height: 12),
+            StudioToggleTile(
+              label: 'COUNT BACKLOG PENDING',
+              value: setup.groupingCountIncludePending,
+              onChanged: (final v) => context.read<SetupBloc>().add(
+                    UpdateQueue(
+                      position,
+                      setup.copyWith(groupingCountIncludePending: v),
+                    ),
+                  ),
+            ),
+            const SizedBox(height: 12),
+            StudioSliderTile(
+              label: 'MAX COUNT CAP (OVERFLOW: '
+                  '${setup.groupingCountMaxCount})',
+              value: setup.groupingCountMaxCount.toDouble(),
+              min: 5,
+              max: 99,
+              divisions: 94,
+              onChanged: (final v) => context.read<SetupBloc>().add(
+                    UpdateQueue(
+                      position,
+                      setup.copyWith(groupingCountMaxCount: v.round()),
+                    ),
+                  ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _GroupCountLivePreview(setup: setup),
+          const SizedBox(height: 14),
+          StudioToggleTile(
+            label: 'PAUSE TIMERS WHEN EXPANDED',
+            value: setup.groupingPauseTimers,
+            onChanged: (final v) => context.read<SetupBloc>().add(
+                  UpdateQueue(
+                    position,
+                    setup.copyWith(groupingPauseTimers: v),
+                  ),
+                ),
+          ),
+          const SizedBox(height: 12),
+          StudioSliderTile(
+            label: 'STACK DEPTH LAYERS (${setup.groupingMaxLayers})',
+            value: setup.groupingMaxLayers.toDouble(),
+            min: 1,
+            max: 4,
+            divisions: 3,
+            onChanged: (final v) => context.read<SetupBloc>().add(
+                  UpdateQueue(
+                    position,
+                    setup.copyWith(groupingMaxLayers: v.round()),
+                  ),
+                ),
+          ),
+          const SizedBox(height: 12),
+          StudioToggleTile(
+            label: 'SWIPE DISMISS WHOLE BUNDLE',
+            value: setup.groupingSwipeDismiss,
+            onChanged: (final v) => context.read<SetupBloc>().add(
+                  UpdateQueue(
+                    position,
+                    setup.copyWith(groupingSwipeDismiss: v),
+                  ),
+                ),
+          ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(
@@ -1160,4 +1243,191 @@ void _showConfirmDeleteDialog(
       ],
     ),
   );
+}
+
+/// An interactive widget in QueueSection that renders a live preview of the
+/// group toggle pill based on current [GroupCountType] and settings.
+class _GroupCountLivePreview extends StatefulWidget {
+  const _GroupCountLivePreview({required this.setup});
+
+  final QueueSetup setup;
+
+  @override
+  State<_GroupCountLivePreview> createState() => _GroupCountLivePreviewState();
+}
+
+class _GroupCountLivePreviewState extends State<_GroupCountLivePreview> {
+  bool _simulateOverflow = false;
+
+  @override
+  Widget build(final BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final sampleTotal = _simulateOverflow ? 120 : 3;
+    final sampleHidden = sampleTotal - 1;
+
+    final countBehavior = switch (widget.setup.groupingCountType) {
+      GroupCountType.hiddenCount => HiddenCount(
+          maxCount: widget.setup.groupingCountMaxCount,
+          includePending: widget.setup.groupingCountIncludePending,
+        ),
+      GroupCountType.totalCount => TotalCount(
+          maxCount: widget.setup.groupingCountMaxCount,
+          includePending: widget.setup.groupingCountIncludePending,
+        ),
+      GroupCountType.noCount => const NoCount(),
+    };
+
+    final badgeLabel = countBehavior.format(
+      totalCount: sampleTotal,
+      hiddenCount: sampleHidden,
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark
+            ? colorScheme.surface.withValues(alpha: 0.12)
+            : colorScheme.onSurface.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: colorScheme.onSurface.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.preview_outlined,
+                size: 14,
+                color: colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'LIVE BADGE PILL PREVIEW',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                  color: colorScheme.primary,
+                ),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: () => setState(() {
+                  _simulateOverflow = !_simulateOverflow;
+                }),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _simulateOverflow
+                        ? colorScheme.primary.withValues(alpha: 0.2)
+                        : colorScheme.onSurface.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    _simulateOverflow ? '120 items (overflow)' : '3 items',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: _simulateOverflow
+                          ? colorScheme.primary
+                          : colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 5,
+              ),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: colorScheme.primary.withValues(alpha: 0.35),
+                  width: 1.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Alice',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    '  ·  ',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.textTheme.labelSmall?.color
+                          ?.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 120),
+                    child: Text(
+                      'Meeting update...',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.textTheme.labelSmall?.color
+                            ?.withValues(alpha: 0.7),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (badgeLabel != null) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        badgeLabel,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 14,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

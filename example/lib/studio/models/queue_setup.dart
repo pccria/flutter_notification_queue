@@ -4,6 +4,34 @@ import 'package:flutter/material.dart'
     show BorderRadius, EdgeInsets, EdgeInsetsGeometry;
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
+/// The count calculation and formatting strategy to apply to grouped bundles.
+enum GroupCountType {
+  /// Displays `+N` representing the additional hidden cards stacked behind
+  /// the visible representative card (e.g. `+2`).
+  hiddenCount(
+    'Hidden Count (+N)',
+    '+N (cards hidden behind representative)',
+  ),
+
+  /// Displays `N` representing the total volume of bundled items,
+  /// including the representative card (e.g. `3`).
+  totalCount(
+    'Total Count (N)',
+    'N (total items in the group bundle)',
+  ),
+
+  /// Suppresses the numerical count, rendering only the title/preview
+  /// or action label.
+  noCount(
+    'No Count',
+    'Suppresses numerical count',
+  );
+
+  const GroupCountType(this.label, this.description);
+  final String label;
+  final String description;
+}
+
 /// The immutable setup for a single [NotificationQueue].
 ///
 /// Does **not** include `position` — that's the map key in `StudioSetup`.
@@ -34,6 +62,12 @@ class QueueSetup extends Equatable {
     this.maxWidth,
     this.groupingEnabled = false,
     this.groupingThreshold = 2,
+    this.groupingCountType = GroupCountType.hiddenCount,
+    this.groupingCountMaxCount = 99,
+    this.groupingCountIncludePending = true,
+    this.groupingMaxLayers = 2,
+    this.groupingSwipeDismiss = false,
+    this.groupingPauseTimers = true,
   });
 
   // ── Style ──
@@ -71,6 +105,12 @@ class QueueSetup extends Equatable {
   // ── Grouping ──
   final bool groupingEnabled;
   final int groupingThreshold;
+  final GroupCountType groupingCountType;
+  final int groupingCountMaxCount;
+  final bool groupingCountIncludePending;
+  final int groupingMaxLayers;
+  final bool groupingSwipeDismiss;
+  final bool groupingPauseTimers;
 
   /// Whether this queue is in an invalid relocation state (Relocate behavior
   /// selected but no targets chosen). Empty targets cause library crashes.
@@ -109,6 +149,12 @@ class QueueSetup extends Equatable {
     final bool clearMaxWidth = false,
     final bool? groupingEnabled,
     final int? groupingThreshold,
+    final GroupCountType? groupingCountType,
+    final int? groupingCountMaxCount,
+    final bool? groupingCountIncludePending,
+    final int? groupingMaxLayers,
+    final bool? groupingSwipeDismiss,
+    final bool? groupingPauseTimers,
   }) =>
       QueueSetup(
         styleType: styleType ?? this.styleType,
@@ -139,6 +185,16 @@ class QueueSetup extends Equatable {
         maxWidth: clearMaxWidth ? null : (maxWidth ?? this.maxWidth),
         groupingEnabled: groupingEnabled ?? this.groupingEnabled,
         groupingThreshold: groupingThreshold ?? this.groupingThreshold,
+        groupingCountType: groupingCountType ?? this.groupingCountType,
+        groupingCountMaxCount:
+            groupingCountMaxCount ?? this.groupingCountMaxCount,
+        groupingCountIncludePending:
+            groupingCountIncludePending ?? this.groupingCountIncludePending,
+        groupingMaxLayers: groupingMaxLayers ?? this.groupingMaxLayers,
+        groupingSwipeDismiss:
+            groupingSwipeDismiss ?? this.groupingSwipeDismiss,
+        groupingPauseTimers:
+            groupingPauseTimers ?? this.groupingPauseTimers,
       );
 
   // ── Library Mapping Helpers ──
@@ -293,6 +349,20 @@ class QueueSetup extends Equatable {
         groupingBehavior: QueueGroupingBehavior(
           enabled: groupingEnabled,
           maxBeforeGrouping: groupingThreshold,
+          maxStackedLayers: groupingMaxLayers,
+          enableGroupSwipeDismiss: groupingSwipeDismiss,
+          pauseTimersWhenExpanded: groupingPauseTimers,
+          countBehavior: switch (groupingCountType) {
+            GroupCountType.hiddenCount => HiddenCount(
+                maxCount: groupingCountMaxCount,
+                includePending: groupingCountIncludePending,
+              ),
+            GroupCountType.totalCount => TotalCount(
+                maxCount: groupingCountMaxCount,
+                includePending: groupingCountIncludePending,
+              ),
+            GroupCountType.noCount => const NoCount(),
+          },
         ),
       );
 
@@ -324,5 +394,11 @@ class QueueSetup extends Equatable {
         maxWidth,
         groupingEnabled,
         groupingThreshold,
+        groupingCountType,
+        groupingCountMaxCount,
+        groupingCountIncludePending,
+        groupingMaxLayers,
+        groupingSwipeDismiss,
+        groupingPauseTimers,
       ];
 }

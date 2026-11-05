@@ -64,6 +64,30 @@ void main() {
       );
       expect(queue.longPressDragBehavior, isA<Pin>());
     });
+
+    test('toNotificationQueue maps groupingBehavior and GroupCountType', () {
+      const setup = QueueSetup(
+        groupingEnabled: true,
+        groupingThreshold: 3,
+        groupingCountType: GroupCountType.totalCount,
+        groupingCountMaxCount: 50,
+        groupingCountIncludePending: false,
+        groupingMaxLayers: 3,
+        groupingSwipeDismiss: true,
+        groupingPauseTimers: false,
+      );
+      final queue = setup.toNotificationQueue(QueuePosition.topRight);
+      final gb = queue.groupingBehavior;
+
+      expect(gb.enabled, isTrue);
+      expect(gb.maxBeforeGrouping, equals(3));
+      expect(gb.maxStackedLayers, equals(3));
+      expect(gb.enableGroupSwipeDismiss, isTrue);
+      expect(gb.pauseTimersWhenExpanded, isFalse);
+      expect(gb.countBehavior, isA<TotalCount>());
+      expect(gb.countBehavior.maxCount, equals(50));
+      expect(gb.countBehavior.includePending, isFalse);
+    });
   });
 
   group('CodeGenerator maxWidth & Behavior Snippet Tests', () {
@@ -155,6 +179,38 @@ void main() {
       );
 
       expect(codeSnippet, contains('accentColor: const Color(0xFF10B981),'));
+    });
+
+    test('generateCode emits groupingBehavior with TotalCount', () {
+      const queueSetup = QueueSetup(
+        groupingEnabled: true,
+        groupingThreshold: 3,
+        groupingCountType: GroupCountType.totalCount,
+        groupingCountMaxCount: 20,
+        groupingCountIncludePending: false,
+      );
+      const studioSetup = StudioSetup(
+        queues: {
+          QueuePosition.topRight: queueSetup,
+        },
+        channels: {},
+      );
+      const draft = NotificationDraft(
+        title: 'Group Draft',
+        message: 'Grouping message',
+        channelName: 'chat',
+      );
+
+      final codeSnippet = generateCode(
+        setup: studioSetup,
+        draft: draft,
+      );
+
+      expect(codeSnippet, contains('groupingBehavior: QueueGroupingBehavior('));
+      expect(codeSnippet, contains('maxBeforeGrouping: 3,'));
+      expect(codeSnippet, contains('TotalCount('));
+      expect(codeSnippet, contains('maxCount: 20,'));
+      expect(codeSnippet, contains('includePending: false,'));
     });
 
     test('generateCode omits maxWidth property when null', () {

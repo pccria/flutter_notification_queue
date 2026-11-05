@@ -201,8 +201,48 @@ void _writeQueue(
       '        vertical: ${q.verticalMargin},\n'
       '        horizontal: ${q.horizontalMargin},\n'
       '      ),',
-    )
-    ..writeln('    ),');
+    );
+
+  if (q.groupingEnabled) {
+    final countSnippet = switch (q.groupingCountType) {
+      GroupCountType.hiddenCount => (q.groupingCountMaxCount == 99 &&
+              q.groupingCountIncludePending)
+          ? 'const HiddenCount()'
+          : 'const HiddenCount(\n'
+              '          maxCount: ${q.groupingCountMaxCount},\n'
+              '          includePending: ${q.groupingCountIncludePending},\n'
+              '        )',
+      GroupCountType.totalCount => (q.groupingCountMaxCount == 99 &&
+              q.groupingCountIncludePending)
+          ? 'const TotalCount()'
+          : 'const TotalCount(\n'
+              '          maxCount: ${q.groupingCountMaxCount},\n'
+              '          includePending: ${q.groupingCountIncludePending},\n'
+              '        )',
+      GroupCountType.noCount => 'const NoCount()',
+    };
+
+    buf
+      ..writeln('      groupingBehavior: QueueGroupingBehavior(')
+      ..writeln('        enabled: true,');
+    if (q.groupingThreshold != 2) {
+      buf.writeln('        maxBeforeGrouping: ${q.groupingThreshold},');
+    }
+    if (q.groupingMaxLayers != 2) {
+      buf.writeln('        maxStackedLayers: ${q.groupingMaxLayers},');
+    }
+    if (q.groupingSwipeDismiss) {
+      buf.writeln('        enableGroupSwipeDismiss: true,');
+    }
+    if (!q.groupingPauseTimers) {
+      buf.writeln('        pauseTimersWhenExpanded: false,');
+    }
+    buf
+      ..writeln('        countBehavior: $countSnippet,')
+      ..writeln('      ),');
+  }
+
+  buf.writeln('    ),');
 }
 
 void _writeChannel(final StringBuffer buf, final ChannelSetup c) {
@@ -309,7 +349,8 @@ String _behaviorSnippet(final Type t, final QueueSetup q, final bool isDrag) {
   }
   if (t == ReorderAndRelocate) {
     if (q.relocateTargets.isEmpty) {
-      return 'ReorderAndRelocate.to(positions: {}) // ERROR: Relocation targets must not be empty!';
+      return 'ReorderAndRelocate.to(positions: {}) '
+          '// ERROR: Relocation targets must not be empty!';
     }
     final targets = q.relocateTargets
         .map((final p) => 'QueuePosition.${p.name}')

@@ -1,8 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
 import 'bloc/notification_bloc.dart';
 import 'bloc/studio_bloc.dart';
@@ -513,83 +512,26 @@ class _StudioBackground extends StatelessWidget {
       );
 }
 
-class _VersionBadge extends StatefulWidget {
+class _VersionBadge extends StatelessWidget {
   const _VersionBadge();
 
   @override
-  State<_VersionBadge> createState() => _VersionBadgeState();
-}
-
-class _VersionBadgeState extends State<_VersionBadge> {
-  late final Future<String?> _versionFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _versionFuture = _loadVersion();
-  }
-
-  static Future<String?> _loadVersion() async {
-    try {
-      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-      final assetKeys = manifest.listAssets();
-      for (final key in assetKeys.where(
-        (final k) => k.contains('pubspec.yaml'),
-      )) {
-        try {
-          final content = await rootBundle.loadString(key);
-          final match = RegExp(r'^version:\s*([^\s+]+)', multiLine: true)
-              .firstMatch(content);
-          if (match?.group(1) != null) {
-            return match!.group(1);
-          }
-        } on Object catch (_) {}
-      }
-    } on Object catch (_) {}
-
-    final candidates = [
-      'packages/flutter_notification_queue/pubspec.yaml',
-      '../pubspec.yaml',
-      'pubspec.yaml',
-      'assets/pubspec.yaml',
-    ];
-
-    for (final candidate in candidates) {
-      try {
-        final content = await rootBundle.loadString(candidate);
-        final match = RegExp(r'^version:\s*([^\s+]+)', multiLine: true)
-            .firstMatch(content);
-        if (match?.group(1) != null) {
-          return match!.group(1);
-        }
-      } on Object catch (_) {}
-    }
-    return null;
-  }
-
-  @override
-  Widget build(final BuildContext context) => FutureBuilder<String?>(
-        future: _versionFuture,
-        builder: (final context, final snapshot) {
-          final version = snapshot.data;
-          if (version == null || version.isEmpty) {
-            return const SizedBox.shrink();
-          }
-          return GestureDetector(
-            onTap: () => ProjectInfoDialog.show(context, version: version),
-            child: Text(
-              'v$version',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.45),
-                letterSpacing: 0.5,
-              ),
-            ),
-          );
-        },
+  Widget build(final BuildContext context) => GestureDetector(
+        onTap: () => ProjectInfoDialog.show(
+          context,
+          version: NotificationController.version,
+        ),
+        child: Text(
+          'v${NotificationController.version}',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withValues(alpha: 0.45),
+            letterSpacing: 0.5,
+          ),
+        ),
       );
 }
