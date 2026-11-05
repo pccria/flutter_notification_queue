@@ -46,6 +46,7 @@ class QueueWidgetState extends State<QueueWidget>
   }
 
   final _pendingNotifications = Queue<NotificationEntry>();
+  final Map<String, NotificationEntry> _pendingById = {};
   final List<_NotificationItemState> _items = [];
   final Map<String, _NotificationItemState> _itemById = {};
   final Set<String> _expandedGroups = {};
@@ -208,6 +209,7 @@ class QueueWidgetState extends State<QueueWidget>
         _coordinator.consumeInitializationQueue(widget.queue.position);
     for (final item in startupItems) {
       _pendingNotifications.add(item);
+      _pendingById[item.id] = item;
     }
     _sortPending();
     _processPending();
@@ -226,6 +228,8 @@ class QueueWidgetState extends State<QueueWidget>
     }
     _items.clear();
     _itemById.clear();
+    _pendingNotifications.clear();
+    _pendingById.clear();
     _invalidateSnapshot();
   }
 
@@ -248,22 +252,19 @@ class QueueWidgetState extends State<QueueWidget>
     }
 
     // 2. Update Pending (in-place)
-    bool isPendingUpdate = false;
-    final tempQueue = Queue<NotificationEntry>();
-    while (_pendingNotifications.isNotEmpty) {
-      final n = _pendingNotifications.removeFirst();
-      if (n.id == entry.id) {
-        tempQueue.add(entry);
-        isPendingUpdate = true;
-      } else {
-        tempQueue.add(n);
+    if (_pendingById.containsKey(entry.id)) {
+      _pendingById[entry.id] = entry;
+      final tempQueue = Queue<NotificationEntry>();
+      while (_pendingNotifications.isNotEmpty) {
+        final n = _pendingNotifications.removeFirst();
+        if (n.id == entry.id) {
+          tempQueue.add(entry);
+        } else {
+          tempQueue.add(n);
+        }
       }
-    }
-    _pendingNotifications.addAll(tempQueue);
-
-    _sortPending();
-
-    if (isPendingUpdate) {
+      _pendingNotifications.addAll(tempQueue);
+      _sortPending();
       return;
     }
 
@@ -282,6 +283,7 @@ class QueueWidgetState extends State<QueueWidget>
           (final item) => item.resolvedPriority == lowestPriority,
         );
         _pendingNotifications.remove(oldestOfLowest);
+        _pendingById.remove(oldestOfLowest.id);
         _coordinator
           ..unregisterEntryId(
             oldestOfLowest.id,
@@ -292,6 +294,7 @@ class QueueWidgetState extends State<QueueWidget>
             dropped: oldestOfLowest.blueprint,
           );
         _pendingNotifications.add(entry);
+        _pendingById[entry.id] = entry;
       } else {
         _coordinator
           ..unregisterEntryId(
@@ -306,6 +309,7 @@ class QueueWidgetState extends State<QueueWidget>
       }
     } else {
       _pendingNotifications.add(entry);
+      _pendingById[entry.id] = entry;
     }
     _sortPending();
     _triagePriorityEviction();
@@ -402,12 +406,20 @@ class QueueWidgetState extends State<QueueWidget>
     if (item != null) {
       _animateExit(item, reason: reason);
     } else {
-      _pendingNotifications.removeWhere(
-        (final n) => n.id == id,
-      );
-      _coordinator.unregisterEntryId(id, widget.queue.position);
-      _invalidateSnapshot();
-      _checkEmpty();
+      final pendingEntry = _pendingById.remove(id);
+      if (pendingEntry != null) {
+        _pendingNotifications.removeWhere(
+          (final n) => n.id == id,
+        );
+        _coordinator
+          ..unregisterEntryId(id, widget.queue.position)
+          ..emitDismissed(
+            notification: pendingEntry.blueprint,
+            reason: reason,
+          );
+        _invalidateSnapshot();
+        _checkEmpty();
+      }
     }
   }
 
@@ -430,11 +442,11 @@ class QueueWidgetState extends State<QueueWidget>
         _removeItemImmediate(exitingIndex, unregister: false);
         removed = true;
       } else {
-        final initialLen = _pendingNotifications.length;
-        _pendingNotifications.removeWhere(
-          (final n) => n.id == id,
-        );
-        if (_pendingNotifications.length < initialLen) {
+        final removedPending = _pendingById.remove(id);
+        if (removedPending != null) {
+          _pendingNotifications.removeWhere(
+            (final n) => n.id == id,
+          );
           _coordinator.unregisterEntryId(id, widget.queue.position);
           removed = true;
         }
@@ -473,6 +485,7 @@ class QueueWidgetState extends State<QueueWidget>
       final entry = _pendingNotifications.removeFirst();
       if (entry.resolvedGroupKey == groupKey) {
         pendingToRemove.add(entry);
+        _pendingById.remove(entry.id);
       } else {
         remainingPending.add(entry);
       }
@@ -626,6 +639,7 @@ class QueueWidgetState extends State<QueueWidget>
       if (excludeId != null && entry.id == excludeId) {
         remaining.add(entry);
       } else {
+        _pendingById.remove(entry.id);
         list.add(entry.blueprint);
       }
     }
@@ -641,8 +655,7 @@ class QueueWidgetState extends State<QueueWidget>
   /// Returns whether this queue currently contains a notification with [id],
   /// either as an active notification or waiting in the pending queue.
   bool containsId(final String id) =>
-      _itemById.containsKey(id) ||
-      _pendingNotifications.any((final n) => n.id == id);
+      _itemById.containsKey(id) || _pendingById.containsKey(id);
 
   /// The [GlobalKey]s of active notification widgets, in stack order.
   ///
@@ -668,6 +681,7 @@ class QueueWidgetState extends State<QueueWidget>
     while (_pendingNotifications.isNotEmpty &&
         _items.length + toAdd.length < limit) {
       final entry = _pendingNotifications.removeFirst();
+      _pendingById.remove(entry.id);
       final controller = AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 300),
@@ -733,8 +747,8 @@ class QueueWidgetState extends State<QueueWidget>
         if (mounted) {
           // Emit a programmatic dismiss for the evicted card so that the
           // coordinator's event stream carries the correct reason.
-          _coordinator.dismissWidget(
-            evictedWidget,
+          _coordinator.emitDismissed(
+            notification: evictedWidget,
             reason: DismissReason.evicted,
           );
           final itemIndex = _items.indexOf(lowestActiveItem!);
@@ -743,6 +757,7 @@ class QueueWidgetState extends State<QueueWidget>
           }
 
           _pendingNotifications.add(lowestActiveItem.entry);
+          _pendingById[lowestActiveItem.entry.id] = lowestActiveItem.entry;
           _sortPending();
 
           _processPending();
@@ -928,41 +943,6 @@ class QueueWidgetState extends State<QueueWidget>
     }
   }
 
-  /// Determines whether [item] is eligible to have its dismiss timer running.
-  ///
-  /// In collapsed groups, ONLY the topmost visible representative card may run
-  /// its timer. Peek cards (visible only during drag feedback) and hidden
-  /// background cards remain in strict stasis.
-  /// When expanded, timers run only if
-  /// [QueueGroupingBehavior.pauseTimersWhenExpanded] is false.
-  bool _shouldItemTimerRun(final _NotificationItemState item) {
-    if (item.status == _ItemStatus.exiting) {
-      return false;
-    }
-    if (!widget.queue.groupingBehavior.enabled) {
-      return true;
-    }
-    final key = item.widget.resolvedGroupKey;
-    final activeGroupItems = _items
-        .where(
-          (final i) =>
-              i.widget.resolvedGroupKey == key &&
-              i.status != _ItemStatus.exiting,
-        )
-        .toList();
-    if (activeGroupItems.length <
-        widget.queue.groupingBehavior.maxBeforeGrouping) {
-      return true;
-    }
-    if (_expandedGroups.contains(key)) {
-      return !widget.queue.groupingBehavior.pauseTimersWhenExpanded;
-    }
-    if (_activeDragGroupKey == key) {
-      return false;
-    }
-    return item == _groupRepresentative(activeGroupItems);
-  }
-
   /// Synchronises dismiss timers for every member of [groupKey].
   ///
   /// Called at the two precise moments when group visibility actually changes:
@@ -975,15 +955,41 @@ class QueueWidgetState extends State<QueueWidget>
     if (!widget.queue.groupingBehavior.enabled) {
       return;
     }
-    for (final item in _items) {
-      if (item.widget.resolvedGroupKey != groupKey) {
-        continue;
-      }
+    final activeGroupItems = _items
+        .where(
+          (final i) =>
+              i.widget.resolvedGroupKey == groupKey &&
+              i.status != _ItemStatus.exiting,
+        )
+        .toList();
+
+    final rep = activeGroupItems.isEmpty
+        ? null
+        : _groupRepresentative(activeGroupItems);
+    final belowGroupingThreshold = activeGroupItems.length <
+        widget.queue.groupingBehavior.maxBeforeGrouping;
+    final isExpanded = _expandedGroups.contains(groupKey);
+    final pauseWhenExpanded =
+        widget.queue.groupingBehavior.pauseTimersWhenExpanded;
+    final isDragging = _activeDragGroupKey == groupKey;
+
+    for (final item in activeGroupItems) {
       final notifState = item.widget.key.currentState;
       if (notifState == null) {
         continue;
       }
-      if (_shouldItemTimerRun(item)) {
+      final bool shouldRun;
+      if (belowGroupingThreshold) {
+        shouldRun = true;
+      } else if (isExpanded) {
+        shouldRun = !pauseWhenExpanded;
+      } else if (isDragging) {
+        shouldRun = false;
+      } else {
+        shouldRun = item == rep;
+      }
+
+      if (shouldRun) {
         if (notifState.dismissTimer == null) {
           notifState.initDismissTimer();
         }

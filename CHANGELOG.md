@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.3-dev]
+
+### Performance & Memory Hygiene
+- **O(1) Backlog Registry**: Added `_pendingById` registry in `QueueWidgetState`
+  for instant $O(1)$ pending notification lookups and deduplication, eliminating
+  redundant double-sorting and temporary queue drains on enqueue.
+- **O(1) Coordinator Resolution**: Optimized `QueueCoordinator` lookups via
+  direct positional targeting, eliminating linear queue traversals.
+- **Eviction Integrity**: Fixed priority eviction unregistration to preserve
+  position tracking when cards are re-queued into pending backlogs.
+- **Timer Allocation Reduction**: Pre-computed group item filters in
+  `_syncGroupTimers` to prevent repeated allocations in tight loops.
+
 ## [0.5.2] - 2026-11-05
 
 ### Bundled Notifications & Grouping UX
