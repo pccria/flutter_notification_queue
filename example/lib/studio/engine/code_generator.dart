@@ -205,20 +205,20 @@ void _writeQueue(
 
   if (q.groupingEnabled) {
     final countSnippet = switch (q.groupingCountType) {
-      GroupCountType.hiddenCount => (q.groupingCountMaxCount == 99 &&
-              q.groupingCountIncludePending)
-          ? 'const HiddenCount()'
-          : 'const HiddenCount(\n'
-              '          maxCount: ${q.groupingCountMaxCount},\n'
-              '          includePending: ${q.groupingCountIncludePending},\n'
-              '        )',
-      GroupCountType.totalCount => (q.groupingCountMaxCount == 99 &&
-              q.groupingCountIncludePending)
-          ? 'const TotalCount()'
-          : 'const TotalCount(\n'
-              '          maxCount: ${q.groupingCountMaxCount},\n'
-              '          includePending: ${q.groupingCountIncludePending},\n'
-              '        )',
+      GroupCountType.hiddenCount =>
+        (q.groupingCountMaxCount == 99 && q.groupingCountIncludePending)
+            ? 'const HiddenCount()'
+            : 'const HiddenCount(\n'
+                '          maxCount: ${q.groupingCountMaxCount},\n'
+                '          includePending: ${q.groupingCountIncludePending},\n'
+                '        )',
+      GroupCountType.totalCount =>
+        (q.groupingCountMaxCount == 99 && q.groupingCountIncludePending)
+            ? 'const TotalCount()'
+            : 'const TotalCount(\n'
+                '          maxCount: ${q.groupingCountMaxCount},\n'
+                '          includePending: ${q.groupingCountIncludePending},\n'
+                '        )',
       GroupCountType.noCount => 'const NoCount()',
     };
 

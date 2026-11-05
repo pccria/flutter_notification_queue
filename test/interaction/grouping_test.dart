@@ -1046,8 +1046,7 @@ void main() {
         expect(groupEvents, hasLength(1));
         expect(groupEvents.first.groupKey, 'chat');
 
-        final itemEvents =
-            events.whereType<NotificationDismissed>().toList();
+        final itemEvents = events.whereType<NotificationDismissed>().toList();
         expect(itemEvents, hasLength(5));
         for (final e in itemEvents) {
           expect(e.reason, DismissReason.programmatic);

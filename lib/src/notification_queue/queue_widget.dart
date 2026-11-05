@@ -58,8 +58,7 @@ class QueueWidgetState extends State<QueueWidget>
   }
 
   /// Global visible index of an item by its ID.
-  int visibleIndexOf(final String id) =>
-      _snapshot.visibleIndexById[id] ?? 0;
+  int visibleIndexOf(final String id) => _snapshot.visibleIndexById[id] ?? 0;
 
   /// Retrieves an active [NotificationWidget] by [id], if present.
   NotificationWidget? getNotificationWidget(final String id) =>

@@ -191,10 +191,8 @@ class QueueSetup extends Equatable {
         groupingCountIncludePending:
             groupingCountIncludePending ?? this.groupingCountIncludePending,
         groupingMaxLayers: groupingMaxLayers ?? this.groupingMaxLayers,
-        groupingSwipeDismiss:
-            groupingSwipeDismiss ?? this.groupingSwipeDismiss,
-        groupingPauseTimers:
-            groupingPauseTimers ?? this.groupingPauseTimers,
+        groupingSwipeDismiss: groupingSwipeDismiss ?? this.groupingSwipeDismiss,
+        groupingPauseTimers: groupingPauseTimers ?? this.groupingPauseTimers,
       );
 
   // ── Library Mapping Helpers ──

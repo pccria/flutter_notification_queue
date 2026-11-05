@@ -526,10 +526,8 @@ class _VersionBadge extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: Theme.of(context)
-                .colorScheme
-                .onSurface
-                .withValues(alpha: 0.45),
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
             letterSpacing: 0.5,
           ),
         ),
