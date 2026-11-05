@@ -1,6 +1,6 @@
-# API Reference (v0.5.x)
+# API Reference
 
-This document outlines the public API surface of FNQ in **v0.5.x**.
+This document outlines the public API surface of FNQ.
 
 ## Philosophy
 FNQ follows a philosophy of **Progressive Disclosure** and **Intent-First Design**. Data intent (`AppNotification`) is decoupled from spatial rendering (`NotificationQueue`) and state ownership (`NotificationController` & `NotificationScope`).

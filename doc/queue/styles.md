@@ -1,4 +1,4 @@
-# Queue Styles (v0.5.0)
+# Queue Styles
 
 A `QueueStyle` defines the **physical industrial chassis** and layout archetype for notifications within a `NotificationQueue`.
 

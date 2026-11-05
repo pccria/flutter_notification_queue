@@ -1,4 +1,4 @@
-# Channel System (v0.5.0)
+# Channel System
 
 The **Channel System** categorizes notifications by domain intent. It allows you to define global semantic themes and default queue targets for different categories of messages.
 

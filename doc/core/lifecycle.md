@@ -1,4 +1,4 @@
-# Notification Lifecycle (v0.5.x)
+# Notification Lifecycle
 
 Understanding the lifecycle of a notification from payload intent to teardown is essential for debugging, customization, and event stream observation.
 

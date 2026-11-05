@@ -1,6 +1,6 @@
 # Documentation Index
 
-Welcome to the **Flutter Notification Queue (FNQ)** documentation index. This directory contains detailed architectural guides, API breakdowns, and migration documentation for **v0.5.2**.
+Welcome to the **Flutter Notification Queue (FNQ)** documentation index. This directory contains detailed architectural guides, API breakdowns, and migration documentation.
 
 ---
 

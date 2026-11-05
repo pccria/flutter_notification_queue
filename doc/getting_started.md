@@ -10,7 +10,7 @@ Add `flutter_notification_queue` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_notification_queue: ^0.5.2
+  flutter_notification_queue: ^latest
 ```
 
 Import the package in your Dart file:
@@ -23,7 +23,7 @@ import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
 ## 2. Core Concepts
 
-FNQ v0.5.x is built around four core components:
+FNQ is built around four core components:
 
 1. **`AppNotification`**: Pure data payload describing message content, title, priority, auto-dismiss duration, and interactive actions.
 2. **`NotificationChannel`**: Logical message category (`info`, `success`, `warning`, `error`, `chat`, etc.) that governs default icons, themes (`NotificationThemeData`), priorities, and target spatial queue positions.

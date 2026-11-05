@@ -48,7 +48,7 @@ Add `flutter_notification_queue` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_notification_queue: ^0.5.2
+  flutter_notification_queue: ^latest
 ```
 
 ### 2. Initialize and Mount Scope

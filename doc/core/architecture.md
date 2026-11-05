@@ -1,4 +1,4 @@
-# Core Architecture (v0.5.x)
+# Core Architecture
 
 FNQ follows a unidirectional data flow and modular, multi-tenant architecture.
 

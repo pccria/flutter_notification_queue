@@ -1,4 +1,4 @@
-# Queue System (v0.5.0)
+# Queue System
 
 The **Queue System** determines *where* notifications appear on the screen, *how* they stack, how overflow/capacity rules behave, and how gesture intents operate.
 
