@@ -1,6 +1,6 @@
 # Documentation Index
 
-Welcome to the **Flutter Notification Queue (FNQ)** documentation index. This directory contains detailed architectural guides, API breakdowns, and migration documentation for **v0.5.0**.
+Welcome to the **Flutter Notification Queue (FNQ)** documentation index. This directory contains detailed architectural guides, API breakdowns, and migration documentation for **v0.5.2**.
 
 ---
 
@@ -10,6 +10,7 @@ Welcome to the **Flutter Notification Queue (FNQ)** documentation index. This di
 - [**Migration Guide: Upgrading to v0.5.0**](migration_v0_5.md): Comprehensive upgrade guide for v0.5.0, covering the four architectural tiers, permanent queue relocation, `NotificationThemeData`, `QueueStyle` strict ownership, and deprecated APIs.
 - [**Migration Guide (v0.3.x → v0.4.0)**](migration_v0_4.md): Step-by-step instructions for migrating from legacy static singletons to the decoupled v0.4.x architecture.
 - [**Architecture Proposal & Design Blueprint**](architecture_v0_4_proposal.md): Historical specification of multi-tenancy, state ownership, gesture intents, and event streams.
+- [**Development Roadmap & Status Board**](roadmap.md): Strategic release tracks, complexity matrix, and milestone progress toward v1.0.
 
 ---
 
@@ -30,7 +31,7 @@ Manages spatial positioning, physics, geometry, and permanent relocation.
 ### Channel System
 Categorizes notifications by domain intent and assigns semantic chromatics.
 - [**Overview**](channel/README.md): Understanding `NotificationChannel` and `NotificationThemeData`.
-- [**Standard Channels**](channel/standard_channels.md): Using the built-in channel presets.
+- [**Standard Channels**](channel/README.md#standard-channels): Using the built-in channel presets.
 
 ### Overlay & Rendering
 Handles the visual presentation of notifications on the screen.

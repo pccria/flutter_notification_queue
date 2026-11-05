@@ -1,6 +1,6 @@
-# Core Engine Overview (v0.4.x)
+# Core Engine Overview (v0.5.x)
 
-The **Core Engine** is the central nervous system of FNQ. In **v0.4.x**, it operates as a modular, testable, multi-tenant architecture decoupled from static global singletons.
+The **Core Engine** is the central nervous system of FNQ. In **v0.5.x**, it operates as a modular, testable, multi-tenant architecture decoupled from static global singletons.
 
 ## Components
 

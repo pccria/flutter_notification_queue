@@ -1,6 +1,6 @@
-# API Reference (v0.4.x)
+# API Reference (v0.5.x)
 
-This document outlines the public API surface of FNQ in **v0.4.x**.
+This document outlines the public API surface of FNQ in **v0.5.x**.
 
 ## Philosophy
 FNQ follows a philosophy of **Progressive Disclosure** and **Intent-First Design**. Data intent (`AppNotification`) is decoupled from spatial rendering (`NotificationQueue`) and state ownership (`NotificationController` & `NotificationScope`).
@@ -13,12 +13,12 @@ The primary configuration owner and state manager.
 | Method / Property | Description |
 |---|---|
 | `NotificationController(...)` | Constructor accepting `queues`, `channels`, `strictChannelLookup`, `maxHistoryEntries`, `logLevel`, `logHandlers`, `captureFlutterErrors`. |
-| `show(AppNotification)` | Enqueues a notification intent into the system. Returns the assigned `AppNotification`. |
-| `tryShow(AppNotification)` | Safely attempts to show a notification, returning `null` if rejected due to capacity limits. |
+| `show(AppNotification, {targetPosition})` | Enqueues a notification intent into the system. Returns the assigned `AppNotification`. |
+| `tryShow(AppNotification, {targetPosition})` | Safely attempts to show a notification, returning `null` if rejected due to capacity limits. |
 | `dismiss(AppNotification, {reason})` | Programmatically dismisses an active or queued notification. |
 | `dismissAll({reason})` | Dismisses all active notifications across all queues. |
-| `dismissGroup(groupKey, {reason})` | Dismisses all notifications in a specific group deck. |
-| `events` | `Stream<NotificationEvent>` emitting real-time lifecycle events (`Queued`, `Shown`, `Dismissed`, `Snoozed`, `Relocated`). |
+| `dismissGroup(groupKey, {reason})` | Dismisses all notifications in a specific group deck and purges backlog. |
+| `events` | `Stream<NotificationEvent>` emitting real-time lifecycle events (`NotificationQueued`, `NotificationDismissed`, `NotificationTapped`, `NotificationRelocated`, `NotificationReordered`, `QueueOverflowed`, `NotificationSnoozed`, `NotificationPinned`, `NotificationGroupExpanded`, `QueuePositionRelocated`). |
 | `dispose()` | Disposes controller, cancels timers, and closes event stream. |
 
 ### 2. NotificationScope
@@ -40,7 +40,7 @@ Immutable data payload intent.
 | `channelName` | Target channel identifier (e.g. `'info'`, `'success'`, `'error'`). |
 | `priority` | Priority tier for triage preemption (`low`, `normal`, `high`, `critical`). |
 | `action` | Interactive button action (`NotificationAction.button(...)`). |
-| `tapBehavior` | Primary card tap intent (`DismissOnTap`, `ExecuteActionOnTap`, `ExpandOnTap`, `CustomTap`). |
+| `tapBehavior` | Primary card tap intent (`TapToDismiss`, `TapToAct`, `TapToExpand`, `TapDisabled`). |
 
 ### 4. NotificationQueue & Layout Configuration
 Declarative configuration objects for spatial layout and stacking behavior.
@@ -48,9 +48,10 @@ Declarative configuration objects for spatial layout and stacking behavior.
 | Property | Description |
 |---|---|
 | `position` | `QueuePosition` target (`topRight`, `topLeft`, `bottomCenter`, etc.). |
-| `style` | Stacking visual template (`StackedQueueStyle`, `FlatQueueStyle`, `OutlinedQueueStyle`). |
+| `style` | Stacking visual chassis (`FilledQueueStyle`, `OutlinedQueueStyle`, `FlatQueueStyle`). |
 | `dragBehavior` | Gesture interaction strategy (`Dismiss`, `Reorder`, `Relocate`, `ReorderAndRelocate`). |
-| `groupingBehavior` | Grouping deck rules (`QueueGroupingBehavior`). |
+| `groupingBehavior` | Grouping deck rules (`QueueGroupingBehavior`, `GroupCountBehavior`). |
+| `permanentRelocation` | Permanent redirection target (`QueuePosition?`) rerouting all traffic. |
 | `maxStackSize` | Maximum concurrent notifications allowed in queue stack. |
 
 ### 5. NotificationChannel
@@ -59,9 +60,9 @@ Semantic category definitions for notifications.
 | Property | Description |
 |---|---|
 | `name` | Unique channel identifier string (e.g., `'success'`). |
-| `defaultColor` | Base visual theme color. |
+| `theme` | Semantic visual styling via `NotificationThemeData` (`color`, typography, icon theme). |
 | `defaultIcon` | Default icon widget. |
-| `position` | Target `QueuePosition` for notifications routed through this channel. |
+| `position` | Default target `QueuePosition` for notifications routed through this channel. |
 
 ## Internal Components (Engine Architecture)
 

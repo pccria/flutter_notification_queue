@@ -10,7 +10,7 @@ Add `flutter_notification_queue` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_notification_queue: ^0.4.0
+  flutter_notification_queue: ^0.5.2
 ```
 
 Import the package in your Dart file:
@@ -23,10 +23,10 @@ import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
 ## 2. Core Concepts
 
-FNQ v0.4.x is built around four core components:
+FNQ v0.5.x is built around four core components:
 
 1. **`AppNotification`**: Pure data payload describing message content, title, priority, auto-dismiss duration, and interactive actions.
-2. **`NotificationChannel`**: Logical message category (`info`, `success`, `warning`, `error`, `chat`, etc.) that governs default icons, colors, priorities, and target spatial queue positions.
+2. **`NotificationChannel`**: Logical message category (`info`, `success`, `warning`, `error`, `chat`, etc.) that governs default icons, themes (`NotificationThemeData`), priorities, and target spatial queue positions.
 3. **`NotificationQueue`**: Spatial layout container bound to a `QueuePosition` (e.g. `topRight`, `bottomCenter`). Governs stack limits, physics, overflow strategies, drag gestures, and grouping decks.
 4. **`NotificationController` & `NotificationScope`**: State management handle and widget-tree overlay injector. Manages state lifecycle, contextless/context-aware dispatching, event observation, and historical logging.
 
@@ -44,7 +44,9 @@ final notificationController = NotificationController(
     const NotificationQueue(
       position: QueuePosition.topRight,
       maxStackSize: 3,
-      style: StackedQueueStyle(),
+      style: FilledQueueStyle(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     const NotificationQueue(
       position: QueuePosition.bottomCenter,
@@ -56,7 +58,7 @@ final notificationController = NotificationController(
     const NotificationChannel(
       name: 'orders',
       position: QueuePosition.topRight,
-      defaultColor: Colors.teal,
+      theme: NotificationThemeData(color: Colors.teal),
       defaultIcon: Icon(Icons.local_shipping),
     ),
   },
@@ -157,12 +159,16 @@ Listen to the `controller.events` stream to observe notification lifecycle event
 ```dart
 final subscription = controller.events.listen((NotificationEvent event) {
   switch (event) {
-    case NotificationQueued():
-      print('Notification queued: ${event.notification.id}');
-    case NotificationShown():
-      print('Notification shown: ${event.notification.id}');
-    case NotificationDismissed():
-      print('Notification dismissed (${event.reason}): ${event.notification.id}');
+    case NotificationQueued(:final notification):
+      print('Notification queued: ${notification.id}');
+    case NotificationDismissed(:final notification, :final reason):
+      print('Notification dismissed (${reason.name}): ${notification.id}');
+    case NotificationTapped(:final notification, :final behavior):
+      print('Notification tapped: ${notification.id} (behavior: ${behavior.runtimeType})');
+    case NotificationRelocated(:final notification, :final from, :final to):
+      print('Notification relocated: ${notification.id} from ${from.name} to ${to.name}');
+    case QueueOverflowed(:final queue, :final dropped):
+      print('Queue ${queue.position.name} overflowed, dropped: ${dropped.id}');
     default:
       break;
   }

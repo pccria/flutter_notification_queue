@@ -1,4 +1,4 @@
-# Notification Overlay (v0.4.x)
+# Notification Overlay (v0.5.x)
 
 The **Notification Overlay** is the visual rendering surface that sits above application content to host spatial notification queues.
 
@@ -13,7 +13,7 @@ FNQ uses Flutter's modern `OverlayPortal` primitive for overlay rendering:
 
 ### Recommended Setup (`NotificationScope` in `MaterialApp.builder`)
 
-In **v0.4.x**, the notification overlay is attached using `NotificationScope` inside `MaterialApp.builder` (or `CupertinoApp.builder`):
+In **v0.5.x**, the notification overlay is attached using `NotificationScope` inside `MaterialApp.builder` (or `CupertinoApp.builder`):
 
 ```dart
 MaterialApp(

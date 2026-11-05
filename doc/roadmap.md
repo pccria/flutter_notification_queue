@@ -1,8 +1,8 @@
 # FNQ Unified Development Roadmap & Tracking Board
 
-> **Current Version**: 0.5.0  
+> **Current Version**: 0.5.2  
 > **Strategic Focus**: Code Quality, Performance, Resource Safety & Architecture Hardening towards v1.0.  
-> **Baseline Quality**: `dart analyze` — 0 issues | `flutter test` — 231/231 passing.
+> **Baseline Quality**: `flutter analyze --fatal-warnings` — 0 issues | `flutter test` — 257/257 passing.
 
 ---
 
@@ -10,23 +10,26 @@
 
 ```mermaid
 graph LR
-    A["v0.5.0<br/>Stability Foundation<br/>(✅ Completed)"] --> B["v0.5.1<br/>Performance Polish<br/>(🟡 Next Up)"]
-    B --> C["v0.6.0<br/>Architecture & Modularity<br/>(🔵 Scheduled)"]
-    C --> D["v0.6.x<br/>Platform & CI Hardening<br/>(🟢 Scheduled)"]
-    D --> E["v1.0.0<br/>Production Ready GA<br/>(🎯 Target)"]
+    A["v0.5.0<br/>Stability Foundation<br/>(✅ Completed)"] --> B["v0.5.1<br/>Account Migration<br/>(✅ Completed)"]
+    B --> C["v0.5.2<br/>Grouping UX & Perf<br/>(✅ Completed)"]
+    C --> D["v0.6.0<br/>Architecture & Modularity<br/>(🟡 Next Up)"]
+    D --> E["v0.6.x<br/>Platform & CI Hardening<br/>(🔵 Scheduled)"]
+    E --> F["v1.0.0<br/>Production Ready GA<br/>(🎯 Target)"]
 
     style A fill:#2ecc71,color:#fff
-    style B fill:#f39c12,color:#fff
-    style C fill:#3498db,color:#fff
-    style D fill:#9b59b6,color:#fff
-    style E fill:#e74c3c,color:#fff
+    style B fill:#2ecc71,color:#fff
+    style C fill:#2ecc71,color:#fff
+    style D fill:#f39c12,color:#fff
+    style E fill:#3498db,color:#fff
+    style F fill:#e74c3c,color:#fff
 ```
 
 | Release | Focus / Theme | Status | Key Deliverables |
 |---|---|---|---|
 | **v0.5.0** | **Stability Foundation** | ✅ Completed | Snooze timer cleanup, idempotent disposal, error handler chaining, single source-of-truth pinning, golden test tolerance. |
-| **v0.5.1** | **Performance Polish** | 📅 Next Up | O(1) notification lookups, memoized item partitioning, lazy queue evaluations, `PlatformDispatcher.implicitView` modernizations. |
-| **v0.6.0** | **Architecture & Encapsulation** | 📅 Scheduled | Decompose `notification.dart` monolith, extract theme & interaction modules, DRY coordinator resolution mixin, configuration immutability. |
+| **v0.5.1** | **Account Migration** | ✅ Completed | Repository, homepage, documentation, and tooling links migrated to `pccria`. |
+| **v0.5.2** | **Grouping UX & Performance** | ✅ Completed | `GroupCountBehavior` hierarchy, peek card timer stasis, drag auto-dismiss suspension, atomic bundle dismiss, `CurvedAnimation` leak fixes, relocation safety. |
+| **v0.6.0** | **Architecture & Encapsulation** | 📅 Next Up | Decompose `notification.dart` monolith, extract theme & interaction modules, DRY coordinator resolution mixin, configuration immutability. |
 | **v0.6.x** | **Platform & CI Hardening** | 📅 Scheduled | Accessibility / FocusNode traversal, desktop right-click context menu, CI golden matrix, documentation audits. |
 | **v1.0.0** | **Production GA** | 🎯 Target | Public API freeze, 100% test coverage on critical paths, full multi-window support, zero memory leaks. |
 
@@ -66,15 +69,17 @@ Complexity Tiers:
 
 ---
 
-### Track 2: Release 0.5.1 — Performance Polish (Next Up ⚡)
+### Track 2: Release 0.5.2 — Grouping UX & Performance Polish (Completed ✅)
 
 | ID | Task Description | Priority | Complexity | Status | Target Files |
 |---|---|---|---|---|---|
-| **P-01** | Implement `_activeById` index map for O(1) notification lookup by ID | 🟡 P1 | 🟡 Medium | 📅 Pending | `lib/src/core/queue_coordinator.dart` |
-| **P-02** | Memoize `_partitionItems()` in queue widget; invalidate on item count changes | 🟡 P1 | 🟢 Low | 📅 Pending | `lib/src/notification_queue/queue_widget.dart` |
-| **P-03** | Replace deprecated `PlatformDispatcher.implicitView` with context-aware `View.of` | 🟡 P1 | 🟢 Low | 📅 Pending | `lib/src/core/notification_overlay.dart` |
-| **P-04** | Optimize `activeNotifications` getter to avoid redundant list allocations | 🟢 P2 | 🟢 Low | 📅 Pending | `lib/src/core/queue_coordinator.dart` |
-| **P-05** | Lazy-evaluate `_visibleItems` instead of recomputing on every state access | 🟢 P2 | 🟢 Low | 📅 Pending | `lib/src/notification_queue/queue_widget.dart` |
+| **G-01** | Configurable group count API (`GroupCountBehavior`: `HiddenCount`, `TotalCount`, `NoCount`, `CustomCount`) | 🔴 P0 | 🟡 Medium | ✅ Completed | `lib/src/notification_queue/group_count_behavior.dart`, `queue_grouping_behavior.dart` |
+| **G-02** | Peek card timer stasis & drag auto-dismiss suspension on representative cards | 🔴 P0 | 🟡 Medium | ✅ Completed | `draggable_transitions.dart`, `queue_group_widget.dart` |
+| **G-03** | Atomic whole-bundle dismiss & backlog purging | 🔴 P0 | 🟡 Medium | ✅ Completed | `lib/src/core/queue_coordinator.dart`, `queue_group_widget.dart` |
+| **P-01** | CurvedAnimation ticker leak prevention across drag snap-back & collapse | 🔴 P0 | 🟢 Low | ✅ Completed | `draggable_transitions.dart`, `queue_group_widget.dart` |
+| **P-02** | Relocation mapping integrity & duplicate GlobalKey collision hardening | 🟡 P1 | 🟢 Low | ✅ Completed | `lib/src/core/queue_coordinator.dart` |
+| **P-03** | Context-aware `View.maybeOf(context)` multi-window modernization | 🟡 P1 | 🟢 Low | ✅ Completed | `lib/src/core/notification_overlay.dart` |
+| **P-04** | Reorder 120Hz smoothness with memoized layout snapshots | 🟡 P1 | 🟢 Low | ✅ Completed | `lib/src/notification_queue/queue_widget.dart` |
 
 ---
 
@@ -159,6 +164,8 @@ Complexity Tiers:
 
 | Release | Date | Highlights | Key Files Modified |
 |---|---|---|---|
+| **v0.5.2** | 2026-11-05 | **Grouping UX & Performance Polish**: Introduced `GroupCountBehavior` hierarchy (`HiddenCount`, `TotalCount`, `NoCount`, `CustomCount`); peek card timer stasis & drag auto-dismiss suspension; expanded bundle timer pause; atomic bundle dismiss & backlog purging; `CurvedAnimation` leak fixes; duplicate GlobalKey collision hardening; coordinator tracking cleanup; reorder 120Hz smooth memoized snapshots. | `lib/src/notification_queue/`, `lib/src/core/queue_coordinator.dart`, `example/` |
+| **v0.5.1** | 2026-10-27 | **Account Migration**: Updated repository, homepage, demo URL, and documentation links for account migration to `pccria`. | `pubspec.yaml`, `README.md`, `doc/` |
 | **v0.5.0** | 2026-10-12 | **Stability Foundation**: Snooze timer lifecycle tracking & leak prevention; idempotent `dispose()` on `NotificationController` and `QueueCoordinator`; non-destructive `FlutterError.onError` handler chaining; single source-of-truth `isPinnedNotifier` state binding; tolerant golden comparator (0.5% threshold); resolved all source TODOs; added lifecycle & chaining test suite. | `lib/src/core/queue_coordinator.dart`, `lib/src/core/notification_controller.dart`, `lib/src/core/notification_entry.dart`, `test/golden/visual_regression_test.dart`, `test/src/core/` |
 | **v0.4.1** | 2026-09-12 | **Studio Web Release Fix**: Fixed minified type name display in Studio web configurator. | `example/` |
 | **v0.4.0** | 2026-08-30 | **Zero Deprecated Surface & Pure Architecture**: Complete removal of legacy static singletons (`FlutterNotificationQueue`), deprecated `FnqEvent` typedefs, and legacy action factories. Standardized 100% on `NotificationController`, `NotificationScope`, and `AppNotification`. | `lib/flutter_notification_queue.dart`, `lib/src/core/` |
