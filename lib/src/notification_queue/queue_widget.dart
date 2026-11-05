@@ -1,5 +1,19 @@
 part of 'notification_queue.dart';
 
+class _QueueLayoutSnapshot {
+  const _QueueLayoutSnapshot({
+    required this.visibleItems,
+    required this.visibleIndexById,
+    required this.itemGlobalKeys,
+    required this.blocks,
+  });
+
+  final List<_NotificationItemState> visibleItems;
+  final Map<String, int> visibleIndexById;
+  final List<GlobalKey> itemGlobalKeys;
+  final List<_QueueRenderBlock> blocks;
+}
+
 class QueueWidget extends StatefulWidget {
   const QueueWidget({
     required this.queue,
@@ -33,7 +47,60 @@ class QueueWidgetState extends State<QueueWidget>
 
   final _pendingNotifications = Queue<NotificationEntry>();
   final List<_NotificationItemState> _items = [];
+  final Map<String, _NotificationItemState> _itemById = {};
   final Set<String> _expandedGroups = {};
+
+  _QueueLayoutSnapshot? _cachedSnapshot;
+  _QueueLayoutSnapshot get _snapshot => _cachedSnapshot ??= _computeSnapshot();
+
+  void _invalidateSnapshot() {
+    _cachedSnapshot = null;
+  }
+
+  /// Global visible index of an item by its ID.
+  int visibleIndexOf(final String id) =>
+      _snapshot.visibleIndexById[id] ?? 0;
+
+  /// Retrieves an active [NotificationWidget] by [id], if present.
+  NotificationWidget? getNotificationWidget(final String id) =>
+      _itemById[id]?.widget;
+
+  /// The newest active notification in this queue.
+  NotificationWidget? get newestActiveNotification {
+    NotificationWidget? newest;
+    for (final item in _items) {
+      if (item.status != _ItemStatus.exiting) {
+        if (newest == null || item.widget.createdAt.isAfter(newest.createdAt)) {
+          newest = item.widget;
+        }
+      }
+    }
+    return newest;
+  }
+
+  /// Returns whether this queue contains any active notifications
+  /// for [groupKey].
+  bool hasActiveGroup(final String groupKey) {
+    for (final item in _items) {
+      if (item.status != _ItemStatus.exiting &&
+          item.widget.resolvedGroupKey == groupKey) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Returns the number of un-rendered notifications currently queued in the
+  /// pending backlog that share [groupKey].
+  int countPendingForGroup(final String groupKey) {
+    int count = 0;
+    for (final entry in _pendingNotifications) {
+      if (entry.resolvedGroupKey == groupKey) {
+        count++;
+      }
+    }
+    return count;
+  }
 
   /// The resolved group key of the group whose representative is currently
   /// being dragged. While non-null, the item immediately behind the
@@ -46,45 +113,43 @@ class QueueWidgetState extends State<QueueWidget>
     if (_activeDragGroupKey == key) {
       return;
     }
+    final previousKey = _activeDragGroupKey;
     setState(() => _activeDragGroupKey = key);
+    _invalidateSnapshot();
+    if (previousKey != null && previousKey != key) {
+      _syncGroupTimers(previousKey);
+    }
     if (key != null) {
       _syncGroupTimers(key);
     }
   }
 
-  List<_NotificationItemState> get _visibleItems =>
-      _items.where(_isItemVisible).toList();
+  List<_NotificationItemState> get _visibleItems => _snapshot.visibleItems;
 
   /// Key attached to the inner Column to measure the queue's exact visual
   /// bounds.
   final GlobalKey _listKey = GlobalKey();
 
-  final ValueNotifier<int?> _dragTargetIndexNotifier =
-      ValueNotifier<int?>(null);
-  int? _draggedItemOriginIndex;
+  final ValueNotifier<({int origin, int target})?> _reorderDragState =
+      ValueNotifier(null);
 
   void startDragReorder(final String itemId, final int originIndex) {
-    _draggedItemOriginIndex = originIndex;
-    _dragTargetIndexNotifier.value = originIndex;
-    setState(() {});
+    _reorderDragState.value = (origin: originIndex, target: originIndex);
   }
 
   void updateDragTarget(final int targetIndex) {
-    if (_dragTargetIndexNotifier.value != targetIndex) {
-      _dragTargetIndexNotifier.value = targetIndex;
+    final current = _reorderDragState.value;
+    if (current != null && current.target != targetIndex) {
+      _reorderDragState.value = (origin: current.origin, target: targetIndex);
     }
   }
 
   void clearDragTarget() {
-    if (_dragTargetIndexNotifier.value != null) {
-      _dragTargetIndexNotifier.value = null;
-    }
+    _reorderDragState.value = null;
   }
 
   void endDragReorder() {
-    _draggedItemOriginIndex = null;
-    _dragTargetIndexNotifier.value = null;
-    setState(() {});
+    _reorderDragState.value = null;
   }
 
   double _getItemHeight(final int visibleIndex) {
@@ -100,9 +165,8 @@ class QueueWidgetState extends State<QueueWidget>
     return 80.0;
   }
 
-  double getTranslationY(final int i, final int? target) {
-    final origin = _draggedItemOriginIndex;
-    if (origin == null || target == null || origin == target) {
+  double getTranslationY(final int i, final int origin, final int target) {
+    if (origin == target) {
       return 0.0;
     }
 
@@ -162,21 +226,24 @@ class QueueWidgetState extends State<QueueWidget>
       } on Object catch (_) {}
     }
     _items.clear();
+    _itemById.clear();
+    _invalidateSnapshot();
   }
 
   @override
   void dispose() {
-    _dragTargetIndexNotifier.dispose();
+    _reorderDragState.dispose();
     ditchAllDismissTimers();
     super.dispose();
   }
 
   void enqueue(final NotificationEntry entry) {
     // 1. Update Existing Active
-    final existingIndex = _indexOf(entry.id);
-    if (existingIndex != -1) {
+    final existingItem = _itemById[entry.id];
+    if (existingItem != null) {
       setState(() {
-        _items[existingIndex].entry = entry;
+        existingItem.entry = entry;
+        _invalidateSnapshot();
       });
       return;
     }
@@ -216,16 +283,26 @@ class QueueWidgetState extends State<QueueWidget>
           (final item) => item.resolvedPriority == lowestPriority,
         );
         _pendingNotifications.remove(oldestOfLowest);
-        _coordinator.emitOverflowed(
-          queue: widget.queue,
-          dropped: oldestOfLowest.blueprint,
-        );
+        _coordinator
+          ..unregisterEntryId(
+            oldestOfLowest.id,
+            widget.queue.position,
+          )
+          ..emitOverflowed(
+            queue: widget.queue,
+            dropped: oldestOfLowest.blueprint,
+          );
         _pendingNotifications.add(entry);
       } else {
-        _coordinator.emitOverflowed(
-          queue: widget.queue,
-          dropped: entry.blueprint,
-        );
+        _coordinator
+          ..unregisterEntryId(
+            entry.id,
+            widget.queue.position,
+          )
+          ..emitOverflowed(
+            queue: widget.queue,
+            dropped: entry.blueprint,
+          );
         return;
       }
     } else {
@@ -234,6 +311,9 @@ class QueueWidgetState extends State<QueueWidget>
     _sortPending();
     _triagePriorityEviction();
     _processPending();
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   /// Returns true when [item] is the "peek card" — the card rendered
@@ -312,35 +392,58 @@ class QueueWidgetState extends State<QueueWidget>
     final NotificationWidget notification, {
     final DismissReason reason = DismissReason.programmatic,
   }) {
-    final index = _indexOf(notification.id);
-    if (index != -1) {
-      _animateExit(_items[index], reason: reason);
+    dismissById(notification.id, reason: reason);
+  }
+
+  void dismissById(
+    final String id, {
+    final DismissReason reason = DismissReason.programmatic,
+  }) {
+    final item = _itemById[id];
+    if (item != null) {
+      _animateExit(item, reason: reason);
     } else {
       _pendingNotifications.removeWhere(
-        (final n) => n.id == notification.id,
+        (final n) => n.id == id,
       );
+      _coordinator.unregisterEntryId(id, widget.queue.position);
+      _invalidateSnapshot();
       _checkEmpty();
     }
   }
 
-  bool remove(final NotificationWidget notification) {
-    bool removed = false;
-    final index = _indexOf(notification.id);
+  bool remove(final NotificationWidget notification) =>
+      removeById(notification.id);
 
-    if (index != -1) {
-      _removeItemImmediate(index);
-      removed = true;
-    } else {
-      final initialLen = _pendingNotifications.length;
-      _pendingNotifications.removeWhere(
-        (final n) => n.id == notification.id,
-      );
-      if (_pendingNotifications.length < initialLen) {
+  bool removeById(final String id) {
+    bool removed = false;
+    final item = _itemById[id];
+
+    if (item != null) {
+      final index = _items.indexOf(item);
+      if (index != -1) {
+        _removeItemImmediate(index);
         removed = true;
+      }
+    } else {
+      final exitingIndex = _items.indexWhere((final i) => i.widget.id == id);
+      if (exitingIndex != -1) {
+        _removeItemImmediate(exitingIndex, unregister: false);
+        removed = true;
+      } else {
+        final initialLen = _pendingNotifications.length;
+        _pendingNotifications.removeWhere(
+          (final n) => n.id == id,
+        );
+        if (_pendingNotifications.length < initialLen) {
+          _coordinator.unregisterEntryId(id, widget.queue.position);
+          removed = true;
+        }
       }
     }
 
     if (removed) {
+      _invalidateSnapshot();
       _processPending();
       _checkEmpty();
     }
@@ -351,22 +454,98 @@ class QueueWidgetState extends State<QueueWidget>
   /// Dismisses every notification that shares [groupKey] with an animated
   /// exit, regardless of collapsed/expanded state.
   ///
-  /// This is the correct way to bulk-remove a bundle. Individual
+  /// This is the correct way to bulk-remove a bundle. Both active and
+  /// pending backlog members are atomically purged. Individual
   /// [dismiss] calls only ever remove a single card.
   void dismissGroup(
     final String groupKey, {
     final DismissReason reason = DismissReason.programmatic,
-    final bool isGroupDismissal = false,
+    final bool isGroupDismissal = true,
+    final String? swipedRepresentativeId,
   }) {
+    final isSwipe = reason == DismissReason.userSwipe;
+    final isGroup = isGroupDismissal || isSwipe;
+
+    // 1. Atomically purge matching backlog items before any active cards exit
+    // so _processPending cannot promote next group members into empty slots.
+    final pendingToRemove = <NotificationEntry>[];
+    final remainingPending = Queue<NotificationEntry>();
+    while (_pendingNotifications.isNotEmpty) {
+      final entry = _pendingNotifications.removeFirst();
+      if (entry.resolvedGroupKey == groupKey) {
+        pendingToRemove.add(entry);
+      } else {
+        remainingPending.add(entry);
+      }
+    }
+    _pendingNotifications.addAll(remainingPending);
+
+    for (final pending in pendingToRemove) {
+      _coordinator
+        ..unregisterEntryId(pending.id, widget.queue.position)
+        ..emitDismissed(
+          notification: pending.blueprint,
+          reason: reason,
+        );
+    }
+
+    // 2. Identify active group items.
     final groupItems = _items
         .where((final i) => i.widget.resolvedGroupKey == groupKey)
         .toList();
+
+    for (final item in groupItems) {
+      if (item.widget.id != swipedRepresentativeId) {
+        _coordinator.emitDismissed(
+          notification: item.widget,
+          reason: reason,
+        );
+      }
+    }
+
+    final isCollapsed = !_expandedGroups.contains(groupKey);
+
+    if (isGroup && isCollapsed) {
+      // For collapsed whole-bundle dismissals (e.g. bundle swipe), all cards
+      // in the bundle exit atomically in a single frame without intermediate
+      // promotion or representative swapping.
+      setState(() {
+        for (final item in groupItems) {
+          item.status = _ItemStatus.exiting;
+          _items.remove(item);
+          _itemById.remove(item.widget.id);
+          _coordinator.unregisterEntryId(
+            item.widget.id,
+            widget.queue.position,
+          );
+          item.controller.dispose();
+        }
+        if (_activeDragGroupKey == groupKey) {
+          _activeDragGroupKey = null;
+        }
+        _invalidateSnapshot();
+      });
+      _syncGroupTimers(groupKey);
+      _pruneExpandedGroup(groupKey);
+      _processPending();
+      _checkEmpty();
+      return;
+    }
+
+    // Otherwise (expanded group or individual programmatic collapse),
+    // animate exit for each member.
     for (final item in groupItems) {
       _animateExit(
         item,
         reason: reason,
-        isGroupDismissal: isGroupDismissal || reason == DismissReason.userSwipe,
+        isGroupDismissal: isGroup,
       );
+    }
+
+    if (groupItems.isEmpty && pendingToRemove.isNotEmpty) {
+      setState(() => _invalidateSnapshot());
+      _processPending();
+      _checkEmpty();
     }
   }
 
@@ -420,11 +599,12 @@ class QueueWidgetState extends State<QueueWidget>
 
         _items.insert(absoluteInsertIndex, item);
       }
+      _invalidateSnapshot();
     });
   }
 
   /// The number of currently active (non-pending) notifications.
-  int get itemCount => _visibleItems.length;
+  int get itemCount => _snapshot.visibleItems.length;
 
   /// The list of currently active notifications in this queue.
   List<NotificationWidget> get activeNotifications =>
@@ -456,20 +636,20 @@ class QueueWidgetState extends State<QueueWidget>
   }
 
   /// The active-list index of [notification], or -1 if not found.
-  int indexOf(final NotificationWidget notification) => _visibleItems
-      .indexWhere((final item) => item.widget.id == notification.id);
+  int indexOf(final NotificationWidget notification) =>
+      _snapshot.visibleIndexById[notification.id] ?? -1;
 
   /// Returns whether this queue currently contains a notification with [id],
   /// either as an active notification or waiting in the pending queue.
   bool containsId(final String id) =>
-      _indexOf(id) != -1 || _pendingNotifications.any((final n) => n.id == id);
+      _itemById.containsKey(id) ||
+      _pendingNotifications.any((final n) => n.id == id);
 
   /// The [GlobalKey]s of active notification widgets, in stack order.
   ///
   /// Used by the reorder feedback layer to query each notification's
   /// [RenderBox] position for slot anchor computation.
-  List<GlobalKey> get itemGlobalKeys =>
-      _visibleItems.map((final item) => item.globalKey).toList();
+  List<GlobalKey> get itemGlobalKeys => _snapshot.itemGlobalKeys;
 
   /// The [RenderBox] of the inner column containing the notifications.
   ///
@@ -494,17 +674,18 @@ class QueueWidgetState extends State<QueueWidget>
         duration: const Duration(milliseconds: 300),
         reverseDuration: const Duration(milliseconds: 200),
       );
-      toAdd.add(
-        _NotificationItemState(
-          entry: entry,
-          controller: controller,
-        ),
+      final itemState = _NotificationItemState(
+        entry: entry,
+        controller: controller,
       );
+      toAdd.add(itemState);
+      _itemById[entry.id] = itemState;
     }
 
     if (toAdd.isNotEmpty) {
       setState(() {
         _items.addAll(toAdd);
+        _invalidateSnapshot();
       });
       for (final item in toAdd) {
         item.controller.forward();
@@ -547,6 +728,8 @@ class QueueWidgetState extends State<QueueWidget>
             lowestActiveItem.widget.resolvedPriority) {
       final evictedWidget = lowestActiveItem.widget;
       lowestActiveItem.status = _ItemStatus.exiting;
+      _itemById.remove(evictedWidget.id);
+      _invalidateSnapshot();
       lowestActiveItem.controller.reverse().then((final _) {
         if (mounted) {
           // Emit a programmatic dismiss for the evicted card so that the
@@ -557,7 +740,7 @@ class QueueWidgetState extends State<QueueWidget>
           );
           final itemIndex = _items.indexOf(lowestActiveItem!);
           if (itemIndex != -1) {
-            _removeItemImmediate(itemIndex);
+            _removeItemImmediate(itemIndex, unregister: false);
           }
 
           _pendingNotifications.add(lowestActiveItem.entry);
@@ -591,7 +774,16 @@ class QueueWidgetState extends State<QueueWidget>
         isCollapsed &&
         groupingBehavior.enableGroupSwipeDismiss &&
         reason == DismissReason.userSwipe) {
-      dismissGroup(groupKey, reason: reason, isGroupDismissal: true);
+      _coordinator.emitGroupDismissed(
+        groupKey: groupKey,
+        position: widget.queue.position,
+      );
+      dismissGroup(
+        groupKey,
+        reason: reason,
+        isGroupDismissal: true,
+        swipedRepresentativeId: item.widget.id,
+      );
       return;
     }
 
@@ -614,6 +806,12 @@ class QueueWidgetState extends State<QueueWidget>
         final index = _items.indexOf(item);
         if (index != -1) {
           _items.removeAt(index);
+          _itemById.remove(item.widget.id);
+          _coordinator.unregisterEntryId(
+            item.widget.id,
+            widget.queue.position,
+          );
+          _invalidateSnapshot();
           item.controller.dispose();
         }
         // Clear the drag peek — the representative is gone.
@@ -622,13 +820,16 @@ class QueueWidgetState extends State<QueueWidget>
         }
         // Stamp a fresh entrance key on the new representative so its
         // micro-animation re-triggers (UX-02).
-        final activeItems = _items.where(
-          (final i) =>
-              i.widget.resolvedGroupKey == groupKey &&
-              i.status != _ItemStatus.exiting,
-        );
-        if (activeItems.isNotEmpty) {
-          _groupRepresentative(activeItems.toList()).entranceKey = UniqueKey();
+        if (!isGroupDismissal) {
+          final activeItems = _items.where(
+            (final i) =>
+                i.widget.resolvedGroupKey == groupKey &&
+                i.status != _ItemStatus.exiting,
+          );
+          if (activeItems.isNotEmpty) {
+            _groupRepresentative(activeItems.toList()).entranceKey =
+                UniqueKey();
+          }
         }
       });
       _syncGroupTimers(groupKey);
@@ -640,10 +841,16 @@ class QueueWidgetState extends State<QueueWidget>
 
     // ── All other cases: normal size-collapse animation ───────────────────
     item.status = _ItemStatus.exiting;
+    _itemById.remove(item.widget.id);
+    _coordinator.unregisterEntryId(item.widget.id, widget.queue.position);
+    _invalidateSnapshot();
     _syncGroupTimers(groupKey);
     item.controller.reverse().then((final _) {
       if (mounted) {
-        _removeItemImmediate(_items.indexOf(item));
+        final idx = _items.indexOf(item);
+        if (idx != -1) {
+          _removeItemImmediate(idx, unregister: false);
+        }
         _pruneExpandedGroup(groupKey);
         _processPending();
         _checkEmpty();
@@ -674,20 +881,25 @@ class QueueWidgetState extends State<QueueWidget>
               i.status != _ItemStatus.exiting,
         )
         .toList();
-    // Must still form a group after removal (length - 1 >= threshold).
+    // Must have at least one card remaining to immediately fill this slot.
     final remainingCount = activeItems.length - 1;
-    if (remainingCount < widget.queue.groupingBehavior.maxBeforeGrouping) {
+    if (remainingCount < 1) {
       return false;
     }
     return item == _groupRepresentative(activeItems);
   }
 
-  void _removeItemImmediate(final int index) {
-    if (index == -1) {
+  void _removeItemImmediate(final int index, {final bool unregister = true}) {
+    if (index == -1 || index >= _items.length) {
       return;
     }
     setState(() {
       final item = _items.removeAt(index);
+      _itemById.remove(item.widget.id);
+      if (unregister) {
+        _coordinator.unregisterEntryId(item.widget.id, widget.queue.position);
+      }
+      _invalidateSnapshot();
       item.controller.dispose();
     });
   }
@@ -712,8 +924,44 @@ class QueueWidgetState extends State<QueueWidget>
     if (!stillExists) {
       setState(() {
         _expandedGroups.remove(groupKey);
+        _invalidateSnapshot();
       });
     }
+  }
+
+  /// Determines whether [item] is eligible to have its dismiss timer running.
+  ///
+  /// In collapsed groups, ONLY the topmost visible representative card may run
+  /// its timer. Peek cards (visible only during drag feedback) and hidden
+  /// background cards remain in strict stasis.
+  /// When expanded, timers run only if
+  /// [QueueGroupingBehavior.pauseTimersWhenExpanded] is false.
+  bool _shouldItemTimerRun(final _NotificationItemState item) {
+    if (item.status == _ItemStatus.exiting) {
+      return false;
+    }
+    if (!widget.queue.groupingBehavior.enabled) {
+      return true;
+    }
+    final key = item.widget.resolvedGroupKey;
+    final activeGroupItems = _items
+        .where(
+          (final i) =>
+              i.widget.resolvedGroupKey == key &&
+              i.status != _ItemStatus.exiting,
+        )
+        .toList();
+    if (activeGroupItems.length <
+        widget.queue.groupingBehavior.maxBeforeGrouping) {
+      return true;
+    }
+    if (_expandedGroups.contains(key)) {
+      return !widget.queue.groupingBehavior.pauseTimersWhenExpanded;
+    }
+    if (_activeDragGroupKey == key) {
+      return false;
+    }
+    return item == _groupRepresentative(activeGroupItems);
   }
 
   /// Synchronises dismiss timers for every member of [groupKey].
@@ -736,7 +984,7 @@ class QueueWidgetState extends State<QueueWidget>
       if (notifState == null) {
         continue;
       }
-      if (_isItemVisible(item)) {
+      if (_shouldItemTimerRun(item)) {
         if (notifState.dismissTimer == null) {
           notifState.initDismissTimer();
         }
@@ -749,7 +997,7 @@ class QueueWidgetState extends State<QueueWidget>
   @override
   Widget build(final BuildContext context) {
     final pendingCount = _pendingNotifications.length;
-    final blocks = _partitionItems();
+    final blocks = _snapshot.blocks;
 
     final content = ConstrainedBox(
       constraints: BoxConstraints(
@@ -783,11 +1031,20 @@ class QueueWidgetState extends State<QueueWidget>
     );
   }
 
-  List<_QueueRenderBlock> _partitionItems() {
-    final List<_QueueRenderBlock> blocks = [];
-    final Set<String> processedGroupKeys = {};
+  _QueueLayoutSnapshot _computeSnapshot() {
+    final visibleItems = <_NotificationItemState>[];
+    final visibleIndexById = <String, int>{};
+    final itemGlobalKeys = <GlobalKey>[];
+    final blocks = <_QueueRenderBlock>[];
+    final processedGroupKeys = <String>{};
 
     for (final item in _items) {
+      if (_isItemVisible(item)) {
+        visibleIndexById[item.widget.id] = visibleItems.length;
+        visibleItems.add(item);
+        itemGlobalKeys.add(item.globalKey);
+      }
+
       if (item.status == _ItemStatus.exiting) {
         blocks.add(_SingleItemBlock(item));
         continue;
@@ -820,7 +1077,12 @@ class QueueWidgetState extends State<QueueWidget>
       processedGroupKeys.add(key);
     }
 
-    return blocks;
+    return _QueueLayoutSnapshot(
+      visibleItems: visibleItems,
+      visibleIndexById: visibleIndexById,
+      itemGlobalKeys: itemGlobalKeys,
+      blocks: blocks,
+    );
   }
 
   Widget _buildBlock(
@@ -831,10 +1093,10 @@ class QueueWidgetState extends State<QueueWidget>
 
     switch (block) {
       case _SingleItemBlock(:final item):
-        final visible = _visibleItems;
-        final isLastItem = item == visible.last;
+        final visible = _snapshot.visibleItems;
+        final isLastItem = visible.isNotEmpty && item == visible.last;
         final spacing = isLastItem ? 0.0 : widget.queue.spacing;
-        final visibleIndex = visible.indexOf(item);
+        final visibleIndex = visibleIndexOf(item.widget.id);
 
         return _buildSingleNotificationCard(
           item: item,
@@ -857,6 +1119,7 @@ class QueueWidgetState extends State<QueueWidget>
               } else {
                 _expandedGroups.add(groupKey);
               }
+              _invalidateSnapshot();
             });
             _syncGroupTimers(groupKey);
             _coordinator.emitGroupToggled(
@@ -890,10 +1153,12 @@ class QueueWidgetState extends State<QueueWidget>
       ),
     );
 
-    return ValueListenableBuilder<int?>(
-      valueListenable: _dragTargetIndexNotifier,
-      builder: (final context, final targetIndex, final child) {
-        final translationY = getTranslationY(visibleIndex, targetIndex);
+    return ValueListenableBuilder<({int origin, int target})?>(
+      valueListenable: _reorderDragState,
+      builder: (final context, final dragState, final child) {
+        final translationY = dragState == null
+            ? 0.0
+            : getTranslationY(visibleIndex, dragState.origin, dragState.target);
         return AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
@@ -902,9 +1167,8 @@ class QueueWidgetState extends State<QueueWidget>
         );
       },
       child: SizeTransition(
-        sizeFactor: CurvedAnimation(
-          parent: item.controller,
-          curve: Curves.fastOutSlowIn,
+        sizeFactor: item.controller.drive(
+          CurveTween(curve: Curves.fastOutSlowIn),
         ),
         alignment: Alignment(-1.0, alignment),
         child: Align(

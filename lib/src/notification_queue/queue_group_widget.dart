@@ -75,7 +75,6 @@ class _GroupWidgetState extends State<_GroupWidget>
   Widget _buildTogglePill(final BuildContext context, final double progress) {
     final rep = representative;
     final hiddenItems = widget.items.where((final i) => i != rep).toList();
-    final count = widget.items.length;
     final queue = widget.queueWidgetState.widget.queue;
     final verticalDirection = queue.verticalDirection;
 
@@ -88,7 +87,18 @@ class _GroupWidgetState extends State<_GroupWidget>
     final nextItem = hiddenItems.isNotEmpty ? hiddenItems.first : null;
     final nextTitle = nextItem?.widget.title;
     final nextMessage = nextItem?.widget.message;
-    final hiddenCount = count - 1; // excludes the visible representative
+
+    final countBehavior = queue.groupingBehavior.countBehavior;
+    final pendingCount = countBehavior.includePending
+        ? widget.queueWidgetState.countPendingForGroup(widget.groupKey)
+        : 0;
+    final totalCount = widget.items.length + pendingCount;
+    final hiddenCount = totalCount - 1;
+
+    final badgeLabel = countBehavior.format(
+      totalCount: totalCount,
+      hiddenCount: hiddenCount,
+    );
 
     final collapsedOpacity = (1.0 - progress * 2.0).clamp(0.0, 1.0);
     final expandedOpacity = (progress * 2.0 - 1.0).clamp(0.0, 1.0);
@@ -158,15 +168,24 @@ class _GroupWidgetState extends State<_GroupWidget>
                                 ),
                               ),
                             ],
-                            const SizedBox(width: 6),
-                          ],
-                          Text(
-                            '+$hiddenCount',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: fg,
-                              fontWeight: FontWeight.bold,
+                            if (badgeLabel != null) const SizedBox(width: 6),
+                          ] else if (badgeLabel == null) ...[
+                            Text(
+                              nextMessage ?? 'Group',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: fg,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
+                          ],
+                          if (badgeLabel != null)
+                            Text(
+                              badgeLabel,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: fg,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -258,7 +277,16 @@ class _GroupWidgetState extends State<_GroupWidget>
             crossAxisAlignment: queue.crossAxisAlignment,
             children: [
               for (final item in visibleItems)
-                _buildGroupItem(context, item, visibleItems, alignment, queue),
+                KeyedSubtree(
+                  key: ValueKey(item.widget.id),
+                  child: _buildGroupItem(
+                    context,
+                    item,
+                    visibleItems,
+                    alignment,
+                    queue,
+                  ),
+                ),
               if (progress > 0.0)
                 SizeTransition(
                   sizeFactor: _expansionController,
@@ -293,7 +321,7 @@ class _GroupWidgetState extends State<_GroupWidget>
     final spacing = (widget.isExpanded && !isLast) ? queue.spacing : 0.0;
 
     final globalVisibleIndex =
-        widget.queueWidgetState._visibleItems.indexOf(item);
+        widget.queueWidgetState.visibleIndexOf(item.widget.id);
 
     Widget itemWidget = widget.queueWidgetState._buildSingleNotificationCard(
       item: item,
@@ -302,7 +330,19 @@ class _GroupWidgetState extends State<_GroupWidget>
     );
 
     final rep = representative;
+    final isExpanded = widget.isExpanded;
+    final pauseWhenExpanded = queue.groupingBehavior.pauseTimersWhenExpanded;
+
     if (item == rep) {
+      final isDraggingRep =
+          widget.queueWidgetState._activeDragGroupKey == widget.groupKey;
+      final timerEnabled =
+          !isDraggingRep && (!isExpanded || !pauseWhenExpanded);
+      itemWidget = NotificationTimerScope(
+        enabled: timerEnabled,
+        child: itemWidget,
+      );
+
       itemWidget = TweenAnimationBuilder<double>(
         key: item.entranceKey,
         tween: Tween(begin: 0.96, end: 1.0),
@@ -340,35 +380,42 @@ class _GroupWidgetState extends State<_GroupWidget>
       final isPeek = widget.queueWidgetState
           ._isPeekItem(item, widget.groupKey, widget.items);
       if (isPeek) {
-        itemWidget = IgnorePointer(
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            builder: (final ctx, final t, final child) => Opacity(
-              opacity: 0.55 * t,
-              child: Transform.scale(
-                scale: 0.94 + 0.06 * t,
-                alignment: Alignment.topCenter,
-                child: child,
+        itemWidget = NotificationTimerScope(
+          enabled: false,
+          child: IgnorePointer(
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              builder: (final ctx, final t, final child) => Opacity(
+                opacity: 0.55 * t,
+                child: Transform.scale(
+                  scale: 0.94 + 0.06 * t,
+                  alignment: Alignment.topCenter,
+                  child: child,
+                ),
               ),
+              child: itemWidget,
             ),
-            child: itemWidget,
           ),
         );
       } else {
-        itemWidget = SizeTransition(
-          sizeFactor: CurvedAnimation(
-            parent: _expansionController,
-            curve: Curves.fastOutSlowIn,
-          ),
-          alignment: Alignment(-1.0, alignment),
-          child: FadeTransition(
-            opacity: CurvedAnimation(
-              parent: _expansionController,
-              curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
+        final timerEnabled = isExpanded && !pauseWhenExpanded;
+        itemWidget = NotificationTimerScope(
+          enabled: timerEnabled,
+          child: SizeTransition(
+            sizeFactor: _expansionController.drive(
+              CurveTween(curve: Curves.fastOutSlowIn),
             ),
-            child: itemWidget,
+            alignment: Alignment(-1.0, alignment),
+            child: FadeTransition(
+              opacity: _expansionController.drive(
+                CurveTween(
+                  curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
+                ),
+              ),
+              child: itemWidget,
+            ),
           ),
         );
       }
