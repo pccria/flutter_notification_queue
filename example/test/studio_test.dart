@@ -842,6 +842,7 @@ void main() {
         await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byType(NotificationWidget), findsOneWidget);
 
         // 2. Send Ctrl+E to toggle code editor
         expect(studioBloc.state.isCodeEditorOpen, isTrue);

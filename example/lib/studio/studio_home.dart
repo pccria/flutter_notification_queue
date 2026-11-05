@@ -82,201 +82,165 @@ class _StudioShellState extends State<_StudioShell> {
           final isNarrow = constraints.maxWidth <= 1000;
           final colorScheme = Theme.of(context).colorScheme;
 
-          return CallbackShortcuts(
-            bindings: {
-              const SingleActivator(LogicalKeyboardKey.enter, meta: true): () {
-                context.read<NotificationBloc>().add(const FirePreview());
-              },
-              const SingleActivator(LogicalKeyboardKey.enter, control: true):
-                  () {
-                context.read<NotificationBloc>().add(const FirePreview());
-              },
-              const SingleActivator(LogicalKeyboardKey.numpadEnter, meta: true):
-                  () {
-                context.read<NotificationBloc>().add(const FirePreview());
-              },
-              const SingleActivator(
-                LogicalKeyboardKey.numpadEnter,
-                control: true,
-              ): () {
-                context.read<NotificationBloc>().add(const FirePreview());
-              },
-              const SingleActivator(LogicalKeyboardKey.keyE, meta: true): () {
-                context.read<StudioBloc>().add(const ToggleCodeEditor());
-              },
-              const SingleActivator(LogicalKeyboardKey.keyE, control: true):
-                  () {
-                context.read<StudioBloc>().add(const ToggleCodeEditor());
-              },
-              const SingleActivator(LogicalKeyboardKey.keyL, meta: true): () {
-                context.read<StudioBloc>().add(const ToggleEventLog());
-              },
-              const SingleActivator(LogicalKeyboardKey.keyL, control: true):
-                  () {
-                context.read<StudioBloc>().add(const ToggleEventLog());
-              },
-            },
-            child: Scaffold(
-              extendBodyBehindAppBar: true,
-              appBar: AppBar(
-                title: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      isNarrow ? 'NFQ' : 'NFQ STUDIO',
-                      style: TextStyle(
-                        letterSpacing: isNarrow ? 1.2 : 3,
-                        fontWeight: FontWeight.w900,
-                        fontSize: isNarrow ? 16 : 18,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const _VersionBadge(),
-                  ],
-                ),
-                centerTitle: !isNarrow,
-                backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
-                elevation: 0,
-                actions: [
-                  if (isNarrow) ...[
-                    // Mobile Primary CTA: Fire Draft
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: colorScheme.onPrimary,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        visualDensity: VisualDensity.compact,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      icon: const Icon(Icons.bolt_rounded, size: 15),
-                      label: const Text(
-                        'FIRE',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
-                        ),
-                      ),
-                      onPressed: () => context
-                          .read<NotificationBloc>()
-                          .add(const FirePreview()),
-                    ),
-                    const SizedBox(width: 4),
-                    // Mobile Presets Launcher
-                    Tooltip(
-                      message: 'Quick Presets',
-                      child: IconButton(
-                        icon: const Icon(Icons.flash_on_outlined, size: 20),
-                        onPressed: () => QuickFireCockpit.showModal(context),
-                      ),
-                    ),
-                  ] else ...[
-                    // Desktop Pane Toggles
-                    BlocBuilder<StudioBloc, StudioState>(
-                      builder: (final context, final state) => Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _PaneToggleAction(
-                            icon: Icons.code,
-                            label: 'CODE',
-                            isOpen: state.isCodeEditorOpen,
-                            tooltip: state.isCodeEditorOpen
-                                ? 'Collapse Code Editor (Ctrl+E)'
-                                : 'Expand Code Editor (Ctrl+E)',
-                            onPressed: () => context
-                                .read<StudioBloc>()
-                                .add(const ToggleCodeEditor()),
-                          ),
-                          const SizedBox(width: 4),
-                          _PaneToggleAction(
-                            icon: Icons.stream_rounded,
-                            label: 'EVENTS',
-                            isOpen: state.isEventLogOpen,
-                            tooltip: state.isEventLogOpen
-                                ? 'Collapse Event Stream (Ctrl+L)'
-                                : 'Expand Event Stream (Ctrl+L)',
-                            onPressed: () => context
-                                .read<StudioBloc>()
-                                .add(const ToggleEventLog()),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 1,
-                            height: 18,
-                            color:
-                                colorScheme.onSurface.withValues(alpha: 0.12),
-                          ),
-                          const SizedBox(width: 4),
-                        ],
-                      ),
-                    ),
-                  ],
-                  IconButton(
-                    onPressed: () => ProjectInfoDialog.show(context),
-                    icon: const Icon(Icons.info_outline, size: 20),
-                    tooltip: 'About & Project Info',
-                  ),
-                  BlocBuilder<StudioBloc, StudioState>(
-                    builder: (final context, final state) => IconButton(
-                      onPressed: () {
-                        context.read<StudioBloc>().add(const ToggleTheme());
-                      },
-                      icon: Icon(
-                        state.themeMode == ThemeMode.dark
-                            ? Icons.light_mode_outlined
-                            : Icons.dark_mode_outlined,
-                        size: 20,
-                      ),
-                      tooltip: 'Toggle Theme',
+          return Scaffold(
+            extendBodyBehindAppBar: true,
+            appBar: AppBar(
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isNarrow ? 'NFQ' : 'NFQ STUDIO',
+                    style: TextStyle(
+                      letterSpacing: isNarrow ? 1.2 : 3,
+                      fontWeight: FontWeight.w900,
+                      fontSize: isNarrow ? 16 : 18,
                     ),
                   ),
                   const SizedBox(width: 6),
+                  const _VersionBadge(),
                 ],
               ),
-              body: Stack(
-                children: [
-                  const _StudioBackground(),
-                  SafeArea(
-                    child: Column(
+              centerTitle: !isNarrow,
+              backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+              elevation: 0,
+              actions: [
+                if (isNarrow) ...[
+                  // Mobile Primary CTA: Fire Draft
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: const Icon(Icons.bolt_rounded, size: 15),
+                    label: const Text(
+                      'FIRE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    onPressed: () => context
+                        .read<NotificationBloc>()
+                        .add(const FirePreview()),
+                  ),
+                  const SizedBox(width: 4),
+                  // Mobile Presets Launcher
+                  Tooltip(
+                    message: 'Quick Presets',
+                    child: IconButton(
+                      icon: const Icon(Icons.flash_on_outlined, size: 20),
+                      onPressed: () => QuickFireCockpit.showModal(context),
+                    ),
+                  ),
+                ] else ...[
+                  // Desktop Pane Toggles
+                  BlocBuilder<StudioBloc, StudioState>(
+                    builder: (final context, final state) => Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (!isNarrow) const QuickFireCockpit(),
-                        Expanded(
-                          child: isNarrow
-                              ? _narrowLayout()
-                              : _wideLayout(constraints.maxWidth),
+                        _PaneToggleAction(
+                          icon: Icons.code,
+                          label: 'CODE',
+                          isOpen: state.isCodeEditorOpen,
+                          tooltip: state.isCodeEditorOpen
+                              ? 'Collapse Code Editor (Ctrl+E)'
+                              : 'Expand Code Editor (Ctrl+E)',
+                          onPressed: () => context
+                              .read<StudioBloc>()
+                              .add(const ToggleCodeEditor()),
                         ),
+                        const SizedBox(width: 4),
+                        _PaneToggleAction(
+                          icon: Icons.stream_rounded,
+                          label: 'EVENTS',
+                          isOpen: state.isEventLogOpen,
+                          tooltip: state.isEventLogOpen
+                              ? 'Collapse Event Stream (Ctrl+L)'
+                              : 'Expand Event Stream (Ctrl+L)',
+                          onPressed: () => context
+                              .read<StudioBloc>()
+                              .add(const ToggleEventLog()),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 1,
+                          height: 18,
+                          color: colorScheme.onSurface.withValues(alpha: 0.12),
+                        ),
+                        const SizedBox(width: 4),
                       ],
                     ),
                   ),
                 ],
-              ),
-              bottomNavigationBar: isNarrow
-                  ? BottomNavigationBar(
-                      currentIndex: _tabIndex,
-                      onTap: (final i) => setState(() => _tabIndex = i),
-                      backgroundColor: StudioTheme.colorScheme.surface,
-                      selectedItemColor: StudioTheme.colorScheme.primary,
-                      unselectedItemColor: StudioTheme.colorScheme.onSurface
-                          .withValues(alpha: 0.38),
-                      items: const [
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.tune),
-                          label: 'Configure',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.code),
-                          label: 'Code',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.stream_rounded),
-                          label: 'Events',
-                        ),
-                      ],
-                    )
-                  : null,
+                IconButton(
+                  onPressed: () => ProjectInfoDialog.show(context),
+                  icon: const Icon(Icons.info_outline, size: 20),
+                  tooltip: 'About & Project Info',
+                ),
+                BlocBuilder<StudioBloc, StudioState>(
+                  builder: (final context, final state) => IconButton(
+                    onPressed: () {
+                      context.read<StudioBloc>().add(const ToggleTheme());
+                    },
+                    icon: Icon(
+                      state.themeMode == ThemeMode.dark
+                          ? Icons.light_mode_outlined
+                          : Icons.dark_mode_outlined,
+                      size: 20,
+                    ),
+                    tooltip: 'Toggle Theme',
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
             ),
+            body: Stack(
+              children: [
+                const _StudioBackground(),
+                SafeArea(
+                  child: Column(
+                    children: [
+                      if (!isNarrow) const QuickFireCockpit(),
+                      Expanded(
+                        child: isNarrow
+                            ? _narrowLayout()
+                            : _wideLayout(constraints.maxWidth),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            bottomNavigationBar: isNarrow
+                ? BottomNavigationBar(
+                    currentIndex: _tabIndex,
+                    onTap: (final i) => setState(() => _tabIndex = i),
+                    backgroundColor: StudioTheme.colorScheme.surface,
+                    selectedItemColor: StudioTheme.colorScheme.primary,
+                    unselectedItemColor: StudioTheme.colorScheme.onSurface
+                        .withValues(alpha: 0.38),
+                    items: const [
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.tune),
+                        label: 'Configure',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.code),
+                        label: 'Code',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.stream_rounded),
+                        label: 'Events',
+                      ),
+                    ],
+                  )
+                : null,
           );
         },
       );
