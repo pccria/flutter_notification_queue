@@ -1,22 +1,17 @@
-# Architecture & API Evolution: v0.3.0 → v1.0
+# Architecture Blueprint & System Design Rationale
 
 ## 1. Executive Summary
 
-As FNQ matures toward a stable v1.0, the package must transition from its current
-prototype-style static singleton architecture to an idiomatic, multi-tenant design. This
-document is the definitive blueprint for that transition, informed by:
+This document serves as the foundational architectural blueprint and design rationale for **Flutter Notification Queue (FNQ)**. It details the paradigm shift from prototype-style static singletons to an idiomatic, multi-tenant design, informed by:
 
-- A structural audit of the v0.2.0 codebase and its failure modes
-- An analysis of how the leading overlay libraries in the Flutter ecosystem
+- A structural audit of early singleton architectures and their failure modes
+- An analysis of how leading overlay libraries in the Flutter ecosystem
   (`toastification`, `bot_toast`, `overlay_support`) each solved — and where they each
   failed — the same problem space
-- The canonical Flutter SDK patterns (`ScaffoldMessenger`, `TextEditingController`,
+- Canonical Flutter SDK patterns (`ScaffoldMessenger`, `TextEditingController`,
   `Navigator`) as the authoritative reference implementation
 
-**Target audience:** maintainers and contributors working toward v0.3.0 and v1.0.
-
-**Immediate action:** v0.3.0 ships the complete new API additively, with `@Deprecated`
-annotations on the entire v0.x surface. v1.0 removes the deprecated surface.
+**Target audience:** maintainers, contributors, and architects evaluating FNQ's system design.
 
 ---
 

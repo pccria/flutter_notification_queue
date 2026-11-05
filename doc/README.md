@@ -9,8 +9,14 @@ Welcome to the **Flutter Notification Queue (FNQ)** documentation index. This di
 - [**Getting Started**](getting_started.md): Quick start guide to integrate FNQ into your app using `NotificationController` and `NotificationScope`.
 - [**Migration Guide: Upgrading to v0.5.0**](migration_v0_5.md): Comprehensive upgrade guide for v0.5.0, covering the four architectural tiers, permanent queue relocation, `NotificationThemeData`, `QueueStyle` strict ownership, and deprecated APIs.
 - [**Migration Guide (v0.3.x → v0.4.0)**](migration_v0_4.md): Step-by-step instructions for migrating from legacy static singletons to the decoupled v0.4.x architecture.
-- [**Architecture Proposal & Design Blueprint**](architecture_v0_4_proposal.md): Historical specification of multi-tenancy, state ownership, gesture intents, and event streams.
 - [**Development Roadmap & Status Board**](roadmap.md): Strategic release tracks, complexity matrix, and milestone progress toward v1.0.
+
+---
+
+## 📐 Architecture & Engineering Specifications
+
+- [**System Architecture Blueprint**](specs/architecture_blueprint.md): Foundational design rationale covering multi-tenancy, state ownership, ecosystem comparisons, and physics models.
+- [**Accessibility & Focus Traversal Specification**](specs/accessibility.md): Engineering RFC for non-intrusive focus ingestion, screen reader semantics, and keyboard traversal.
 
 ---
 

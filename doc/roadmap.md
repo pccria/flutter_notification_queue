@@ -109,7 +109,7 @@ Complexity Tiers:
 | **F-03** | Desktop Parking & Runtime Config | Phase 2 | 🟢 P2 | 🟡 Medium | ✅ Completed | `lib/src/core/queue_coordinator.dart`, `lib/src/core/parking_manager.dart` |
 | **F-04** | Notification Grouping (Bundling) | Phase 3 | *Critical* | 🔴 High | ✅ Completed | `lib/src/notification_queue/queue_widget.dart` |
 | **F-05** | In-App History Logger & Querying | Phase 3 | 🟢 P2 | 🟡 Medium | ✅ Completed | `lib/src/core/history_logger.dart` |
-| **F-06** | Focus Traversal & Accessibility | Phase 5 | 🟢 P2 | 🟢 Low | 📅 Pending | `lib/src/core/notification_overlay.dart` |
+| **F-06** | [Focus Traversal & Accessibility](specs/accessibility.md) | Phase 5 | 🟢 P2 | 🟢 Low | 📅 Pending | `lib/src/core/notification_overlay.dart` |
 | **F-07** | Context Menu Support (Right-click) | Phase 5 | 🔵 P3 | 🟢 Low | 📅 Pending | `lib/src/notification/notification.dart` |
 | **F-08** | L-Shaped Unified Corner Bars | Phase 2 | 🔵 P3 | 🟡 Medium | 📅 Pending | `lib/src/notification/interaction/overlays/dismissal_targets.dart` |
 | **F-09** | Smart Layout & Overlap Avoidance | Phase 3 | *Critical* | 🔴 High | ✅ Completed | `lib/src/core/notification_overlay.dart` |
@@ -152,10 +152,12 @@ Complexity Tiers:
 
 ### F-06: Focus Traversal & Semantic Accessibility
 * **Target Release**: v0.6.x
+* **Detailed Specification**: See [Accessibility & Focus Traversal Specification](specs/accessibility.md).
 * **Objective**: Ensure notifications meet WCAG and Flutter accessibility standards.
 * **Implementation Plan**:
+  * Implement `NotificationA11yOptions` on controller and overlay.
   * Wrap notifications in semantic containers with proper accessibility labels.
-  * Support keyboard tab navigation across actionable elements inside visible notifications.
+  * Support keyboard tab navigation and `Alt + N` focus handoff across visible notifications.
   * Allow screen readers to announce incoming notifications via `SemanticsService.announce`.
 
 ---
