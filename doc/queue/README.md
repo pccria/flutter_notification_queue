@@ -66,13 +66,26 @@ const NotificationQueue(
     maxBeforeGrouping: 2,
     maxStackedLayers: 3,
     enableGroupSwipeDismiss: true,
+    pauseTimersWhenExpanded: true,
+    countBehavior: HiddenCount(
+      maxCount: 99,
+      prefix: '+',
+    ),
   ),
 )
 ```
 
-- **Representative Card**: Top card surfaces the newest message while showing a group badge (e.g. `+3`).
-- **Drag-to-Reveal / Peek**: Swiping down/aside reveals underlying cards without breaking the group.
-- **Group Swipe Dismiss**: Swipe to dismiss the representative card or the entire stack deck.
+### Key Capabilities
+- **Representative Card**: Top card surfaces the newest message while displaying a group count indicator pill.
+- **Configurable Count Strategies (`GroupCountBehavior`)**:
+  - `HiddenCount` (Default): Shows `+N` indicating hidden notifications stacked behind the visible representative (e.g. `+2`).
+  - `TotalCount`: Shows `N` representing the total items in the group (e.g. `3`).
+  - `NoCount`: Renders a minimal indicator dot without numbers.
+  - `CustomCount`: Custom label builder `(totalCount, hiddenCount) => String` for bespoke formats.
+  - All strategies support `maxCount` overflow capping (e.g. `+99+`) and `includePending` to determine whether unrendered queue backlog items are counted.
+- **Peek Card Timer Stasis & Drag Auto-Dismiss Pause**: Lifting or dragging the representative card reveals the peek card beneath in visual stasis (`opacity = 0.55`) and pauses its auto-dismiss timer. The dragged card's timer is also suspended, resuming cleanly on release or snap-back.
+- **Expanded Group Timer Suspension**: When expanded via the toggle pill (`pauseTimersWhenExpanded: true`), auto-dismiss timers on all cards in the bundle pause indefinitely to allow reading.
+- **Atomic Bundle Dismiss & Backlog Purging**: When swiping away a collapsed bundle or calling `controller.dismissGroup(groupKey)`, all active members and all pending backlog queue entries sharing the key are purged in a single atomic frame, preventing ghost promotions and allowing waiting notifications from other channels to surface immediately.
 
 ---
 

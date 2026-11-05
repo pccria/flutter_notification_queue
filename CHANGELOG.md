@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.5.2] - 2026-11-05
+
+### Bundled Notifications & Grouping UX
+- **Configurable Group Count API (`GroupCountBehavior`)**: Introduced a sealed class hierarchy to customize bundle size counting and formatting:
+  - `TotalCount`: Displays the total number of notifications in the bundle (e.g. `3`).
+  - `HiddenCount`: Displays the count of hidden notifications behind the visible representative card in `+N` format (e.g. `+2`), with an optional `showPlusSign: false` toggle. Default strategy across all queues.
+  - `NoCount`: Renders a clean indicator dot without numerical counts.
+  - `CustomCount`: Provides complete control via custom label builder `(totalCount, hiddenCount) => String`.
+  - Configurable via `QueueGroupingBehavior(countBehavior: ...)`.
+- **Peek Card Timer Stasis & Drag Auto-Dismiss Pause**: When the representative notification card of a collapsed bundle is lifted or dragged to expose the peek card beneath, the peek card enters visual stasis (`opacity = 0.55`) and its auto-dismiss timer is explicitly paused. The dragged representative card's timer is also paused to prevent cards vanishing during active touch interaction. Timers resume smoothly upon release/snap-back.
+- **Expanded Group Timer Suspension**: Pauses auto-dismiss timers on all cards within a group while expanded in multi-card view (`pauseTimersWhenExpanded: true`), preventing cards from disappearing while reading.
+- **Atomic Bundle Dismiss & Backlog Purging**: Swiping away a collapsed bundle (or invoking `controller.dismissGroup(groupKey)`) atomically dismisses all active members and purges all pending backlog notifications sharing that `groupKey` in a single frame. Dispatches individual `NotificationDismissed` events with appropriate dismissal reasons, prevents ghost promotions of dismissed items, and immediately promotes waiting notifications from other channels.
+
+### Performance & Memory Hygiene
+- **CurvedAnimation Ticker Leak Prevention**: Disposed intermediate `CurvedAnimation` ticker listeners cleanly in `DraggableTransitionsState` and `QueueGroupWidget` across drag snap-back and bundle collapse lifecycles.
+- **Same-ID Cross-Queue Relocation Safety**: Hardened `QueueCoordinator` against `Duplicate GlobalKey` collisions when re-dispatching active or pending notification IDs across different queues, automatically purging previous queue entries before re-insertion.
+- **Coordinator Mapping Integrity**: Guaranteed cleanup of `_positionById` tracking entries upon discard, overflow eviction, and dismissal, preventing unbounded memory growth under heavy notification load.
+- **Reorder 120Hz Smoothness**: Optimized drag-reorder slot calculations with memoized layout snapshots, avoiding unneeded `setState` cascades and sibling card repaints during reordering gestures.
+
+### Studio (Example App)
+- **Interactive Group Count Selector**: Added real-time count strategy selector (`HiddenCount`, `TotalCount`, `NoCount`) to the Studio Configurator with live Dart code generation.
+- **Interactive Scenarios**: Added dedicated grouping demo scenarios showcasing peek stasis, count strategies, and atomic whole-bundle swipe dismissals.
+- **Header & Version Dialog Modernization**: Updated the top navigation version badge and Project Info modal to dynamically bind to `NotificationController.version`.
+
+### Test Suite & CI
+- **Expanded Interaction Test Coverage**: Added comprehensive interaction tests covering peek timer stasis, drag release snap-back, count formatting, atomic backlog purging, and multi-channel promotion on group dismissal.
+- **Version Synchronization Test**: Added automated test ensuring `NotificationController.version` strictly matches `pubspec.yaml`.
+
 ## [0.5.1] - 2026-10-27
 
 ### Maintenance
