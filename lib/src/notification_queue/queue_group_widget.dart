@@ -125,128 +125,145 @@ class _GroupWidgetState extends State<_GroupWidget>
           }
           return KeyEventResult.ignored;
         },
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-        onTap: widget.onToggle,
-        onLongPress: widget.onToggle, // accessibility: long-press also toggles
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: resolvedTheme.backgroundColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: resolvedTheme.color.withValues(alpha: 0.35),
-              width: 1.0,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  Opacity(
-                    opacity: collapsedOpacity,
-                    child: IgnorePointer(
-                      ignoring: collapsedOpacity < 0.5,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+        child: Builder(
+          builder: (final context) {
+            final isFocused = Focus.of(context).hasFocus;
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: widget.onToggle,
+                onLongPress: widget.onToggle,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: resolvedTheme.backgroundColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isFocused
+                          ? resolvedTheme.color
+                          : resolvedTheme.color.withValues(alpha: 0.35),
+                      width: isFocused ? 2.0 : 1.0,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Stack(
+                        alignment: Alignment.center,
                         children: [
-                          if (nextTitle != null) ...[
-                            Text(
-                              nextTitle,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: fg,
-                                fontWeight: FontWeight.w700,
+                          Opacity(
+                            opacity: collapsedOpacity,
+                            child: IgnorePointer(
+                              ignoring: collapsedOpacity < 0.5,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (nextTitle != null) ...[
+                                    Text(
+                                      nextTitle,
+                                      style:
+                                          theme.textTheme.labelSmall?.copyWith(
+                                        color: fg,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    if (nextMessage != null) ...[
+                                      Text(
+                                        '  ·  ',
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                          color: fg.withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                      ConstrainedBox(
+                                        constraints:
+                                            const BoxConstraints(maxWidth: 120),
+                                        child: Text(
+                                          nextMessage,
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                            color: fg.withValues(alpha: 0.7),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                    if (badgeLabel != null)
+                                      const SizedBox(width: 6),
+                                  ] else if (badgeLabel == null) ...[
+                                    Text(
+                                      nextMessage ?? 'Group',
+                                      style:
+                                          theme.textTheme.labelSmall?.copyWith(
+                                        color: fg,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (badgeLabel != null)
+                                    Text(
+                                      badgeLabel,
+                                      style:
+                                          theme.textTheme.labelSmall?.copyWith(
+                                        color: fg,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
-                            if (nextMessage != null) ...[
-                              Text(
-                                '  ·  ',
+                          ),
+                          Opacity(
+                            opacity: expandedOpacity,
+                            child: IgnorePointer(
+                              ignoring: expandedOpacity < 0.5,
+                              child: Text(
+                                'Collapse',
                                 style: theme.textTheme.labelSmall?.copyWith(
-                                  color: fg.withValues(alpha: 0.5),
+                                  color: fg,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              ConstrainedBox(
-                                constraints:
-                                    const BoxConstraints(maxWidth: 120),
-                                child: Text(
-                                  nextMessage,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: fg.withValues(alpha: 0.7),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                            if (badgeLabel != null) const SizedBox(width: 6),
-                          ] else if (badgeLabel == null) ...[
-                            Text(
-                              nextMessage ?? 'Group',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: fg,
-                                fontWeight: FontWeight.w700,
-                              ),
                             ),
-                          ],
-                          if (badgeLabel != null)
-                            Text(
-                              badgeLabel,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: fg,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          ),
                         ],
                       ),
-                    ),
-                  ),
-                  Opacity(
-                    opacity: expandedOpacity,
-                    child: IgnorePointer(
-                      ignoring: expandedOpacity < 0.5,
-                      child: Text(
-                        'Collapse',
-                        style: theme.textTheme.labelSmall?.copyWith(
+                      const SizedBox(width: 4),
+                      RotationTransition(
+                        turns: Tween<double>(
+                          begin: verticalDirection == VerticalDirection.down
+                              ? 0.0
+                              : 0.5,
+                          end: verticalDirection == VerticalDirection.down
+                              ? 0.5
+                              : 0.0,
+                        ).animate(_expansionController),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 14,
                           color: fg,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(width: 4),
-              RotationTransition(
-                turns: Tween<double>(
-                  begin:
-                      verticalDirection == VerticalDirection.down ? 0.0 : 0.5,
-                  end: verticalDirection == VerticalDirection.down ? 0.5 : 0.0,
-                ).animate(_expansionController),
-                child: Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 14,
-                  color: fg,
                 ),
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
-    ),
-  ),
-);
+    );
   }
 
   @override

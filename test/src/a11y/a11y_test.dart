@@ -266,6 +266,39 @@ void main() {
     );
 
     testWidgets(
+      'Alt+N transfers focus even when primaryFocus is null',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: Center(child: Text('Home')),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(message: 'Null focus target'),
+        );
+        await tester.pump();
+
+        // Send Alt + N shortcut to transfer focus
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+
+        expect(controller.coordinator!.isNotificationFocused, isTrue);
+      },
+    );
+
+    testWidgets(
       'Delete key dismisses focused notification card',
       (final tester) async {
         final controller = NotificationController();

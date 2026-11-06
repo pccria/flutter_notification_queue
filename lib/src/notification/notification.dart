@@ -815,7 +815,8 @@ class NotificationWidgetState extends State<NotificationWidget>
     final a11y = coordinator.configuration.a11yOptions;
 
     if (a11y.enableKeyboardDismiss) {
-      if (event.logicalKey == a11y.dismissKey) {
+      if (event.logicalKey == a11y.dismissKey ||
+          event.logicalKey == LogicalKeyboardKey.backspace) {
         dismiss(reason: DismissReason.programmatic);
         return KeyEventResult.handled;
       }
@@ -891,8 +892,35 @@ class NotificationWidgetState extends State<NotificationWidget>
           valueListenable: isExpanded,
           builder: (final context, final isExpanded, final child) {
             final useBlur = theme.opacity < 1.0;
+            final isFocused = _focusNode.hasFocus;
+            final ShapeBorder? effectiveShape;
+            if (isFocused) {
+              final focusColor = theme.color != Colors.transparent
+                  ? theme.color
+                  : Theme.of(context).colorScheme.primary;
+              final baseShape = theme.shape;
+              if (baseShape is RoundedRectangleBorder) {
+                effectiveShape = baseShape.copyWith(
+                  side: BorderSide(
+                    color: focusColor,
+                    width: 2.5,
+                  ),
+                );
+              } else {
+                effectiveShape = RoundedRectangleBorder(
+                  borderRadius: theme.borderRadius,
+                  side: BorderSide(
+                    color: focusColor,
+                    width: 2.5,
+                  ),
+                );
+              }
+            } else {
+              effectiveShape = theme.shape;
+            }
+
             final content = Material(
-              shape: theme.shape,
+              shape: effectiveShape,
               borderOnForeground: true,
               type: MaterialType.canvas,
               color: theme.backgroundColor.withValues(alpha: theme.opacity),

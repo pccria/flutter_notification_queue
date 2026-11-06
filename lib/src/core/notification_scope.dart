@@ -67,6 +67,7 @@ class _NotificationScopeState extends State<NotificationScope> {
   void initState() {
     super.initState();
     _initCoordinator();
+    HardwareKeyboard.instance.addHandler(_handleHardwareKey);
   }
 
   void _initCoordinator() {
@@ -79,6 +80,27 @@ class _NotificationScopeState extends State<NotificationScope> {
         }
       }
     });
+  }
+
+  bool _handleHardwareKey(final KeyEvent event) {
+    if (event is! KeyDownEvent) {
+      return false;
+    }
+
+    final a11y = widget.controller.a11yOptions;
+    if (a11y.focusShortcut != null &&
+        a11y.focusShortcut!.accepts(event, HardwareKeyboard.instance)) {
+      _handleFocusShortcut();
+      return true;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.escape &&
+        _coordinator.isNotificationFocused) {
+      _handleGlobalEscape();
+      return true;
+    }
+
+    return false;
   }
 
   void _handleFocusShortcut() {
@@ -99,6 +121,9 @@ class _NotificationScopeState extends State<NotificationScope> {
         _savedAppFocus != null &&
         _savedAppFocus!.canRequestFocus) {
       _savedAppFocus!.requestFocus();
+      _savedAppFocus = null;
+    } else {
+      FocusManager.instance.primaryFocus?.unfocus();
       _savedAppFocus = null;
     }
   }
@@ -134,6 +159,7 @@ class _NotificationScopeState extends State<NotificationScope> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleHardwareKey);
     _eventSub?.cancel();
     widget.controller.detach();
     _coordinator.dispose();
