@@ -586,6 +586,14 @@ class NotificationWidgetState extends State<NotificationWidget>
 
   void _handleFocusChanged() {
     if (mounted) {
+      if (widget.queue.closeButtonBehavior is! Hidden) {
+        if (_focusNode.hasFocus) {
+          _showCloseButton.value = 1.0;
+        } else {
+          _showCloseButton.value = widget.queue.closeButtonBehavior
+              .onHover(isHovering: _isMouseHovering);
+        }
+      }
       setState(() {});
     }
   }
@@ -700,6 +708,9 @@ class NotificationWidgetState extends State<NotificationWidget>
     } else {
       initDismissTimer();
     }
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   QueueCoordinator get coordinator {
@@ -802,6 +813,9 @@ class NotificationWidgetState extends State<NotificationWidget>
     } else if (!_isMouseHovering) {
       _dismissProgressController?.forward();
     }
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   KeyEventResult _handleCardKeyEvent(
@@ -813,6 +827,19 @@ class NotificationWidgetState extends State<NotificationWidget>
     }
 
     final a11y = coordinator.configuration.a11yOptions;
+
+    // Shift + Delete or Shift + Backspace dismisses the active bundle/group.
+    final isShift = HardwareKeyboard.instance.isShiftPressed;
+    if (a11y.enableKeyboardDismiss &&
+        isShift &&
+        (event.logicalKey == a11y.dismissKey ||
+            event.logicalKey == LogicalKeyboardKey.backspace)) {
+      coordinator.dismissGroup(
+        widget.resolvedGroupKey,
+        reason: DismissReason.programmatic,
+      );
+      return KeyEventResult.handled;
+    }
 
     if (a11y.enableKeyboardDismiss) {
       if (event.logicalKey == a11y.dismissKey ||
@@ -828,6 +855,74 @@ class NotificationWidgetState extends State<NotificationWidget>
       }
     } else if (event.logicalKey == LogicalKeyboardKey.escape) {
       _focusNode.unfocus();
+      return KeyEventResult.handled;
+    }
+
+    // Toggle card expansion (E).
+    if (event.logicalKey == LogicalKeyboardKey.keyE) {
+      _toggleExpanded();
+      return KeyEventResult.handled;
+    }
+
+    // Toggle pinned state (P).
+    if (event.logicalKey == LogicalKeyboardKey.keyP) {
+      if (widget.isPinned) {
+        coordinator.unpinById(widget.id);
+      } else {
+        coordinator.pinById(widget.id);
+      }
+      return KeyEventResult.handled;
+    }
+
+    // Snooze notification (S).
+    if (event.logicalKey == LogicalKeyboardKey.keyS) {
+      final snoozeDuration = widget.dismissDuration ??
+          widget.channel.defaultDismissDuration ??
+          const Duration(seconds: 10);
+      coordinator.snoozeById(widget.id, snoozeDuration);
+      return KeyEventResult.handled;
+    }
+
+    // Enter triggers the primary action if available, or card tap behavior.
+    // Space is intentionally not handled here so it activates focused inner
+    // elements (buttons, icons) when cycling through them via Tab.
+    if (node.hasPrimaryFocus &&
+        (event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+      if (widget.action != null) {
+        widget.action!.onPressed();
+        dismiss(reason: DismissReason.userTap);
+        return KeyEventResult.handled;
+      }
+
+      switch (_resolvedTapBehavior) {
+        case TapDisabled():
+          break;
+        case TapToDismiss():
+          coordinator.emitTapped(
+            notification: widget,
+            behavior: _resolvedTapBehavior,
+          );
+          dismiss(reason: DismissReason.userTap);
+          return KeyEventResult.handled;
+        case TapToExpand():
+          coordinator.emitTapped(
+            notification: widget,
+            behavior: _resolvedTapBehavior,
+          );
+          _toggleExpanded();
+          return KeyEventResult.handled;
+        case TapToAct(:final onTap, :final dismissOnAct):
+          coordinator.emitTapped(
+            notification: widget,
+            behavior: _resolvedTapBehavior,
+          );
+          onTap();
+          if (dismissOnAct) {
+            dismiss(reason: DismissReason.userTap);
+          }
+          return KeyEventResult.handled;
+      }
       return KeyEventResult.handled;
     }
 
@@ -866,10 +961,29 @@ class NotificationWidgetState extends State<NotificationWidget>
       focused: _focusNode.hasFocus,
       label: semanticLabel,
       hint: 'Press Delete or Escape to dismiss. '
-          'Press Tab to reach action buttons.',
+          'Press Enter to act, E to expand, P to pin, '
+          'or Tab to reach action buttons.',
       customSemanticsActions: {
         const CustomSemanticsAction(label: 'Dismiss'): () {
           dismiss(reason: DismissReason.programmatic);
+        },
+        CustomSemanticsAction(
+          label: isExpanded.value ? 'Collapse' : 'Expand',
+        ): _toggleExpanded,
+        CustomSemanticsAction(
+          label: widget.isPinned ? 'Unpin' : 'Pin',
+        ): () {
+          if (widget.isPinned) {
+            coordinator.unpinById(widget.id);
+          } else {
+            coordinator.pinById(widget.id);
+          }
+        },
+        const CustomSemanticsAction(label: 'Snooze'): () {
+          final snoozeDuration = widget.dismissDuration ??
+              widget.channel.defaultDismissDuration ??
+              const Duration(seconds: 10);
+          coordinator.snoozeById(widget.id, snoozeDuration);
         },
         if (widget.action != null && widget.action!.label != null)
           CustomSemanticsAction(label: widget.action!.label!): () {
@@ -1098,6 +1212,7 @@ class NotificationWidgetState extends State<NotificationWidget>
           alignment: AlignmentDirectional.centerEnd,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: TextButton(
+            focusNode: widget.action!.focusNode,
             style: ButtonStyle(
               padding: const WidgetStatePropertyAll(EdgeInsets.zero),
               visualDensity: VisualDensity.compact,
@@ -1169,20 +1284,24 @@ class NotificationWidgetState extends State<NotificationWidget>
         dimension: 24,
         child: ValueListenableBuilder(
           valueListenable: _showCloseButton,
-          builder: (final context, final opacity, final child) => IgnorePointer(
-            ignoring: opacity == 0.0,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-              opacity: opacity,
-              child: IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                onPressed: dismiss,
-                iconSize: 18,
-                icon: Icon(
-                  Icons.close,
-                  color: theme.foregroundColor,
+          builder: (final context, final opacity, final child) =>
+              ExcludeFocus(
+            excluding: opacity == 0.0,
+            child: IgnorePointer(
+              ignoring: opacity == 0.0,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeOutCubic,
+                opacity: opacity,
+                child: IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  onPressed: dismiss,
+                  iconSize: 18,
+                  icon: Icon(
+                    Icons.close,
+                    color: theme.foregroundColor,
+                  ),
                 ),
               ),
             ),

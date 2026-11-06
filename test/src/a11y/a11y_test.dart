@@ -555,5 +555,397 @@ void main() {
         }
       },
     );
+
+    testWidgets(
+      'Enter key triggers primary action on focused card',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(body: Center(child: Text('Home'))),
+          ),
+        );
+
+        var actionTriggered = false;
+        controller.show(
+          AppNotification(
+            message: 'Action test',
+            permanent: true,
+            action: NotificationAction.button(
+              label: 'CONFIRM',
+              onPressed: () {
+                actionTriggered = true;
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Focus card via Alt + N
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+
+        expect(controller.coordinator!.isNotificationFocused, isTrue);
+
+        // Press Enter
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+
+        expect(actionTriggered, isTrue);
+        expect(find.text('Action test'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Enter key triggers card tap behavior when no action is defined',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(body: Center(child: Text('Home'))),
+          ),
+        );
+
+        var tapped = false;
+        controller.show(
+          AppNotification(
+            message: 'Tap behavior test',
+            permanent: true,
+            tapBehavior: TapToAct(
+              onTap: () {
+                tapped = true;
+              },
+              dismissOnAct: true,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Focus card via Alt + N
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+
+        // Press Enter
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+
+        expect(tapped, isTrue);
+        expect(find.text('Tap behavior test'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'E key toggles expansion of focused card',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(body: Center(child: Text('Home'))),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            message: 'Expand test',
+            permanent: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final cardFinder =
+            find.widgetWithText(NotificationWidget, 'Expand test');
+        final cardState =
+            tester.state<NotificationWidgetState>(cardFinder);
+        expect(cardState.isExpanded.value, isFalse);
+
+        // Focus card via Alt + N
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+
+        // Press E to expand
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+        await tester.pump();
+        expect(cardState.isExpanded.value, isTrue);
+
+        // Press E to collapse
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+        await tester.pump();
+        expect(cardState.isExpanded.value, isFalse);
+      },
+    );
+
+    testWidgets(
+      'P key toggles pin and unpin state on focused card',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(body: Center(child: Text('Home'))),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            message: 'Pin test',
+            permanent: false,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final cardFinder =
+            find.widgetWithText(NotificationWidget, 'Pin test');
+        final cardState =
+            tester.state<NotificationWidgetState>(cardFinder);
+        expect(cardState.widget.isPinned, isFalse);
+
+        // Focus card via Alt + N
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+
+        // Press P to pin
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
+        await tester.pump();
+        expect(cardState.widget.isPinned, isTrue);
+
+        // Press P to unpin
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
+        await tester.pump();
+        expect(cardState.widget.isPinned, isFalse);
+      },
+    );
+
+    testWidgets(
+      'S key snoozes focused card',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(body: Center(child: Text('Home'))),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            message: 'Snooze test',
+            permanent: true,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.text('Snooze test'), findsOneWidget);
+
+        // Focus card via Alt + N
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+
+        // Press S to snooze
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+        await tester.pumpAndSettle();
+
+        // Removed from active display
+        expect(find.text('Snooze test'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Shift+Delete dismisses entire grouped bundle of notifications',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(body: Center(child: Text('Home'))),
+          ),
+        );
+
+        controller
+          ..show(
+            const AppNotification(
+              message: 'Bundle item 1',
+              groupKey: 'test_bundle',
+              permanent: true,
+            ),
+          )
+          ..show(
+            const AppNotification(
+              message: 'Bundle item 2',
+              groupKey: 'test_bundle',
+              permanent: true,
+            ),
+          );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Bundle item 1'), findsOneWidget);
+        expect(find.text('Bundle item 2'), findsOneWidget);
+
+        // Focus card via Alt + N
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+
+        // Send Shift + Delete
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Bundle item 1'), findsNothing);
+        expect(find.text('Bundle item 2'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Space key triggers focused inner element after Tab cycle',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(body: Center(child: Text('Home'))),
+          ),
+        );
+
+        final actionFocusNode = FocusNode();
+        addTearDown(actionFocusNode.dispose);
+
+        var actionTriggered = false;
+        controller.show(
+          AppNotification(
+            message: 'Tab Space test',
+            permanent: true,
+            action: NotificationAction.button(
+              label: 'TAP_ME',
+              focusNode: actionFocusNode,
+              onPressed: () {
+                actionTriggered = true;
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Focus card via Alt + N
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+
+        // Space on card container does NOT trigger action or dismiss
+        await tester.sendKeyEvent(LogicalKeyboardKey.space);
+        await tester.pump();
+        expect(actionTriggered, isFalse);
+        expect(find.text('Tab Space test'), findsOneWidget);
+
+        // Advance focus to the inner button
+        actionFocusNode.requestFocus();
+        await tester.pump();
+
+        expect(actionFocusNode.hasPrimaryFocus, isTrue);
+
+        // Send Space key to activate focused inner button
+        await tester.sendKeyEvent(LogicalKeyboardKey.space);
+        await tester.pumpAndSettle();
+
+        expect(actionTriggered, isTrue);
+      },
+    );
+
+    testWidgets(
+      'NotificationWidget exposes Expand, Pin, and Snooze custom actions',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(body: Center(child: Text('Home'))),
+          ),
+        );
+
+        final handle = tester.ensureSemantics();
+        try {
+          controller.show(
+            const AppNotification(
+              message: 'Semantics actions test',
+              permanent: true,
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final finder = find.widgetWithText(
+            NotificationWidget,
+            'Semantics actions test',
+          );
+          final semantics = tester.getSemantics(finder);
+          final data = semantics.getSemanticsData();
+          final actions = data.customSemanticsActionIds
+              ?.map(CustomSemanticsAction.getAction)
+              .toList();
+
+          expect(actions?.any((final a) => a?.label == 'Dismiss'), isTrue);
+          expect(actions?.any((final a) => a?.label == 'Expand'), isTrue);
+          expect(actions?.any((final a) => a?.label == 'Pin'), isTrue);
+          expect(actions?.any((final a) => a?.label == 'Snooze'), isTrue);
+        } finally {
+          handle.dispose();
+        }
+      },
+    );
   });
 }
