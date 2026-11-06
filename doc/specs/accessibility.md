@@ -1,6 +1,6 @@
 # Accessibility (A11y) & Keyboard Focus Traversal Specification
 
-> **Status**: Planned Specification (`v0.6.x` Roadmap Target — Task `F-06`)  
+> **Status**: Implemented (`v0.6.0-dev` — Task `F-06`)  
 > **Author**: FNQ Core Architecture Team  
 > **Category**: Accessibility, Keyboard Traversal & Enterprise Compliance
 
@@ -191,8 +191,8 @@ testWidgets('Alt+N transfers focus to notification and Delete dismisses it', (te
 
 ## 7. Implementation Checklist (`v0.6.x` / Track `F-06`)
 
-- [ ] **Phase 1**: Add `NotificationA11yOptions` to `NotificationController` and `ConfigurationManager`.
-- [ ] **Phase 2**: Add `SemanticsService.announce` live region triggers on `NotificationQueued` events.
-- [ ] **Phase 3**: Wrap `NotificationWidget` and `QueueGroupWidget` in structured `Semantics` and `FocusNode` widgets.
-- [ ] **Phase 4**: Implement `Alt + N` focus handoff shortcut and `FocusTraversalGroup` management.
-- [ ] **Phase 5**: Add automated unit & widget accessibility test suite in `test/src/a11y/`.
+- [x] **Phase 1**: Add `NotificationA11yOptions` to `NotificationController` and `ConfigurationManager`.
+- [x] **Phase 2**: Add `SemanticsService.announce` live region triggers on `NotificationQueued` events.
+- [x] **Phase 3**: Wrap `NotificationWidget` and `QueueGroupWidget` in structured `Semantics` and `FocusNode` widgets.
+- [x] **Phase 4**: Implement `Alt + N` focus handoff shortcut and `FocusTraversalGroup` management.
+- [x] **Phase 5**: Add automated unit & widget accessibility test suite in `test/src/a11y/`.

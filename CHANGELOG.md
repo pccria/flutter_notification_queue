@@ -2,6 +2,32 @@
 
 ## [0.6.0-dev]
 
+### Accessibility (WCAG 2.1 AA) & Keyboard Traversal (Track 2 / F-06)
+- **Screen Reader Live Regions**: Real-time vocal announcements via
+  `SemanticsService.sendAnnouncement` scoped to the platform view. Polite
+  announcements for `normal`/`low`/`high` priorities and assertive alerts for
+  `critical` priority notifications, configurable via
+  `announcePriorityThreshold` and `enableLiveRegions`.
+- **Non-Intrusive Focus Ingestion**: Removed automated focus stealing when new
+  notifications enter the stack. Text input cursor and user interaction in the
+  host application remain uninterrupted.
+- **Reversible Keyboard Focus Handoff (`Alt + N` / `⌥N`)**: Quick shortcut
+  handoff transfers focus to the active notification stack without touching
+  pointer devices. Upon stack exit or dismissal of the final card, previous host
+  app focus is restored automatically.
+- **Card Keyboard Navigation & Semantics**: Individual notification cards expose
+  container semantics with detailed hints (`Press Delete or Escape to dismiss`).
+  Added arrow key navigation (`ArrowDown` / `ArrowUp`), `Escape` card dismissal,
+  and `CustomSemanticsAction` for screen reader accessibility actions.
+- **Group Toggle Pill Accessibility**: Toggle pills expose `Semantics` button
+  roles, dynamic state labels (`Grouped notifications` /
+  `Collapse notification group`), and keyboard toggle activation using `Enter`
+  or `Space`.
+- **Global Configuration (`NotificationA11yOptions`)**: Fully customizable
+  keyboard shortcuts (`focusShortcut`), dismissal keys (`dismissKey`), and
+  accessibility behaviors provided on `NotificationController` and
+  `NotificationScope`.
+
 ### Live Updates, Async Promises & Notification Handles (Track 1)
 - **Notification Handles (`NotificationHandle`)**: `NotificationController.show`
   now returns a lightweight `NotificationHandle` representing the lifecycle of

@@ -202,6 +202,7 @@ class QueueCoordinator implements NotificationScopeState {
     _positionById[id] = targetPosition;
 
     _eventController.add(NotificationQueued(notification: notification));
+    _announceNotification(notification);
 
     final key = _widgetStateKeys[targetPosition];
     final isMounted = key?.currentState != null;
@@ -941,6 +942,64 @@ class QueueCoordinator implements NotificationScopeState {
   /// Called by QueueWidgetState when it's empty to self-destruct.
   void unmountQueue(final QueuePosition position) {
     _unmountQueue(position);
+  }
+
+  // ── Accessibility & Focus Traversal ──────────────────────────────────────
+
+  void _announceNotification(final NotificationWidget notification) {
+    final a11y = configuration.a11yOptions;
+    if (!a11y.enableLiveRegions) {
+      return;
+    }
+    final priority = notification.resolvedPriority;
+    if (priority < a11y.announcePriorityThreshold) {
+      return;
+    }
+    final title = notification.title;
+    final message = notification.message;
+    final announcement = title != null && title.isNotEmpty
+        ? '$title: $message'
+        : message;
+    final assertiveness = priority == NotificationPriority.critical
+        ? Assertiveness.assertive
+        : Assertiveness.polite;
+
+    final view = PlatformDispatcher.instance.implicitView ??
+        PlatformDispatcher.instance.views.firstOrNull;
+    if (view != null) {
+      unawaited(
+        SemanticsService.sendAnnouncement(
+          view,
+          announcement,
+          TextDirection.ltr,
+          assertiveness: assertiveness,
+        ),
+      );
+    }
+  }
+
+  /// Attempts to transfer keyboard focus to the first active notification card.
+  ///
+  /// Returns `true` if a notification card received focus; `false` otherwise.
+  bool focusFirstNotification() {
+    for (final key in _widgetStateKeys.values) {
+      final state = key.currentState;
+      if (state != null && state.focusFirst()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Whether any active notification card currently holds keyboard focus.
+  bool get isNotificationFocused {
+    for (final key in _widgetStateKeys.values) {
+      final state = key.currentState;
+      if (state != null && state.hasFocusedNotification) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // --- Helpers ---

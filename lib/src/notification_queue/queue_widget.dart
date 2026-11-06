@@ -83,6 +83,64 @@ class QueueWidgetState extends State<QueueWidget>
     return newest;
   }
 
+  /// Focuses the first active non-exiting notification card in this queue.
+  bool focusFirst() {
+    for (final item in _items) {
+      if (item.status != _ItemStatus.exiting) {
+        final state = item.widget.key.currentState;
+        if (state != null && state.mounted) {
+          state.requestFocus();
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Whether any active notification card in this queue currently has focus.
+  bool get hasFocusedNotification {
+    for (final item in _items) {
+      if (item.status != _ItemStatus.exiting) {
+        final state = item.widget.key.currentState;
+        if (state != null && state.isFocused) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Shifts focus to the next visible card in this queue.
+  void focusNext(final String currentId) {
+    final visible =
+        _items.where((final i) => i.status != _ItemStatus.exiting).toList();
+    if (visible.length <= 1) {
+      return;
+    }
+    final currentIndex =
+        visible.indexWhere((final i) => i.widget.id == currentId);
+    if (currentIndex != -1) {
+      final nextIndex = (currentIndex + 1) % visible.length;
+      visible[nextIndex].widget.key.currentState?.requestFocus();
+    }
+  }
+
+  /// Shifts focus to the previous visible card in this queue.
+  void focusPrevious(final String currentId) {
+    final visible =
+        _items.where((final i) => i.status != _ItemStatus.exiting).toList();
+    if (visible.length <= 1) {
+      return;
+    }
+    final currentIndex =
+        visible.indexWhere((final i) => i.widget.id == currentId);
+    if (currentIndex != -1) {
+      final prevIndex =
+          (currentIndex - 1 + visible.length) % visible.length;
+      visible[prevIndex].widget.key.currentState?.requestFocus();
+    }
+  }
+
   /// Returns whether this queue contains any active notifications
   /// for [groupKey].
   bool hasActiveGroup(final String groupKey) {

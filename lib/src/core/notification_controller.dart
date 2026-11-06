@@ -143,6 +143,8 @@ class NotificationController {
     final Set<NotificationChannel>? channels,
     final bool strictChannelLookup = false,
     final int maxHistoryEntries = 0,
+    final NotificationA11yOptions a11yOptions =
+        const NotificationA11yOptions(),
     final LogLevel? logLevel,
     final List<Handler>? logHandlers,
     final bool captureFlutterErrors = false,
@@ -151,6 +153,7 @@ class NotificationController {
           channels: channels ?? NotificationChannel.standardChannels(),
           strictChannelLookup: strictChannelLookup,
           maxHistoryEntries: maxHistoryEntries,
+          a11yOptions: a11yOptions,
         ) {
     _configureLogger(
       customLevel: logLevel,
@@ -160,11 +163,14 @@ class NotificationController {
   }
 
   /// The current version of the flutter_notification_queue package.
-  static const String version = '0.5.3-dev';
+  static const String version = '0.6.0-dev';
 
   /// The configuration manager for this controller instance.
   @internal
   final ConfigurationManager configuration;
+
+  /// The accessibility options configured for this controller.
+  NotificationA11yOptions get a11yOptions => configuration.a11yOptions;
 
   /// Stable broadcast proxy stream for all lifecycle events.
   final _proxyController = StreamController<NotificationEvent>.broadcast();
@@ -199,12 +205,14 @@ class NotificationController {
     final Set<NotificationChannel>? channels,
     final bool? strictChannelLookup,
     final int? maxHistoryEntries,
+    final NotificationA11yOptions? a11yOptions,
   }) {
     configuration.reconfigure(
       queues: queues,
       channels: channels,
       strictChannelLookup: strictChannelLookup,
       maxHistoryEntries: maxHistoryEntries,
+      a11yOptions: a11yOptions,
     );
     if (_attachedState is QueueCoordinator) {
       (_attachedState! as QueueCoordinator).historyLogger.updateMaxEntries(

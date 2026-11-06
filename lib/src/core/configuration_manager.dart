@@ -13,6 +13,7 @@ class ConfigurationManager {
     this.channels = const {},
     this.strictChannelLookup = false,
     this.maxHistoryEntries = 0,
+    this.a11yOptions = const NotificationA11yOptions(),
   }) : queues = _initQueues(queues);
 
   static Set<NotificationQueue> _initQueues(
@@ -27,6 +28,7 @@ class ConfigurationManager {
   Set<NotificationChannel> channels;
   bool strictChannelLookup;
   int maxHistoryEntries;
+  NotificationA11yOptions a11yOptions;
 
   /// Updates the configuration settings in-place.
   void reconfigure({
@@ -34,6 +36,7 @@ class ConfigurationManager {
     final Set<NotificationChannel>? channels,
     final bool? strictChannelLookup,
     final int? maxHistoryEntries,
+    final NotificationA11yOptions? a11yOptions,
   }) {
     if (queues != null) {
       this.queues = _initQueues(queues);
@@ -46,6 +49,9 @@ class ConfigurationManager {
     }
     if (maxHistoryEntries != null) {
       this.maxHistoryEntries = maxHistoryEntries;
+    }
+    if (a11yOptions != null) {
+      this.a11yOptions = a11yOptions;
     }
   }
 

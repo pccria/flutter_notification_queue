@@ -103,9 +103,31 @@ class _GroupWidgetState extends State<_GroupWidget>
     final collapsedOpacity = (1.0 - progress * 2.0).clamp(0.0, 1.0);
     final expandedOpacity = (progress * 2.0 - 1.0).clamp(0.0, 1.0);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
+    final a11yLabel = widget.isExpanded
+        ? 'Collapse notification group for channel ${widget.groupKey}'
+        : 'Grouped notifications: ${widget.items.length} items for channel '
+            '${widget.groupKey}';
+    final a11yHint = 'Double tap or press Enter to '
+        '${widget.isExpanded ? "collapse" : "expand"} group stack';
+
+    return Semantics(
+      button: true,
+      label: a11yLabel,
+      hint: a11yHint,
+      onTap: widget.onToggle,
+      child: Focus(
+        onKeyEvent: (final node, final event) {
+          if (event is KeyDownEvent &&
+              (event.logicalKey == LogicalKeyboardKey.enter ||
+                  event.logicalKey == LogicalKeyboardKey.space)) {
+            widget.onToggle();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
         onTap: widget.onToggle,
         onLongPress: widget.onToggle, // accessibility: long-press also toggles
         borderRadius: BorderRadius.circular(12),
@@ -222,7 +244,9 @@ class _GroupWidgetState extends State<_GroupWidget>
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   @override

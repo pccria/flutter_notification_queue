@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:logd/logd.dart';
 import 'package:meta/meta.dart';
@@ -575,6 +576,19 @@ class NotificationWidgetState extends State<NotificationWidget>
       _dismissProgressController != null ? _dummyTimer : null;
 
   late final AnimationController animationController;
+  late final FocusNode _focusNode;
+
+  /// Whether this notification card currently holds keyboard focus.
+  bool get isFocused => _focusNode.hasFocus;
+
+  /// Requests keyboard focus onto this notification card.
+  void requestFocus() => _focusNode.requestFocus();
+
+  void _handleFocusChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   static final _logger = Logger.get('fnq.Notification');
 
@@ -584,6 +598,8 @@ class NotificationWidgetState extends State<NotificationWidget>
       ?..writeln('Created State.')
       ..sink();
     super.initState();
+    _focusNode = FocusNode(debugLabel: 'NotificationCard_${widget.id}')
+      ..addListener(_handleFocusChanged);
     _showCloseButton.value = widget.queue.closeButtonBehavior.initialOpacity;
     // NOTE: The entry/exit animation for this notification is driven by the
     // QueueWidget's item-level AnimationController (via
@@ -711,6 +727,9 @@ class NotificationWidgetState extends State<NotificationWidget>
 
   @override
   void dispose() {
+    _focusNode
+      ..removeListener(_handleFocusChanged)
+      ..dispose();
     widget.isPinnedNotifier.removeListener(_handlePinChanged);
     ditchDismissTimer();
     animationController.dispose();
@@ -785,11 +804,84 @@ class NotificationWidgetState extends State<NotificationWidget>
     }
   }
 
+  KeyEventResult _handleCardKeyEvent(
+    final FocusNode node,
+    final KeyEvent event,
+  ) {
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    final a11y = coordinator.configuration.a11yOptions;
+
+    if (a11y.enableKeyboardDismiss) {
+      if (event.logicalKey == a11y.dismissKey) {
+        dismiss(reason: DismissReason.programmatic);
+        return KeyEventResult.handled;
+      }
+
+      if (a11y.escapeDismissesFocused &&
+          event.logicalKey == LogicalKeyboardKey.escape) {
+        dismiss(reason: DismissReason.programmatic);
+        return KeyEventResult.handled;
+      }
+    } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+      _focusNode.unfocus();
+      return KeyEventResult.handled;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
+        event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      final queueState =
+          coordinator.getWidgetKey(widget.queue.position).currentState;
+      queueState?.focusNext(widget.id);
+      return KeyEventResult.handled;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp ||
+        event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      final queueState =
+          coordinator.getWidgetKey(widget.queue.position).currentState;
+      queueState?.focusPrevious(widget.id);
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
+  }
+
   @override
   // The transition animation is already applied by QueueWidget._buildItem using
   // the queue-level item AnimationController. Applying it again here would
   // create a double-transition and an extra active ticker that hangs tests.
-  Widget build(final BuildContext context) => _buildNotification();
+  Widget build(final BuildContext context) {
+    final title = widget.title;
+    final message = widget.message;
+    final semanticLabel = title != null && title.isNotEmpty
+        ? 'Notification: $title, $message'
+        : 'Notification: $message';
+
+    return Semantics(
+      container: true,
+      focused: _focusNode.hasFocus,
+      label: semanticLabel,
+      hint: 'Press Delete or Escape to dismiss. '
+          'Press Tab to reach action buttons.',
+      customSemanticsActions: {
+        const CustomSemanticsAction(label: 'Dismiss'): () {
+          dismiss(reason: DismissReason.programmatic);
+        },
+        if (widget.action != null && widget.action!.label != null)
+          CustomSemanticsAction(label: widget.action!.label!): () {
+            widget.action!.onPressed();
+          },
+      },
+      child: Focus(
+        focusNode: _focusNode,
+        onKeyEvent: _handleCardKeyEvent,
+        child: _buildNotification(),
+      ),
+    );
+  }
 
   Widget _buildNotification() => Directionality(
         textDirection: Utils.estimateDirectionOfText(

@@ -60,40 +60,110 @@ class NotificationScope extends StatefulWidget {
 
 class _NotificationScopeState extends State<NotificationScope> {
   late QueueCoordinator _coordinator;
+  StreamSubscription<NotificationEvent>? _eventSub;
+  FocusNode? _savedAppFocus;
 
   @override
   void initState() {
     super.initState();
+    _initCoordinator();
+  }
+
+  void _initCoordinator() {
     _coordinator = QueueCoordinator.fromController(widget.controller);
     widget.controller.attach(_coordinator);
+    _eventSub = _coordinator.events.listen((final event) {
+      if (event is NotificationDismissed) {
+        if (_coordinator.activeNotifications.isEmpty) {
+          _restoreAppFocus();
+        }
+      }
+    });
+  }
+
+  void _handleFocusShortcut() {
+    if (_coordinator.isNotificationFocused) {
+      _restoreAppFocus();
+      return;
+    }
+
+    _savedAppFocus = FocusManager.instance.primaryFocus;
+    final focused = _coordinator.focusFirstNotification();
+    if (!focused) {
+      _restoreAppFocus();
+    }
+  }
+
+  void _restoreAppFocus() {
+    if (widget.controller.a11yOptions.restoreFocusOnExit &&
+        _savedAppFocus != null &&
+        _savedAppFocus!.canRequestFocus) {
+      _savedAppFocus!.requestFocus();
+      _savedAppFocus = null;
+    }
+  }
+
+  void _handleGlobalEscape() {
+    if (_coordinator.isNotificationFocused) {
+      if (widget.controller.a11yOptions.escapeDismissesFocused) {
+        _coordinator.dismissNewest();
+      }
+      _restoreAppFocus();
+      return;
+    }
+    if (widget.controller.a11yOptions.globalEscapeDismiss) {
+      _coordinator.dismissNewest();
+    }
+  }
+
+  void _handleGlobalShiftEscape() {
+    _coordinator.dismissAll();
+    _restoreAppFocus();
   }
 
   @override
   void didUpdateWidget(final NotificationScope oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.controller != oldWidget.controller) {
+      _eventSub?.cancel();
       oldWidget.controller.detach();
       _coordinator.dispose();
-      _coordinator = QueueCoordinator.fromController(widget.controller);
-      widget.controller.attach(_coordinator);
+      _initCoordinator();
     }
   }
 
   @override
   void dispose() {
+    _eventSub?.cancel();
     widget.controller.detach();
     _coordinator.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(final BuildContext context) => _NotificationScopeData(
+  Widget build(final BuildContext context) {
+    final a11y = widget.controller.a11yOptions;
+
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        if (a11y.focusShortcut != null)
+          a11y.focusShortcut!: _handleFocusShortcut,
+        if (a11y.globalEscapeDismiss) ...{
+          const SingleActivator(LogicalKeyboardKey.escape):
+              _handleGlobalEscape,
+          const SingleActivator(LogicalKeyboardKey.escape, shift: true):
+              _handleGlobalShiftEscape,
+        },
+      },
+      child: _NotificationScopeData(
         controller: widget.controller,
         child: NotificationOverlay(
           coordinator: _coordinator,
           child: widget.child,
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _NotificationScopeData extends InheritedWidget {

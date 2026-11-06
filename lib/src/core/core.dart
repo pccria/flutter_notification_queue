@@ -19,6 +19,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:logd/logd.dart';
 
@@ -31,6 +32,7 @@ import '../utils/utils.dart';
 part 'configuration_manager.dart';
 part 'notification_event.dart';
 part 'history_logger.dart';
+part 'notification_a11y_options.dart';
 part 'notification_controller.dart';
 part 'notification_overlay.dart';
 part 'notification_entry.dart';

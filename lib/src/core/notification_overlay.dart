@@ -165,29 +165,12 @@ class _NotificationQueueStack extends StatefulWidget {
 }
 
 class _NotificationQueueStackState extends State<_NotificationQueueStack> {
-  final FocusNode _focusNode = FocusNode();
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(final BuildContext context) =>
       ValueListenableBuilder<Map<QueuePosition, NotificationQueue>>(
         valueListenable: widget.coordinator.activeQueues,
         builder: (final context, final activeQueues, final child) {
           final hasActive = activeQueues.isNotEmpty;
-          if (hasActive) {
-            WidgetsBinding.instance.addPostFrameCallback((final _) {
-              if (mounted &&
-                  _focusNode.canRequestFocus &&
-                  !_focusNode.hasFocus) {
-                _focusNode.requestFocus();
-              }
-            });
-          }
 
           // NOTE: Do NOT call MediaQuery.paddingOf(context) here — it
           // subscribes _NotificationQueueStack to every size/insets change
@@ -220,24 +203,8 @@ class _NotificationQueueStackState extends State<_NotificationQueueStack> {
             return layout;
           }
 
-          return Focus(
-            focusNode: _focusNode,
-            autofocus: true,
-            onKeyEvent: (final node, final event) {
-              if (event is KeyDownEvent) {
-                if (event.logicalKey == LogicalKeyboardKey.escape) {
-                  final isShiftPressed =
-                      HardwareKeyboard.instance.isShiftPressed;
-                  if (isShiftPressed) {
-                    widget.coordinator.dismissAll();
-                  } else {
-                    widget.coordinator.dismissNewest();
-                  }
-                  return KeyEventResult.handled;
-                }
-              }
-              return KeyEventResult.ignored;
-            },
+          return FocusTraversalGroup(
+            policy: ReadingOrderTraversalPolicy(),
             child: layout,
           );
         },
