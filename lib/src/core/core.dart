@@ -34,5 +34,6 @@ part 'history_logger.dart';
 part 'notification_controller.dart';
 part 'notification_overlay.dart';
 part 'notification_entry.dart';
+part 'notification_handle.dart';
 part 'notification_scope.dart';
 part 'queue_coordinator.dart';

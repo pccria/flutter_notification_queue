@@ -1,6 +1,28 @@
 # Changelog
 
-## [0.5.3-dev]
+## [0.6.0-dev]
+
+### Live Updates, Async Promises & Notification Handles (Track 1)
+- **Notification Handles (`NotificationHandle`)**: `NotificationController.show`
+  now returns a lightweight `NotificationHandle` representing the lifecycle of
+  the dispatched notification. Exposes `.dismiss()`, `.update()`,
+  `.updateWith()`, `.pin()`, `.unpin()`, `.snooze()`, and `.relocate()`
+  for fluent programmatic control without retaining raw notification IDs.
+- **In-Place Updates**: Added `NotificationController.update` and
+  `updateWith` (along with coordinator and queue widget internals) enabling
+  zero-flicker in-place updates of active and pending notifications. Mutates
+  content and styles in place without re-triggering entrance transitions.
+- **Async/Promise Toasts (`showAsync`)**: Introduced `showAsync<T>` and
+  `tryShowAsync<T>` on `NotificationController` to seamlessly bind notifications
+  to the lifecycle of asynchronous operations (e.g. uploads, network calls).
+  Displays sticky loading states while pending, smoothly transitioning into
+  auto-dismissing success or failure toasts upon resolution/rejection.
+- **Event Stream Expansion (`NotificationUpdated`)**: Added sealed event
+  `NotificationUpdated` carrying `notification` and `oldNotification` snapshots
+  emitted on every in-place update.
+- **Zero-Boilerplate Controller**: `NotificationController` constructor now
+  defaults `queues` to `{const NotificationQueue()}`, eliminating mandatory
+  queue configuration for standard single-queue applications.
 
 ### Bundled Notifications & Viewport Engine
 - **Slot-Based Viewport Engine**: Collapsed notification bundles occupy exactly
@@ -11,9 +33,10 @@
   Mode, stashing sibling queue blocks from the render tree to strictly uphold
   the Mobile Viewport Height Contract (`renderedCards <= maxStackSize`). Sibling
   blocks restore seamlessly upon bundle collapse.
-- **Timer Decoupling**: Removed `pauseTimersWhenExpanded` parameter; expanding
-  a bundle no longer artificially freezes individual notification auto-dismiss
-  timers. Expired items dismiss naturally, and empty groups collapse smoothly.
+- **Timer Decoupling (Breaking Change)**: Removed `pauseTimersWhenExpanded`
+  parameter; expanding a bundle no longer artificially freezes individual
+  notification auto-dismiss timers. Expired items dismiss naturally, and empty
+  groups collapse smoothly.
 - **Group Count Defaults & Formatting**: Configured `maxCount` to default to 9
   (previously 99) in `HiddenCount` and format overflow values as `9+` (e.g.,
   `+9+`), keeping bundle pills compact on constrained mobile viewports.
@@ -32,8 +55,15 @@
 ### Studio (Example App)
 - **Shortcut Deduplication**: Eliminated duplicate firing on `Ctrl+Enter` /
   `⌘Enter` in Studio when text fields are actively focused.
+- **Live Update Event Support**: Added `NotificationUpdated` pattern handling
+  to Studio Event Log panels.
 
 ### Test Suite
+- **Track 1 Test Coverage**: Added comprehensive test suites in
+  `test/interaction/live_updates_test.dart` and
+  `test/src/core/notification_controller_test.dart` validating handle methods,
+  in-place active/pending updates, `showAsync` future lifecycles, and
+  `NotificationUpdated` events.
 - **Slot & Focus Mode Test Matrix**: Added automated test coverage in
   `test/interaction/grouping_test.dart` validating multi-channel concurrent
   slot admission, sibling block stashing in Focus Mode, and natural timer

@@ -7,8 +7,8 @@ abstract class NotificationScopeState {
   /// Stream of notification events emitted by the attached scope.
   Stream<NotificationEvent> get events;
 
-  /// Enqueues [notification] for display.
-  void show(
+  /// Enqueues [notification] for display, returning its assigned ID.
+  String show(
     final AppNotification notification, {
     final QueuePosition? targetPosition,
   });
@@ -16,6 +16,12 @@ abstract class NotificationScopeState {
   /// Dismisses the notification described by [notification] by matching its id.
   void dismiss(
     final AppNotification notification, {
+    final DismissReason reason = DismissReason.programmatic,
+  });
+
+  /// Dismisses the notification with [id].
+  void dismissById(
+    final String id, {
     final DismissReason reason = DismissReason.programmatic,
   });
 
@@ -39,6 +45,9 @@ abstract class NotificationScopeState {
     final QueuePosition newPosition,
   );
 
+  /// Moves the notification with [id] to [newPosition].
+  void relocateById(final String id, final QueuePosition newPosition);
+
   /// Changes the display order of [notification] within its queue to
   /// [targetIndex].
   void reorder(final AppNotification notification, final int targetIndex);
@@ -46,11 +55,45 @@ abstract class NotificationScopeState {
   /// Temporarily hides [notification] and re-enqueues it after [duration].
   void snooze(final AppNotification notification, final Duration duration);
 
+  /// Temporarily hides the notification with [id] and re-enqueues it after
+  /// [duration].
+  void snoozeById(final String id, final Duration duration);
+
   /// Locks [notification] to the top of its queue and disables swipe-dismiss.
   void pin(final AppNotification notification);
 
+  /// Locks the notification with [id] to the top of its queue.
+  void pinById(final String id);
+
   /// Releases the pin on [notification], restoring normal interactive behavior.
   void unpin(final AppNotification notification);
+
+  /// Releases the pin on the notification with [id].
+  void unpinById(final String id);
+
+  /// Updates an active or pending notification by [id] in place.
+  bool update(
+    final String id, {
+    final String? message,
+    final String? title,
+    final Widget? icon,
+    final NotificationAction? action,
+    final NotificationPriority? priority,
+    final Color? color,
+    final Color? backgroundColor,
+    final Color? foregroundColor,
+    final Color? accentColor,
+    final Duration? dismissDuration,
+    final bool? permanent,
+    final bool resetTimer = false,
+  });
+
+  /// Updates an active or pending notification by applying [transform].
+  bool updateWith(
+    final String id,
+    final AppNotification Function(AppNotification current) transform, {
+    final bool resetTimer = false,
+  });
 
   /// Retrieves recorded lifecycle history.
   List<NotificationEvent> getHistory({
@@ -78,9 +121,7 @@ abstract class NotificationScopeState {
 ///
 /// ```dart
 /// // 1. Create — before or alongside the widget tree
-/// final controller = NotificationController(
-///   queues: {const NotificationQueue()},
-/// );
+/// final controller = NotificationController();
 ///
 /// // 2. Inject — attach to the tree via NotificationScope
 /// NotificationScope(
@@ -89,16 +130,16 @@ abstract class NotificationScopeState {
 /// );
 ///
 /// // 3. Dispatch — from any layer, with or without BuildContext
-/// controller.show(AppNotification(message: 'Hello'));
+/// final handle = controller.show(const AppNotification(message: 'Hello'));
 ///
 /// // 4. Dispose — when the owning widget/object is disposed
 /// controller.dispose();
 /// ```
 class NotificationController {
-  /// Creates a [NotificationController] with the given queue and channel
+  /// Creates a [NotificationController] with optional queue and channel
   /// configuration.
   NotificationController({
-    required final Set<NotificationQueue> queues,
+    final Set<NotificationQueue>? queues,
     final Set<NotificationChannel>? channels,
     final bool strictChannelLookup = false,
     final int maxHistoryEntries = 0,
@@ -106,7 +147,7 @@ class NotificationController {
     final List<Handler>? logHandlers,
     final bool captureFlutterErrors = false,
   }) : configuration = ConfigurationManager(
-          queues: queues,
+          queues: queues ?? {const NotificationQueue()},
           channels: channels ?? NotificationChannel.standardChannels(),
           strictChannelLookup: strictChannelLookup,
           maxHistoryEntries: maxHistoryEntries,
@@ -202,14 +243,15 @@ class NotificationController {
 
   // ── Dispatch ──────────────────────────────────────────────────────────────
 
-  /// Enqueues [notification] for display.
+  /// Enqueues [notification] for display, returning a [NotificationHandle] for
+  /// programmatic management.
   ///
   /// Optionally supply [targetPosition] to route the notification to a
   /// specific queue position, overriding channel defaults.
   ///
   /// Throws [StateError] if no `NotificationScope` is currently attached.
   /// Use [tryShow] for race conditions where the scope may not yet be mounted.
-  void show(
+  NotificationHandle show(
     final AppNotification notification, {
     final QueuePosition? targetPosition,
   }) {
@@ -220,11 +262,15 @@ class NotificationController {
         'in the widget tree with this controller.',
       );
     }
-    _attachedState!.show(notification, targetPosition: targetPosition);
+    final id = _attachedState!.show(
+      notification,
+      targetPosition: targetPosition,
+    );
+    return NotificationHandle(id: id, controller: this);
   }
 
-  /// Enqueues [notification] if a `NotificationScope` is attached; silently
-  /// no-ops otherwise.
+  /// Enqueues [notification] if a `NotificationScope` is attached,
+  /// returning its handle; silently returns `null` otherwise.
   ///
   /// Optionally supply [targetPosition] to route the notification to a
   /// specific queue position, overriding channel defaults.
@@ -232,13 +278,88 @@ class NotificationController {
   /// Follows Dart's `tryXxx` convention: the safe, non-throwing alternative.
   /// Use this for app-startup race conditions where a BLoC or service may emit
   /// a notification before the first frame renders the scope.
-  void tryShow(
+  NotificationHandle? tryShow(
     final AppNotification notification, {
     final QueuePosition? targetPosition,
   }) {
     if (isAttached) {
-      show(notification, targetPosition: targetPosition);
+      return show(notification, targetPosition: targetPosition);
     }
+    return null;
+  }
+
+  /// Displays a notification that automatically updates based on the lifecycle
+  /// of [future].
+  ///
+  /// Displays [loading] initially with auto-dismiss disabled (sticky).
+  /// - When [future] resolves successfully, updates the notification using
+  ///   [onSuccess] and starts its auto-dismiss countdown.
+  /// - When [future] rejects with an error, updates the notification using
+  ///   [onError].
+  ///
+  /// Returns a [NotificationHandle] allowing cancellation or programmatic
+  /// control while [future] is pending.
+  NotificationHandle showAsync<T>(
+    final Future<T> future, {
+    required final AppNotification loading,
+    required final AppNotification Function(T data) onSuccess,
+    required final AppNotification Function(Object error, StackTrace stackTrace)
+        onError,
+    final QueuePosition? targetPosition,
+  }) {
+    final handle = show(
+      loading.copyWith(permanent: true),
+      targetPosition: targetPosition,
+    );
+
+    future.then(
+      (final data) {
+        handle.updateWith(
+          (final _) => onSuccess(data),
+          resetTimer: true,
+        );
+      },
+      onError: (final Object error, final StackTrace stackTrace) {
+        handle.updateWith(
+          (final _) => onError(error, stackTrace),
+          resetTimer: true,
+        );
+      },
+    );
+
+    return handle;
+  }
+
+  /// Displays an asynchronous notification if attached; returns `null`
+  /// otherwise.
+  NotificationHandle? tryShowAsync<T>(
+    final Future<T> future, {
+    required final AppNotification loading,
+    required final AppNotification Function(T data) onSuccess,
+    required final AppNotification Function(Object error, StackTrace stackTrace)
+        onError,
+    final QueuePosition? targetPosition,
+  }) {
+    if (isAttached) {
+      return showAsync(
+        future,
+        loading: loading,
+        onSuccess: onSuccess,
+        onError: onError,
+        targetPosition: targetPosition,
+      );
+    }
+    return null;
+  }
+
+  /// Programmatically dismisses the notification with [id].
+  ///
+  /// No-ops silently if no notification with [id] is active or pending.
+  void dismissById(
+    final String id, {
+    final DismissReason reason = DismissReason.programmatic,
+  }) {
+    _attachedState?.dismissById(id, reason: reason);
   }
 
   /// Programmatically dismisses [notification] by matching its ID.
@@ -250,6 +371,55 @@ class NotificationController {
   }) {
     _attachedState?.dismiss(notification, reason: reason);
   }
+
+  /// Updates an active or pending notification by [id] in place.
+  ///
+  /// Set [resetTimer] to `true` to restart the auto-dismiss timer.
+  /// Returns `true` if the notification was found and updated.
+  bool update(
+    final String id, {
+    final String? message,
+    final String? title,
+    final Widget? icon,
+    final NotificationAction? action,
+    final NotificationPriority? priority,
+    final Color? color,
+    final Color? backgroundColor,
+    final Color? foregroundColor,
+    final Color? accentColor,
+    final Duration? dismissDuration,
+    final bool? permanent,
+    final bool resetTimer = false,
+  }) =>
+      _attachedState?.update(
+        id,
+        message: message,
+        title: title,
+        icon: icon,
+        action: action,
+        priority: priority,
+        color: color,
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+        accentColor: accentColor,
+        dismissDuration: dismissDuration,
+        permanent: permanent,
+        resetTimer: resetTimer,
+      ) ??
+      false;
+
+  /// Updates an active or pending notification by applying [transform]
+  /// to its current configuration.
+  ///
+  /// Set [resetTimer] to `true` to restart the auto-dismiss timer.
+  /// Returns `true` if the notification was found and updated.
+  bool updateWith(
+    final String id,
+    final AppNotification Function(AppNotification current) transform, {
+    final bool resetTimer = false,
+  }) =>
+      _attachedState?.updateWith(id, transform, resetTimer: resetTimer) ??
+      false;
 
   /// Programmatically dismisses all currently visible notifications.
   void dismissAll({
@@ -284,7 +454,16 @@ class NotificationController {
     final AppNotification notification,
     final QueuePosition newPosition,
   ) {
-    _attachedState?.relocate(notification, newPosition);
+    if (notification.id != null) {
+      relocateById(notification.id!, newPosition);
+    } else {
+      _attachedState?.relocate(notification, newPosition);
+    }
+  }
+
+  /// Moves the notification with [id] to [newPosition].
+  void relocateById(final String id, final QueuePosition newPosition) {
+    _attachedState?.relocateById(id, newPosition);
   }
 
   /// Changes the display order of [notification] within its queue to
@@ -299,21 +478,49 @@ class NotificationController {
   ///
   /// No-ops silently if [notification] is no longer active.
   void snooze(final AppNotification notification, final Duration duration) {
-    _attachedState?.snooze(notification, duration);
+    if (notification.id != null) {
+      snoozeById(notification.id!, duration);
+    } else {
+      _attachedState?.snooze(notification, duration);
+    }
+  }
+
+  /// Temporarily hides the notification with [id] and re-enqueues it after
+  /// [duration].
+  void snoozeById(final String id, final Duration duration) {
+    _attachedState?.snoozeById(id, duration);
   }
 
   /// Locks [notification] to the top of its queue and disables swipe-dismiss.
   ///
   /// No-ops silently if [notification] is no longer active.
   void pin(final AppNotification notification) {
-    _attachedState?.pin(notification);
+    if (notification.id != null) {
+      pinById(notification.id!);
+    } else {
+      _attachedState?.pin(notification);
+    }
+  }
+
+  /// Locks the notification with [id] to the top of its queue.
+  void pinById(final String id) {
+    _attachedState?.pinById(id);
   }
 
   /// Releases the pin on [notification], restoring normal interactive behavior.
   ///
   /// No-ops silently if [notification] is no longer active.
   void unpin(final AppNotification notification) {
-    _attachedState?.unpin(notification);
+    if (notification.id != null) {
+      unpinById(notification.id!);
+    } else {
+      _attachedState?.unpin(notification);
+    }
+  }
+
+  /// Releases the pin on the notification with [id].
+  void unpinById(final String id) {
+    _attachedState?.unpinById(id);
   }
 
   // ── History ───────────────────────────────────────────────────────────────

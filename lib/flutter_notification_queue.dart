@@ -12,6 +12,7 @@ export 'src/core/core.dart'
         NotificationGroupCollapsed,
         NotificationGroupDismissed,
         NotificationGroupExpanded,
+        NotificationHandle,
         NotificationPinned,
         NotificationQueued,
         NotificationRelocated,
@@ -20,6 +21,7 @@ export 'src/core/core.dart'
         NotificationSnoozed,
         NotificationTapped,
         NotificationUnpinned,
+        NotificationUpdated,
         QueueOverflowed,
         QueuePositionRelocated;
 export 'src/enums/enums.dart';

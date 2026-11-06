@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 import 'package:flutter_notification_queue/src/core/core.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,26 +10,33 @@ class _FakeNotificationScopeState implements NotificationScopeState {
   final List<AppNotification> shownNotifications = [];
   final List<QueuePosition?> shownPositions = [];
   final List<AppNotification> dismissedNotifications = [];
+  final List<String> dismissedIds = [];
   bool dismissedAll = false;
   bool dismissedNewest = false;
   bool clearedHistory = false;
   final List<String> dismissedGroups = [];
   final List<(AppNotification, QueuePosition)> relocated = [];
+  final List<(String, QueuePosition)> relocatedIds = [];
   final List<(AppNotification, int)> reordered = [];
   final List<AppNotification> snoozed = [];
+  final List<(String, Duration)> snoozedIds = [];
   final List<AppNotification> pinned = [];
+  final List<String> pinnedIds = [];
   final List<AppNotification> unpinned = [];
+  final List<String> unpinnedIds = [];
+  final List<(String, String?)> updatedMessages = [];
 
   @override
   Stream<NotificationEvent> get events => _eventController.stream;
 
   @override
-  void show(
+  String show(
     final AppNotification notification, {
     final QueuePosition? targetPosition,
   }) {
     shownNotifications.add(notification);
     shownPositions.add(targetPosition);
+    return notification.id ?? 'fake_id_${shownNotifications.length}';
   }
 
   @override
@@ -38,6 +45,17 @@ class _FakeNotificationScopeState implements NotificationScopeState {
     final DismissReason reason = DismissReason.programmatic,
   }) {
     dismissedNotifications.add(notification);
+    if (notification.id != null) {
+      dismissedIds.add(notification.id!);
+    }
+  }
+
+  @override
+  void dismissById(
+    final String id, {
+    final DismissReason reason = DismissReason.programmatic,
+  }) {
+    dismissedIds.add(id);
   }
 
   @override
@@ -67,6 +85,11 @@ class _FakeNotificationScopeState implements NotificationScopeState {
   }
 
   @override
+  void relocateById(final String id, final QueuePosition newPosition) {
+    relocatedIds.add((id, newPosition));
+  }
+
+  @override
   void reorder(final AppNotification notification, final int targetIndex) {
     reordered.add((notification, targetIndex));
   }
@@ -80,13 +103,62 @@ class _FakeNotificationScopeState implements NotificationScopeState {
   }
 
   @override
+  void snoozeById(final String id, final Duration duration) {
+    snoozedIds.add((id, duration));
+  }
+
+  @override
   void pin(final AppNotification notification) {
     pinned.add(notification);
   }
 
   @override
+  void pinById(final String id) {
+    pinnedIds.add(id);
+  }
+
+  @override
   void unpin(final AppNotification notification) {
     unpinned.add(notification);
+  }
+
+  @override
+  void unpinById(final String id) {
+    unpinnedIds.add(id);
+  }
+
+  @override
+  bool update(
+    final String id, {
+    final String? message,
+    final String? title,
+    final Widget? icon,
+    final NotificationAction? action,
+    final NotificationPriority? priority,
+    final Color? color,
+    final Color? backgroundColor,
+    final Color? foregroundColor,
+    final Color? accentColor,
+    final Duration? dismissDuration,
+    final bool? permanent,
+    final bool resetTimer = false,
+  }) {
+    updatedMessages.add((id, message));
+    return true;
+  }
+
+  @override
+  bool updateWith(
+    final String id,
+    final AppNotification Function(AppNotification current) transform, {
+    final bool resetTimer = false,
+  }) {
+    final transformed = transform(const AppNotification(message: 'initial'));
+    return update(
+      id,
+      message: transformed.message,
+      resetTimer: resetTimer,
+    );
   }
 
   @override
@@ -346,6 +418,116 @@ void main() {
       expect(fakeScope.shownPositions[0], isNull);
       expect(fakeScope.shownPositions[1], equals(QueuePosition.bottomCenter));
       expect(fakeScope.shownPositions[2], equals(QueuePosition.topRight));
+    });
+
+    test('instantiates with zero-config default queues', () {
+      final controller = NotificationController();
+      addTearDown(controller.dispose);
+
+      expect(controller.configuration.queues.length, equals(1));
+      expect(
+        controller.configuration.queues.first.position,
+        equals(QueuePosition.topCenter),
+      );
+    });
+
+    test('show and tryShow return NotificationHandle with correct ID', () {
+      final controller = NotificationController();
+      final fakeScope = _FakeNotificationScopeState();
+      controller.attach(fakeScope);
+      addTearDown(controller.dispose);
+
+      const notif = AppNotification(id: 'custom_id_1', message: 'Hello');
+      final handle = controller.show(notif);
+
+      expect(handle, isA<NotificationHandle>());
+      expect(handle.id, equals('custom_id_1'));
+
+      final tryHandle = controller.tryShow(notif);
+      expect(tryHandle?.id, equals('custom_id_1'));
+
+      final unattachedController = NotificationController();
+      addTearDown(unattachedController.dispose);
+      expect(unattachedController.tryShow(notif), isNull);
+    });
+
+    test('NotificationHandle operations forward to controller and scope', () {
+      final fakeScope = _FakeNotificationScopeState();
+      final controller = NotificationController()..attach(fakeScope);
+      addTearDown(controller.dispose);
+
+      const notif = AppNotification(id: 'handle_test', message: 'Testing');
+      controller.show(notif)
+        ..pin()
+        ..unpin()
+        ..snooze(const Duration(seconds: 5))
+        ..relocate(QueuePosition.bottomLeft)
+        ..update(message: 'Updated message')
+        ..updateWith((final curr) => curr.copyWith(message: 'Transformed'))
+        ..dismiss();
+
+      expect(fakeScope.pinnedIds, contains('handle_test'));
+      expect(fakeScope.unpinnedIds, contains('handle_test'));
+      expect(
+        fakeScope.snoozedIds,
+        contains(('handle_test', const Duration(seconds: 5))),
+      );
+      expect(
+        fakeScope.relocatedIds,
+        contains(('handle_test', QueuePosition.bottomLeft)),
+      );
+      expect(
+        fakeScope.updatedMessages,
+        contains(('handle_test', 'Updated message')),
+      );
+      expect(
+        fakeScope.updatedMessages,
+        contains(('handle_test', 'Transformed')),
+      );
+      expect(fakeScope.dismissedIds, contains('handle_test'));
+    });
+
+    test('showAsync and tryShowAsync handle Future success and error',
+        () async {
+      final fakeScope = _FakeNotificationScopeState();
+      final controller = NotificationController()..attach(fakeScope);
+      addTearDown(controller.dispose);
+
+      final successCompleter = Completer<String>();
+      final successHandle = controller.showAsync<String>(
+        successCompleter.future,
+        loading: const AppNotification(message: 'Loading...'),
+        onSuccess: (final val) => AppNotification(message: 'Success: $val'),
+        onError: (final err, final _) =>
+            const AppNotification(message: 'Error'),
+      );
+
+      expect(fakeScope.shownNotifications.first.permanent, isTrue);
+
+      successCompleter.complete('data_123');
+      await pumpEventQueue();
+
+      expect(
+        fakeScope.updatedMessages,
+        contains((successHandle.id, 'Success: data_123')),
+      );
+
+      final errorCompleter = Completer<String>();
+      final errorHandle = controller.showAsync<String>(
+        errorCompleter.future,
+        loading: const AppNotification(message: 'Loading 2...'),
+        onSuccess: (final val) => const AppNotification(message: 'Success'),
+        onError: (final err, final _) =>
+            AppNotification(message: 'Failed: $err'),
+      );
+
+      errorCompleter.completeError(Exception('network_error'));
+      await pumpEventQueue();
+
+      expect(
+        fakeScope.updatedMessages,
+        contains((errorHandle.id, 'Failed: Exception: network_error')),
+      );
     });
   });
 }

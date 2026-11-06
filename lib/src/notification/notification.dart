@@ -140,6 +140,7 @@ class NotificationWidget extends StatefulWidget {
       backgroundColor: backgroundColor,
       accentColor: accentColor,
       dismissDuration: resolvedDismissDuration,
+      permanent: permanent,
       builder: builder,
       priority: priority,
       initialIsPinned: initialIsPinned,
@@ -163,18 +164,21 @@ class NotificationWidget extends StatefulWidget {
     this.backgroundColor,
     this.accentColor,
     this.dismissDuration,
+    this.permanent = false,
     this.tapBehavior,
     this.dragBehavior,
     this.longPressDragBehavior,
     this.builder,
     this.priority,
     final bool initialIsPinned = false,
+    final ValueNotifier<bool>? isPinnedNotifier,
     this.snoozedAt,
     final DateTime? createdAt,
     this.groupKey,
     this.coordinator,
   })  : _key = key,
-        isPinnedNotifier = ValueNotifier<bool>(initialIsPinned),
+        isPinnedNotifier =
+            isPinnedNotifier ?? ValueNotifier<bool>(initialIsPinned),
         createdAt = createdAt ?? DateTime.now();
 
   /// Gets the effective [QueueCoordinator] for this notification.
@@ -329,6 +333,9 @@ class NotificationWidget extends StatefulWidget {
   /// the notification remains permanent until explicitly dismissed.
   final Duration? dismissDuration;
 
+  /// Whether this notification is permanent (immune to auto-dismiss timers).
+  final bool permanent;
+
   final NotificationQueue queue;
 
   final NotificationChannel channel;
@@ -396,10 +403,12 @@ class NotificationWidget extends StatefulWidget {
         color: color,
         foregroundColor: foregroundColor,
         backgroundColor: backgroundColor,
+        accentColor: accentColor,
         dismissDuration: dismissDuration,
+        permanent: permanent,
         builder: builder,
         priority: priority,
-        initialIsPinned: isPinned,
+        isPinnedNotifier: isPinnedNotifier,
         snoozedAt: snoozedAt,
         createdAt: createdAt,
         groupKey: groupKey,
@@ -425,14 +434,92 @@ class NotificationWidget extends StatefulWidget {
         color: color,
         foregroundColor: foregroundColor,
         backgroundColor: backgroundColor,
+        accentColor: accentColor,
         dismissDuration: dismissDuration,
+        permanent: permanent,
         builder: builder,
         priority: priority,
-        initialIsPinned: isPinned,
+        isPinnedNotifier: isPinnedNotifier,
         snoozedAt: snoozedAt,
         createdAt: createdAt,
         groupKey: groupKey,
         coordinator: coordinator,
+      );
+
+  /// Creates a copy of this [NotificationWidget] with updated content and
+  /// style fields for in-place mutation, preserving its runtime identity,
+  /// creation timestamp, channel, and queue placement.
+  NotificationWidget copyForUpdate({
+    final String? message,
+    final String? title,
+    final Widget? icon,
+    final NotificationAction? action,
+    final NotificationPriority? priority,
+    final Color? color,
+    final Color? backgroundColor,
+    final Color? foregroundColor,
+    final Color? accentColor,
+    final Duration? dismissDuration,
+    final bool? permanent,
+  }) {
+    final effectivePermanent = permanent ?? this.permanent;
+    final effectiveDuration = effectivePermanent
+        ? null
+        : (dismissDuration ?? this.dismissDuration);
+
+    return NotificationWidget._(
+      key: key,
+      id: id,
+      message: message ?? this.message,
+      queue: queue,
+      channelName: channelName,
+      channel: channel,
+      title: title ?? this.title,
+      action: action ?? this.action,
+      tapBehavior: tapBehavior,
+      dragBehavior: dragBehavior,
+      longPressDragBehavior: longPressDragBehavior,
+      icon: icon ?? this.icon,
+      color: color ?? this.color,
+      foregroundColor: foregroundColor ?? this.foregroundColor,
+      backgroundColor: backgroundColor ?? this.backgroundColor,
+      accentColor: accentColor ?? this.accentColor,
+      dismissDuration: effectiveDuration,
+      permanent: effectivePermanent,
+      builder: builder,
+      priority: priority ?? this.priority,
+      isPinnedNotifier: isPinnedNotifier,
+      snoozedAt: snoozedAt,
+      createdAt: createdAt,
+      groupKey: groupKey,
+      coordinator: coordinator,
+    );
+  }
+
+  /// Converts this [NotificationWidget] back into a lightweight
+  /// [AppNotification] payload.
+  AppNotification toAppNotification() => AppNotification(
+        id: id,
+        message: message,
+        title: title,
+        channelName: channelName,
+        action: action,
+        tapBehavior: tapBehavior,
+        dragBehavior: dragBehavior,
+        longPressDragBehavior: longPressDragBehavior,
+        icon: icon,
+        // ignore: deprecated_member_use_from_same_package
+        color: color,
+        // ignore: deprecated_member_use_from_same_package
+        foregroundColor: foregroundColor,
+        // ignore: deprecated_member_use_from_same_package
+        backgroundColor: backgroundColor,
+        accentColor: accentColor,
+        dismissDuration: dismissDuration,
+        permanent: permanent,
+        builder: builder,
+        priority: priority,
+        groupKey: groupKey,
       );
 }
 
@@ -449,9 +536,12 @@ class NotificationWidgetState extends State<NotificationWidget>
   /// widget change that does not affect colours (e.g. window resize).
   Brightness? _lastBrightness;
 
-  Duration? get resolvedDismissDuration => widget.isPinned
-      ? null
-      : (widget.dismissDuration ?? widget.channel.defaultDismissDuration);
+  Duration? get resolvedDismissDuration {
+    if (widget.isPinned || widget.permanent) {
+      return null;
+    }
+    return widget.dismissDuration ?? widget.channel.defaultDismissDuration;
+  }
 
   bool get hasTitle => widget.title != null;
 
@@ -573,6 +663,18 @@ class NotificationWidgetState extends State<NotificationWidget>
         widget.queue.style,
         widget,
       );
+    }
+    if (oldWidget.permanent != widget.permanent ||
+        oldWidget.dismissDuration != widget.dismissDuration) {
+      if (widget.permanent || widget.isPinned) {
+        ditchDismissTimer();
+      } else if (resolvedDismissDuration != null) {
+        if (_dismissProgressController == null) {
+          initDismissTimer();
+        } else {
+          _dismissProgressController!.duration = resolvedDismissDuration;
+        }
+      }
     }
   }
 

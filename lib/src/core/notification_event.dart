@@ -64,6 +64,23 @@ final class NotificationQueued extends NotificationEvent {
       'queue: ${notification.queue.position.name})';
 }
 
+/// Emitted when an active or pending [NotificationWidget] is updated in place.
+final class NotificationUpdated extends NotificationEvent {
+  const NotificationUpdated({
+    required this.notification,
+    required this.oldNotification,
+  });
+
+  /// The updated notification widget.
+  final NotificationWidget notification;
+
+  /// The previous notification widget before the update.
+  final NotificationWidget oldNotification;
+
+  @override
+  String toString() => 'NotificationUpdated(id: ${notification.id})';
+}
+
 /// Emitted when a [NotificationWidget] is removed from its queue.
 final class NotificationDismissed extends NotificationEvent {
   const NotificationDismissed({

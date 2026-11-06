@@ -768,6 +768,15 @@ class _InspectorDrawer extends StatelessWidget {
           map['Title'] = notification.title!;
         }
         map['Message'] = notification.message;
+      case NotificationUpdated(:final notification, :final oldNotification):
+        map['ID'] = notification.id;
+        map['Channel'] = notification.channelName;
+        map['Position'] = notification.queue.position.name;
+        map['Message'] = notification.message;
+        map['Previous Message'] = oldNotification.message;
+        if (notification.title != null) {
+          map['Title'] = notification.title!;
+        }
       case NotificationDismissed(:final notification, :final reason):
         map['ID'] = notification.id;
         map['Channel'] = notification.channelName;
@@ -852,6 +861,14 @@ class _EventMeta {
             color: isDark
                 ? const Color(0xFF60A5FA)
                 : const Color(0xFF1D4ED8), // blue-400 : blue-700
+            badge: notification.queue.position.name,
+            subtitle: notification.title ?? notification.message,
+          ),
+        NotificationUpdated(:final notification) => _EventMeta(
+            label: 'Updated',
+            color: isDark
+                ? const Color(0xFF38BDF8) // sky-400
+                : const Color(0xFF0284C7), // sky-600
             badge: notification.queue.position.name,
             subtitle: notification.title ?? notification.message,
           ),

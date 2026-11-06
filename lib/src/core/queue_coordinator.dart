@@ -224,17 +224,17 @@ class QueueCoordinator implements NotificationScopeState {
   }
 
   @override
-  void show(
+  String show(
     final AppNotification notification, {
     final QueuePosition? targetPosition,
   }) {
-    queue(
-      notification.toWidget(
-        configuration,
-        this,
-        targetPosition,
-      ),
+    final widget = notification.toWidget(
+      configuration,
+      this,
+      targetPosition,
     );
+    queue(widget);
+    return widget.id;
   }
 
   // ── Dismiss ──────────────────────────────────────────────────────────────
@@ -251,17 +251,12 @@ class QueueCoordinator implements NotificationScopeState {
     return _widgetStateKeys[pos]?.currentState?.getNotificationWidget(id);
   }
 
-  /// Dismisses the notification described by [notification] by matching its id.
+  /// Dismisses the notification with [id].
   @override
-  void dismiss(
-    final AppNotification notification, {
+  void dismissById(
+    final String id, {
     final DismissReason reason = DismissReason.programmatic,
   }) {
-    final id = notification.id;
-    if (id == null) {
-      return;
-    }
-
     final activeWidget = _resolveActiveWidget(id);
     if (activeWidget != null) {
       dismissWidget(activeWidget, reason: reason);
@@ -293,6 +288,18 @@ class QueueCoordinator implements NotificationScopeState {
           return;
         }
       }
+    }
+  }
+
+  /// Dismisses the notification described by [notification] by matching its id.
+  @override
+  void dismiss(
+    final AppNotification notification, {
+    final DismissReason reason = DismissReason.programmatic,
+  }) {
+    final id = notification.id;
+    if (id != null) {
+      dismissById(id, reason: reason);
     }
   }
 
@@ -445,15 +452,24 @@ class QueueCoordinator implements NotificationScopeState {
 
   // ── Relocate ─────────────────────────────────────────────────────────────
 
+  /// Moves the notification with [id] to [newPosition].
+  @override
+  void relocateById(final String id, final QueuePosition newPosition) {
+    final activeWidget = _resolveActiveWidget(id);
+    if (activeWidget != null) {
+      relocateWidget(activeWidget, newPosition);
+    }
+  }
+
   /// Moves the notification described by [notification] to [newPosition].
   @override
   void relocate(
     final AppNotification notification,
     final QueuePosition newPosition,
   ) {
-    final activeWidget = _resolveActiveWidget(notification.id);
-    if (activeWidget != null) {
-      relocateWidget(activeWidget, newPosition);
+    final id = notification.id;
+    if (id != null) {
+      relocateById(id, newPosition);
     }
   }
 
@@ -627,14 +643,22 @@ class QueueCoordinator implements NotificationScopeState {
     key?.currentState?.reorder(notification, targetIndex);
   }
 
-  // ── Snooze ───────────────────────────────────────────────────────────────
+  /// Temporarily hides the notification with [id] and re-enqueues it after
+  /// [duration].
+  @override
+  void snoozeById(final String id, final Duration duration) {
+    final activeWidget = _resolveActiveWidget(id);
+    if (activeWidget != null) {
+      snoozeWidget(activeWidget, duration);
+    }
+  }
 
   /// Temporarily hides [notification] and re-enqueues it after [duration].
   @override
   void snooze(final AppNotification notification, final Duration duration) {
-    final activeWidget = _resolveActiveWidget(notification.id);
-    if (activeWidget != null) {
-      snoozeWidget(activeWidget, duration);
+    final id = notification.id;
+    if (id != null) {
+      snoozeById(id, duration);
     }
   }
 
@@ -676,12 +700,21 @@ class QueueCoordinator implements NotificationScopeState {
 
   // ── Pin / Unpin ──────────────────────────────────────────────────────────
 
+  /// Locks the notification with [id] to the top of its queue.
+  @override
+  void pinById(final String id) {
+    final activeWidget = _resolveActiveWidget(id);
+    if (activeWidget != null) {
+      pinWidget(activeWidget);
+    }
+  }
+
   /// Pins [notification], making it persistent and immune to swipe gestures.
   @override
   void pin(final AppNotification notification) {
-    final activeWidget = _resolveActiveWidget(notification.id);
-    if (activeWidget != null) {
-      pinWidget(activeWidget);
+    final id = notification.id;
+    if (id != null) {
+      pinById(id);
     }
   }
 
@@ -697,12 +730,21 @@ class QueueCoordinator implements NotificationScopeState {
     );
   }
 
+  /// Releases the pin on the notification with [id].
+  @override
+  void unpinById(final String id) {
+    final activeWidget = _resolveActiveWidget(id);
+    if (activeWidget != null) {
+      unpinWidget(activeWidget);
+    }
+  }
+
   /// Releases the pin on [notification].
   @override
   void unpin(final AppNotification notification) {
-    final activeWidget = _resolveActiveWidget(notification.id);
-    if (activeWidget != null) {
-      unpinWidget(activeWidget);
+    final id = notification.id;
+    if (id != null) {
+      unpinById(id);
     }
   }
 
@@ -716,6 +758,159 @@ class QueueCoordinator implements NotificationScopeState {
         notification: notification.key.currentState?.widget ?? notification,
       ),
     );
+  }
+
+  // ── Update ───────────────────────────────────────────────────────────────
+
+  /// Updates an active or pending notification by [id] in place.
+  @override
+  bool update(
+    final String id, {
+    final String? message,
+    final String? title,
+    final Widget? icon,
+    final NotificationAction? action,
+    final NotificationPriority? priority,
+    final Color? color,
+    final Color? backgroundColor,
+    final Color? foregroundColor,
+    final Color? accentColor,
+    final Duration? dismissDuration,
+    final bool? permanent,
+    final bool resetTimer = false,
+  }) {
+    final pos = _positionById[id];
+    if (pos == null) {
+      return false;
+    }
+    final key = _widgetStateKeys[pos];
+    if (key?.currentState != null) {
+      final result = key!.currentState!.updateById(
+        id,
+        message: message,
+        title: title,
+        icon: icon,
+        action: action,
+        priority: priority,
+        color: color,
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+        accentColor: accentColor,
+        dismissDuration: dismissDuration,
+        permanent: permanent,
+        resetTimer: resetTimer,
+      );
+      if (result != null) {
+        _eventController.add(
+          NotificationUpdated(
+            notification: result.updated,
+            oldNotification: result.old,
+          ),
+        );
+        return true;
+      }
+    }
+    final initQueue = _initializationQueue[pos];
+    if (initQueue != null) {
+      final index = initQueue.indexWhere((final e) => e.id == id);
+      if (index != -1) {
+        final oldEntry = initQueue[index];
+        final updatedWidget = oldEntry.blueprint.copyForUpdate(
+          message: message,
+          title: title,
+          icon: icon,
+          action: action,
+          priority: priority,
+          color: color,
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          accentColor: accentColor,
+          dismissDuration: dismissDuration,
+          permanent: permanent,
+        );
+        final newEntry = NotificationEntry(
+          blueprint: updatedWidget,
+          queue: oldEntry.queue,
+        )..isPinned = oldEntry.isPinned;
+        initQueue[index] = newEntry;
+        _eventController.add(
+          NotificationUpdated(
+            notification: updatedWidget,
+            oldNotification: oldEntry.blueprint,
+          ),
+        );
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Updates an active or pending notification by applying [transform].
+  @override
+  bool updateWith(
+    final String id,
+    final AppNotification Function(AppNotification current) transform, {
+    final bool resetTimer = false,
+  }) {
+    final pos = _positionById[id];
+    if (pos == null) {
+      return false;
+    }
+    final key = _widgetStateKeys[pos];
+    if (key?.currentState != null) {
+      final currentWidget = key!.currentState!.getNotificationWidget(id) ??
+          key.currentState!.getPendingWidget(id);
+      if (currentWidget != null) {
+        final currentApp = currentWidget.toAppNotification();
+        final transformed = transform(currentApp);
+        return update(
+          id,
+          message: transformed.message,
+          title: transformed.title,
+          icon: transformed.icon,
+          action: transformed.action,
+          priority: transformed.priority,
+          // ignore: deprecated_member_use_from_same_package
+          color: transformed.color,
+          // ignore: deprecated_member_use_from_same_package
+          backgroundColor: transformed.backgroundColor,
+          // ignore: deprecated_member_use_from_same_package
+          foregroundColor: transformed.foregroundColor,
+          accentColor: transformed.accentColor,
+          dismissDuration: transformed.dismissDuration,
+          permanent: transformed.permanent,
+          resetTimer: resetTimer,
+        );
+      }
+    }
+    final initQueue = _initializationQueue[pos];
+    if (initQueue != null) {
+      final index = initQueue.indexWhere((final e) => e.id == id);
+      if (index != -1) {
+        final currentWidget = initQueue[index].blueprint;
+        final currentApp = currentWidget.toAppNotification();
+        final transformed = transform(currentApp);
+        return update(
+          id,
+          message: transformed.message,
+          title: transformed.title,
+          icon: transformed.icon,
+          action: transformed.action,
+          priority: transformed.priority,
+          // ignore: deprecated_member_use_from_same_package
+          color: transformed.color,
+          // ignore: deprecated_member_use_from_same_package
+          backgroundColor: transformed.backgroundColor,
+          // ignore: deprecated_member_use_from_same_package
+          foregroundColor: transformed.foregroundColor,
+          accentColor: transformed.accentColor,
+          dismissDuration: transformed.dismissDuration,
+          permanent: transformed.permanent,
+          resetTimer: resetTimer,
+        );
+      }
+    }
+    return false;
   }
 
   // ── Misc Actions ─────────────────────────────────────────────────────────

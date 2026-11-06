@@ -65,6 +65,11 @@ class QueueWidgetState extends State<QueueWidget>
   NotificationWidget? getNotificationWidget(final String id) =>
       _itemById[id]?.widget;
 
+  /// Retrieves a pending [NotificationWidget] by [id], if present in the
+  /// backlog.
+  NotificationWidget? getPendingWidget(final String id) =>
+      _pendingById[id]?.blueprint;
+
   /// The newest active notification in this queue.
   NotificationWidget? get newestActiveNotification {
     NotificationWidget? newest;
@@ -455,6 +460,90 @@ class QueueWidgetState extends State<QueueWidget>
         _checkEmpty();
       }
     }
+  }
+
+  /// Updates an active or pending notification in place.
+  ///
+  /// Returns a record with the updated and previous [NotificationWidget],
+  /// or `null` if [id] was not found in this queue.
+  ({NotificationWidget updated, NotificationWidget old})? updateById(
+    final String id, {
+    final String? message,
+    final String? title,
+    final Widget? icon,
+    final NotificationAction? action,
+    final NotificationPriority? priority,
+    final Color? color,
+    final Color? backgroundColor,
+    final Color? foregroundColor,
+    final Color? accentColor,
+    final Duration? dismissDuration,
+    final bool? permanent,
+    final bool resetTimer = false,
+  }) {
+    final item = _itemById[id];
+    if (item != null) {
+      final oldWidget = item.widget;
+      final updatedWidget = oldWidget.copyForUpdate(
+        message: message,
+        title: title,
+        icon: icon,
+        action: action,
+        priority: priority,
+        color: color,
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+        accentColor: accentColor,
+        dismissDuration: dismissDuration,
+        permanent: permanent,
+      );
+      final newEntry = NotificationEntry(
+        blueprint: updatedWidget,
+        queue: item.entry.queue,
+      )..isPinned = item.entry.isPinned;
+      setState(() {
+        item.entry = newEntry;
+        _invalidateSnapshot();
+      });
+      if (resetTimer) {
+        item.widget.key.currentState?.initDismissTimer();
+      }
+      return (updated: updatedWidget, old: oldWidget);
+    }
+
+    final pendingEntry = _pendingById[id];
+    if (pendingEntry != null) {
+      final oldWidget = pendingEntry.blueprint;
+      final updatedWidget = oldWidget.copyForUpdate(
+        message: message,
+        title: title,
+        icon: icon,
+        action: action,
+        priority: priority,
+        color: color,
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+        accentColor: accentColor,
+        dismissDuration: dismissDuration,
+        permanent: permanent,
+      );
+      final newEntry = NotificationEntry(
+        blueprint: updatedWidget,
+        queue: pendingEntry.queue,
+      )..isPinned = pendingEntry.isPinned;
+      _pendingById[id] = newEntry;
+      final tempQueue = Queue<NotificationEntry>();
+      while (_pendingNotifications.isNotEmpty) {
+        final n = _pendingNotifications.removeFirst();
+        tempQueue.add(n.id == id ? newEntry : n);
+      }
+      _pendingNotifications.addAll(tempQueue);
+      _sortPending();
+      setState(_invalidateSnapshot);
+      return (updated: updatedWidget, old: oldWidget);
+    }
+
+    return null;
   }
 
   bool remove(final NotificationWidget notification) =>
