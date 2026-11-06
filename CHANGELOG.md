@@ -2,6 +2,22 @@
 
 ## [0.5.3-dev]
 
+### Bundled Notifications & Viewport Engine
+- **Slot-Based Viewport Engine**: Collapsed notification bundles occupy exactly
+  1 visual slot regardless of internal member count, unblocking concurrent
+  queue admission for secondary channels and eliminating the Group Starvation
+  Paradox.
+- **Group Focus / Stash Mode**: Expanding a notification group activates Focus
+  Mode, stashing sibling queue blocks from the render tree to strictly uphold
+  the Mobile Viewport Height Contract (`renderedCards <= maxStackSize`). Sibling
+  blocks restore seamlessly upon bundle collapse.
+- **Timer Decoupling**: Removed `pauseTimersWhenExpanded` parameter; expanding
+  a bundle no longer artificially freezes individual notification auto-dismiss
+  timers. Expired items dismiss naturally, and empty groups collapse smoothly.
+- **Group Count Defaults & Formatting**: Configured `maxCount` to default to 9
+  (previously 99) in `HiddenCount` and format overflow values as `9+` (e.g.,
+  `+9+`), keeping bundle pills compact on constrained mobile viewports.
+
 ### Performance & Memory Hygiene
 - **O(1) Backlog Registry**: Added `_pendingById` registry in `QueueWidgetState`
   for instant $O(1)$ pending notification lookups and deduplication, eliminating
@@ -12,6 +28,16 @@
   position tracking when cards are re-queued into pending backlogs.
 - **Timer Allocation Reduction**: Pre-computed group item filters in
   `_syncGroupTimers` to prevent repeated allocations in tight loops.
+
+### Studio (Example App)
+- **Shortcut Deduplication**: Eliminated duplicate firing on `Ctrl+Enter` /
+  `⌘Enter` in Studio when text fields are actively focused.
+
+### Test Suite
+- **Slot & Focus Mode Test Matrix**: Added automated test coverage in
+  `test/interaction/grouping_test.dart` validating multi-channel concurrent
+  slot admission, sibling block stashing in Focus Mode, and natural timer
+  expiry within expanded bundles.
 
 ## [0.5.2] - 2026-11-05
 
