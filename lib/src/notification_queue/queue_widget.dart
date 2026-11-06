@@ -969,8 +969,6 @@ class QueueWidgetState extends State<QueueWidget>
     final belowGroupingThreshold = activeGroupItems.length <
         widget.queue.groupingBehavior.maxBeforeGrouping;
     final isExpanded = _expandedGroups.contains(groupKey);
-    final pauseWhenExpanded =
-        widget.queue.groupingBehavior.pauseTimersWhenExpanded;
     final isDragging = _activeDragGroupKey == groupKey;
 
     for (final item in activeGroupItems) {
@@ -979,10 +977,8 @@ class QueueWidgetState extends State<QueueWidget>
         continue;
       }
       final bool shouldRun;
-      if (belowGroupingThreshold) {
+      if (belowGroupingThreshold || isExpanded) {
         shouldRun = true;
-      } else if (isExpanded) {
-        shouldRun = !pauseWhenExpanded;
       } else if (isDragging) {
         shouldRun = false;
       } else {

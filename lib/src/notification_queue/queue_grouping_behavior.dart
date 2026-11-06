@@ -17,8 +17,6 @@ export 'group_count_behavior.dart';
 /// - **Peek Card Timer Stasis**: Lifting or dragging the representative card
 ///   reveals the peek card beneath with stasis opacity, automatically pausing
 ///   both cards' auto-dismiss timers during touch interaction.
-/// - **Expanded View Suspension**: Pauses timers on all cards when expanded
-///   into multi-card view via [pauseTimersWhenExpanded].
 /// - **Atomic Bundle Dismissal**: Swiping the bundle or invoking
 ///   `NotificationController.dismissGroup` purges active members and pending
 ///   backlog items sharing the key in a single frame.
@@ -33,7 +31,6 @@ class QueueGroupingBehavior {
     this.stackScaleMultiplier = 0.05,
     this.enableGroupSwipeDismiss = false,
     this.groupDismissThreshold = 0.4,
-    this.pauseTimersWhenExpanded = true,
     this.countBehavior = const HiddenCount(),
   });
 
@@ -63,10 +60,6 @@ class QueueGroupingBehavior {
   /// group swipe dismissal.
   final double groupDismissThreshold;
 
-  /// Whether auto-dismiss countdown timers for all cards in the group are
-  /// suspended while the bundle is expanded in multi-card view.
-  final bool pauseTimersWhenExpanded;
-
   /// The counting and formatting strategy for group bundle volume
   /// (e.g. [HiddenCount], [TotalCount], [NoCount], or [CustomCount]).
   final GroupCountBehavior countBehavior;
@@ -83,7 +76,6 @@ class QueueGroupingBehavior {
           stackScaleMultiplier == other.stackScaleMultiplier &&
           enableGroupSwipeDismiss == other.enableGroupSwipeDismiss &&
           groupDismissThreshold == other.groupDismissThreshold &&
-          pauseTimersWhenExpanded == other.pauseTimersWhenExpanded &&
           countBehavior == other.countBehavior;
 
   @override
@@ -95,7 +87,6 @@ class QueueGroupingBehavior {
         stackScaleMultiplier,
         enableGroupSwipeDismiss,
         groupDismissThreshold,
-        pauseTimersWhenExpanded,
         countBehavior,
       );
 }

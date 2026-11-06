@@ -234,9 +234,6 @@ void _writeQueue(
     if (q.groupingSwipeDismiss) {
       buf.writeln('        enableGroupSwipeDismiss: true,');
     }
-    if (!q.groupingPauseTimers) {
-      buf.writeln('        pauseTimersWhenExpanded: false,');
-    }
     buf
       ..writeln('        countBehavior: $countSnippet,')
       ..writeln('      ),');

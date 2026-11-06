@@ -331,13 +331,11 @@ class _GroupWidgetState extends State<_GroupWidget>
 
     final rep = representative;
     final isExpanded = widget.isExpanded;
-    final pauseWhenExpanded = queue.groupingBehavior.pauseTimersWhenExpanded;
 
     if (item == rep) {
       final isDraggingRep =
           widget.queueWidgetState._activeDragGroupKey == widget.groupKey;
-      final timerEnabled =
-          !isDraggingRep && (!isExpanded || !pauseWhenExpanded);
+      final timerEnabled = !isDraggingRep;
       itemWidget = NotificationTimerScope(
         enabled: timerEnabled,
         child: itemWidget,
@@ -400,7 +398,7 @@ class _GroupWidgetState extends State<_GroupWidget>
           ),
         );
       } else {
-        final timerEnabled = isExpanded && !pauseWhenExpanded;
+        final timerEnabled = isExpanded;
         itemWidget = NotificationTimerScope(
           enabled: timerEnabled,
           child: SizeTransition(

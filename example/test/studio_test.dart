@@ -74,7 +74,6 @@ void main() {
         groupingCountIncludePending: false,
         groupingMaxLayers: 3,
         groupingSwipeDismiss: true,
-        groupingPauseTimers: false,
       );
       final queue = setup.toNotificationQueue(QueuePosition.topRight);
       final gb = queue.groupingBehavior;
@@ -83,7 +82,6 @@ void main() {
       expect(gb.maxBeforeGrouping, equals(3));
       expect(gb.maxStackedLayers, equals(3));
       expect(gb.enableGroupSwipeDismiss, isTrue);
-      expect(gb.pauseTimersWhenExpanded, isFalse);
       expect(gb.countBehavior, isA<TotalCount>());
       expect(gb.countBehavior.maxCount, equals(50));
       expect(gb.countBehavior.includePending, isFalse);

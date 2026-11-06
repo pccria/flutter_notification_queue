@@ -959,17 +959,6 @@ class _QueueEditorState extends State<_QueueEditor> {
           ],
           const SizedBox(height: 12),
           _GroupCountLivePreview(setup: setup),
-          const SizedBox(height: 14),
-          StudioToggleTile(
-            label: 'PAUSE TIMERS WHEN EXPANDED',
-            value: setup.groupingPauseTimers,
-            onChanged: (final v) => context.read<SetupBloc>().add(
-                  UpdateQueue(
-                    position,
-                    setup.copyWith(groupingPauseTimers: v),
-                  ),
-                ),
-          ),
           const SizedBox(height: 12),
           StudioSliderTile(
             label: 'STACK DEPTH LAYERS (${setup.groupingMaxLayers})',

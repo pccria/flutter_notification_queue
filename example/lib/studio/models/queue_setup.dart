@@ -67,7 +67,6 @@ class QueueSetup extends Equatable {
     this.groupingCountIncludePending = true,
     this.groupingMaxLayers = 2,
     this.groupingSwipeDismiss = false,
-    this.groupingPauseTimers = true,
   });
 
   // ── Style ──
@@ -110,7 +109,6 @@ class QueueSetup extends Equatable {
   final bool groupingCountIncludePending;
   final int groupingMaxLayers;
   final bool groupingSwipeDismiss;
-  final bool groupingPauseTimers;
 
   /// Whether this queue is in an invalid relocation state (Relocate behavior
   /// selected but no targets chosen). Empty targets cause library crashes.
@@ -154,7 +152,6 @@ class QueueSetup extends Equatable {
     final bool? groupingCountIncludePending,
     final int? groupingMaxLayers,
     final bool? groupingSwipeDismiss,
-    final bool? groupingPauseTimers,
   }) =>
       QueueSetup(
         styleType: styleType ?? this.styleType,
@@ -192,7 +189,6 @@ class QueueSetup extends Equatable {
             groupingCountIncludePending ?? this.groupingCountIncludePending,
         groupingMaxLayers: groupingMaxLayers ?? this.groupingMaxLayers,
         groupingSwipeDismiss: groupingSwipeDismiss ?? this.groupingSwipeDismiss,
-        groupingPauseTimers: groupingPauseTimers ?? this.groupingPauseTimers,
       );
 
   // ── Library Mapping Helpers ──
@@ -349,7 +345,6 @@ class QueueSetup extends Equatable {
           maxBeforeGrouping: groupingThreshold,
           maxStackedLayers: groupingMaxLayers,
           enableGroupSwipeDismiss: groupingSwipeDismiss,
-          pauseTimersWhenExpanded: groupingPauseTimers,
           countBehavior: switch (groupingCountType) {
             GroupCountType.hiddenCount => HiddenCount(
                 maxCount: groupingCountMaxCount,
@@ -397,6 +392,5 @@ class QueueSetup extends Equatable {
         groupingCountIncludePending,
         groupingMaxLayers,
         groupingSwipeDismiss,
-        groupingPauseTimers,
       ];
 }

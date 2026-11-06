@@ -531,8 +531,7 @@ void main() {
     );
 
     testWidgets(
-      'Expanded bundle pauses auto-dismiss timers when '
-      'pauseTimersWhenExpanded is true',
+      'Expanded bundle maintains individual notification auto-dismiss timers',
       (final tester) async {
         final controller = NotificationController(
           channels: {
@@ -548,7 +547,6 @@ void main() {
               groupingBehavior: QueueGroupingBehavior(
                 enabled: true,
                 maxBeforeGrouping: 2,
-                pauseTimersWhenExpanded: true,
               ),
             ),
           },
@@ -596,39 +594,12 @@ void main() {
         expect(find.text('Alert 1'), findsOneWidget);
         expect(find.text('Alert 2'), findsOneWidget);
 
-        // Advance 5 seconds while expanded
-        await tester.pump(const Duration(seconds: 5));
-
-        // Neither alert timed out while reading the expanded list
-        expect(find.text('Alert 1'), findsOneWidget);
-        expect(find.text('Alert 2'), findsOneWidget);
-
-        // Collapse the bundle
-        await tester.tap(
-          find.descendant(
-            of: alertsGroupFinder,
-            matching: find.text('Collapse'),
-          ),
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 350));
-
-        // Alert 2 is top representative; Alert 1 is hidden
-        expect(find.text('Alert 2'), findsOneWidget);
-        expect(find.text('Alert 1'), findsNothing);
-
-        // After collapsing, rep timer runs and expires after 3 seconds
-        await tester.pump(const Duration(seconds: 3));
-        await tester.pump(const Duration(milliseconds: 350));
-
-        // Alert 2 dismissed, Alert 1 surfaces
-        expect(find.text('Alert 2'), findsNothing);
-        expect(find.text('Alert 1'), findsOneWidget);
-
-        // After another 3-4 seconds, Alert 1 times out as well
+        // Advance 4 seconds while expanded: alerts time out naturally
         await tester.pump(const Duration(seconds: 4));
         await tester.pumpAndSettle();
+
         expect(find.text('Alert 1'), findsNothing);
+        expect(find.text('Alert 2'), findsNothing);
       },
     );
 
