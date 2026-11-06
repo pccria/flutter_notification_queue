@@ -6,7 +6,7 @@ void main() {
     group('HiddenCount', () {
       test('defaults format correctly under maxCount', () {
         const count = HiddenCount();
-        expect(count.maxCount, equals(99));
+        expect(count.maxCount, equals(9));
         expect(count.includePending, isTrue);
         expect(count.prefix, equals('+'));
         expect(count.overflowSuffix, equals('+'));
@@ -18,8 +18,8 @@ void main() {
       test('formats overflow when hiddenCount exceeds maxCount', () {
         const count = HiddenCount(maxCount: 10);
         expect(count.format(totalCount: 11, hiddenCount: 10), equals('+10'));
-        expect(count.format(totalCount: 12, hiddenCount: 11), equals('+10+'));
-        expect(count.format(totalCount: 100, hiddenCount: 99), equals('+10+'));
+        expect(count.format(totalCount: 12, hiddenCount: 11), equals('10+'));
+        expect(count.format(totalCount: 100, hiddenCount: 99), equals('10+'));
       });
 
       test('supports custom prefix and overflowSuffix', () {
@@ -35,7 +35,7 @@ void main() {
       test('equality and hashCode contract', () {
         const b1 = HiddenCount(maxCount: 50, includePending: false);
         const b2 = HiddenCount(maxCount: 50, includePending: false);
-        const b3 = HiddenCount(maxCount: 99, includePending: false);
+        const b3 = HiddenCount(maxCount: 9, includePending: false);
 
         expect(b1, equals(b2));
         expect(b1.hashCode, equals(b2.hashCode));
@@ -46,13 +46,13 @@ void main() {
     group('TotalCount', () {
       test('defaults format total count correctly under maxCount', () {
         const count = TotalCount();
-        expect(count.maxCount, equals(99));
+        expect(count.maxCount, equals(9));
         expect(count.includePending, isTrue);
         expect(count.prefix, equals(''));
         expect(count.overflowSuffix, equals('+'));
 
         expect(count.format(totalCount: 3, hiddenCount: 2), equals('3'));
-        expect(count.format(totalCount: 99, hiddenCount: 98), equals('99'));
+        expect(count.format(totalCount: 9, hiddenCount: 8), equals('9'));
       });
 
       test('formats overflow when totalCount exceeds maxCount', () {

@@ -21,14 +21,14 @@ import 'package:flutter/foundation.dart';
 sealed class GroupCountBehavior {
   /// Creates a group count behavior configuration.
   const GroupCountBehavior({
-    this.maxCount = 99,
+    this.maxCount = 9,
     this.includePending = true,
   });
 
   /// The maximum count displayed before truncation with an overflow indicator.
   ///
-  /// For example, with `maxCount = 99`, an item count of `150` displays as
-  /// `+99+` for [HiddenCount] or `99+` for [TotalCount].
+  /// For example, with `maxCount = 9`, an item count of `15` displays as
+  /// `9+` for [HiddenCount] or `9+` for [TotalCount].
   final int maxCount;
 
   /// Whether to include un-rendered pending notifications waiting in the
@@ -56,14 +56,22 @@ sealed class GroupCountBehavior {
 final class HiddenCount extends GroupCountBehavior {
   /// Creates a [HiddenCount] behavior displaying additional stacked items.
   const HiddenCount({
-    super.maxCount = 99,
+    super.maxCount = 9,
     super.includePending = true,
     this.prefix = '+',
+    this.overflowPrefix,
     this.overflowSuffix = '+',
   });
 
   /// Prefix prepended to the count number. Defaults to `'+'`.
   final String prefix;
+
+  /// Optional prefix prepended when the count exceeds [maxCount].
+  ///
+  /// If `null`, defaults to empty `''` when [prefix] is `'+'` to avoid
+  /// redundant dual pluses (e.g. `9+` instead of `+9+`). If [prefix] is not
+  /// `'+'`, falls back to [prefix].
+  final String? overflowPrefix;
 
   /// Suffix appended when the count exceeds [maxCount]. Defaults to `'+'`.
   final String overflowSuffix;
@@ -74,7 +82,8 @@ final class HiddenCount extends GroupCountBehavior {
     required final int hiddenCount,
   }) {
     if (hiddenCount > maxCount) {
-      return '$prefix$maxCount$overflowSuffix';
+      final effPrefix = overflowPrefix ?? (prefix == '+' ? '' : prefix);
+      return '$effPrefix$maxCount$overflowSuffix';
     }
     return '$prefix$hiddenCount';
   }
@@ -87,6 +96,7 @@ final class HiddenCount extends GroupCountBehavior {
           maxCount == other.maxCount &&
           includePending == other.includePending &&
           prefix == other.prefix &&
+          overflowPrefix == other.overflowPrefix &&
           overflowSuffix == other.overflowSuffix;
 
   @override
@@ -94,6 +104,7 @@ final class HiddenCount extends GroupCountBehavior {
         maxCount,
         includePending,
         prefix,
+        overflowPrefix,
         overflowSuffix,
       );
 }
@@ -106,7 +117,7 @@ final class HiddenCount extends GroupCountBehavior {
 final class TotalCount extends GroupCountBehavior {
   /// Creates a [TotalCount] behavior displaying total bundle size.
   const TotalCount({
-    super.maxCount = 99,
+    super.maxCount = 9,
     super.includePending = true,
     this.prefix = '',
     this.overflowSuffix = '+',

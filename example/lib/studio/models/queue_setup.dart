@@ -63,7 +63,7 @@ class QueueSetup extends Equatable {
     this.groupingEnabled = false,
     this.groupingThreshold = 2,
     this.groupingCountType = GroupCountType.hiddenCount,
-    this.groupingCountMaxCount = 99,
+    this.groupingCountMaxCount = 9,
     this.groupingCountIncludePending = true,
     this.groupingMaxLayers = 2,
     this.groupingSwipeDismiss = false,
