@@ -901,8 +901,8 @@ void main() {
         }
         await tester.pumpAndSettle();
 
-        // 2. Also enqueue 1 notification in channel 'system', which waits
-        // in backlog because chat took both active slots.
+        // 2. Enqueue 1 notification in channel 'system', which claims
+        // visual slot 2 alongside the collapsed 'chat' bundle.
         NotificationWidget(
           id: 'sys1',
           title: 'System Alert',
@@ -912,24 +912,37 @@ void main() {
         ).show();
         await tester.pumpAndSettle();
 
-        // Top-right queue shows top representative (Chat 2).
-        expect(find.text('Chat 2'), findsOneWidget);
-        expect(find.text('System Alert'), findsNothing);
+        // 3. Enqueue 1 notification in channel 'warning', which waits
+        // in backlog because both visual slots (chat bundle + system) are full.
+        NotificationWidget(
+          id: 'warn1',
+          title: 'Warning Alert',
+          message: 'Disk Almost Full',
+          channelName: 'warning',
+          coordinator: controller.coordinator,
+        ).show();
+        await tester.pumpAndSettle();
 
-        // 3. Swipe the collapsed chat bundle to dismiss it.
+        // Top-right queue shows Chat 2 (Slot 1) and System Alert (Slot 2).
+        expect(find.text('Chat 2'), findsOneWidget);
+        expect(find.text('System Alert'), findsOneWidget);
+        expect(find.text('Warning Alert'), findsNothing);
+
+        // 4. Swipe the collapsed chat bundle to dismiss it.
         await tester.drag(find.text('Chat 2'), const Offset(300, 0));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 350));
 
-        // 4. Verify ALL 6 chat notifications are gone atomically.
+        // 5. Verify ALL 6 chat notifications are gone atomically.
         // None of c3..c6 should have been promoted.
         for (int i = 1; i <= 6; i++) {
           expect(find.text('Chat $i'), findsNothing);
         }
 
-        // 5. Verify the pending 'system' notification was promoted into the
-        // freed slot.
+        // 6. Verify the pending 'warning' notification was promoted into the
+        // freed slot, while 'system' remains active.
         expect(find.text('System Alert'), findsOneWidget);
+        expect(find.text('Warning Alert'), findsOneWidget);
 
         // 6. Verify event stream:
         // - Exactly 1 NotificationGroupDismissed for 'chat'
@@ -1022,6 +1035,138 @@ void main() {
         for (final e in itemEvents) {
           expect(e.reason, DismissReason.programmatic);
         }
+      },
+    );
+
+    testWidgets(
+      'Slot-Based Viewport & Focus/Stash Mode eliminates channel starvation '
+      'and guarantees viewport bounds',
+      (final tester) async {
+        tester.view.physicalSize = const Size(800, 1200);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final controller = NotificationController(
+          channels: {
+            const NotificationChannel(name: 'chat'),
+            const NotificationChannel(name: 'alert'),
+            const NotificationChannel(name: 'sync'),
+            const NotificationChannel(name: 'payment'),
+          },
+          queues: {
+            const NotificationQueue(
+              position: QueuePosition.topRight,
+              maxStackSize: 3,
+              dragBehavior: Dismiss(),
+              groupingBehavior: QueueGroupingBehavior(
+                enabled: true,
+                maxBeforeGrouping: 2,
+              ),
+            ),
+          },
+        );
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(body: Center(child: Text('App Home'))),
+          ),
+        );
+
+        // 1. Enqueue 3 notifications on 'chat'.
+        // With maxBeforeGrouping: 2, they collapse into 1 visual slot.
+        for (int i = 1; i <= 3; i++) {
+          NotificationWidget(
+            id: 'c$i',
+            message: 'Chat $i',
+            channelName: 'chat',
+            coordinator: controller.coordinator,
+          ).show();
+        }
+        await tester.pumpAndSettle();
+
+        // 2. Enqueue 'alert' and 'sync'.
+        // Since 'chat' occupies only 1 visual slot, both 'alert' (Slot 2)
+        // and 'sync' (Slot 3) are admitted concurrently without starvation.
+        NotificationWidget(
+          id: 'a1',
+          message: 'Alert 1',
+          channelName: 'alert',
+          coordinator: controller.coordinator,
+        ).show();
+        NotificationWidget(
+          id: 's1',
+          message: 'Sync 1',
+          channelName: 'sync',
+          coordinator: controller.coordinator,
+        ).show();
+        await tester.pumpAndSettle();
+
+        // 3. Enqueue 'payment'.
+        // All 3 visual slots are occupied, so 'payment' waits in pending.
+        NotificationWidget(
+          id: 'p1',
+          message: 'Payment 1',
+          channelName: 'payment',
+          coordinator: controller.coordinator,
+        ).show();
+        await tester.pumpAndSettle();
+
+        // Verify visual slot allocations:
+        // - Slot 1: 'Chat 3' representative (+2 hidden count badge)
+        // - Slot 2: 'Alert 1'
+        // - Slot 3: 'Sync 1'
+        // - Backlog: 'Payment 1' is pending
+        expect(find.text('Chat 3'), findsOneWidget);
+        expect(find.text('Alert 1'), findsOneWidget);
+        expect(find.text('Sync 1'), findsOneWidget);
+        expect(find.text('Payment 1'), findsNothing);
+
+        // 4. Enter Focus Mode by expanding 'chat' group.
+        final chatGroupFinder = find.byKey(const ValueKey('chat'));
+        await tester.tap(
+          find.descendant(of: chatGroupFinder, matching: find.text('+2')),
+        );
+        await tester.pumpAndSettle();
+
+        // All 3 members of 'chat' unroll in Focus Mode.
+        expect(find.text('Chat 3'), findsOneWidget);
+        expect(find.text('Chat 2'), findsOneWidget);
+        expect(find.text('Chat 1'), findsOneWidget);
+        expect(find.text('Collapse'), findsOneWidget);
+
+        // Sibling slots ('Alert 1' and 'Sync 1') are stashed (findsNothing).
+        // Only the focused group's cards occupy the screen (maxStackSize cap).
+        expect(find.text('Alert 1'), findsNothing);
+        expect(find.text('Sync 1'), findsNothing);
+
+        // 5. Exit Focus Mode by tapping 'Collapse'.
+        await tester.tap(
+          find.descendant(of: chatGroupFinder, matching: find.text('Collapse')),
+        );
+        await tester.pumpAndSettle();
+
+        // Sibling slots re-surface!
+        expect(find.text('Chat 3'), findsOneWidget);
+        expect(find.text('Alert 1'), findsOneWidget);
+        expect(find.text('Sync 1'), findsOneWidget);
+        expect(find.text('Chat 2'), findsNothing);
+        expect(find.text('Chat 1'), findsNothing);
+
+        // 6. Dismiss 'Alert 1' via swipe to free up Slot 2.
+        await tester.drag(find.text('Alert 1'), const Offset(300, 0));
+        await tester.pumpAndSettle();
+
+        // 'Payment 1' is promoted from backlog into the open visual slot!
+        expect(find.text('Alert 1'), findsNothing);
+        expect(find.text('Payment 1'), findsOneWidget);
+        expect(find.text('Sync 1'), findsOneWidget);
+        expect(find.text('Chat 3'), findsOneWidget);
       },
     );
   });

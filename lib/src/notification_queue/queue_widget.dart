@@ -351,6 +351,36 @@ class QueueWidgetState extends State<QueueWidget>
           ? groupItems.first
           : groupItems.last;
 
+  /// Expands or collapses [groupKey] in Group Focus/Stash Mode.
+  void toggleGroupExpansion(final String groupKey) {
+    setState(() {
+      if (_expandedGroups.contains(groupKey)) {
+        _expandedGroups.remove(groupKey);
+      } else {
+        _expandedGroups
+          ..clear()
+          ..add(groupKey);
+      }
+      _invalidateSnapshot();
+    });
+    _syncGroupTimers(groupKey);
+    _coordinator.emitGroupToggled(
+      groupKey: groupKey,
+      position: widget.queue.position,
+      expanded: _expandedGroups.contains(groupKey),
+      count: _items
+          .where(
+            (final i) =>
+                i.widget.resolvedGroupKey == groupKey &&
+                i.status != _ItemStatus.exiting,
+          )
+          .length,
+    );
+    if (_expandedGroups.isEmpty) {
+      _processPending();
+    }
+  }
+
   bool _isItemVisible(final _NotificationItemState item) {
     if (item.status == _ItemStatus.exiting) {
       return true;
@@ -359,6 +389,13 @@ class QueueWidgetState extends State<QueueWidget>
       return true;
     }
     final key = item.widget.resolvedGroupKey;
+    if (_expandedGroups.isNotEmpty) {
+      final focusedKey = _expandedGroups.first;
+      if (key != focusedKey) {
+        return false;
+      }
+      return true;
+    }
     final activeGroupItems = _items
         .where(
           (final i) =>
@@ -368,9 +405,6 @@ class QueueWidgetState extends State<QueueWidget>
         .toList();
     if (activeGroupItems.length <
         widget.queue.groupingBehavior.maxBeforeGrouping) {
-      return true;
-    }
-    if (_expandedGroups.contains(key)) {
       return true;
     }
     // Peek card: while the representative is being dragged, also show the
@@ -674,34 +708,108 @@ class QueueWidgetState extends State<QueueWidget>
     return ctx.findRenderObject() as RenderBox?;
   }
 
-  void _processPending() {
-    final limit = widget.queue.maxStackSize;
-    final toAdd = <_NotificationItemState>[];
-
-    while (_pendingNotifications.isNotEmpty &&
-        _items.length + toAdd.length < limit) {
-      final entry = _pendingNotifications.removeFirst();
-      _pendingById.remove(entry.id);
-      final controller = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 300),
-        reverseDuration: const Duration(milliseconds: 200),
-      );
-      final itemState = _NotificationItemState(
-        entry: entry,
-        controller: controller,
-      );
-      toAdd.add(itemState);
-      _itemById[entry.id] = itemState;
+  /// Determines whether [entry] can be admitted into active memory
+  /// based on visual slot budget and group active item limits.
+  bool _canAdmitEntry(
+    final NotificationEntry entry,
+    final List<_NotificationItemState> activeItems,
+  ) {
+    final maxStack = widget.queue.maxStackSize;
+    if (!widget.queue.groupingBehavior.enabled) {
+      return activeItems.length < maxStack;
     }
+
+    final entryGroupKey = entry.resolvedGroupKey;
+
+    // In Focus Mode, only items of the focused group may be admitted.
+    if (_expandedGroups.isNotEmpty &&
+        !_expandedGroups.contains(entryGroupKey)) {
+      return false;
+    }
+
+    // 1. Group active item limit: a single group cannot exceed maxStackSize
+    // active items in memory.
+    int currentGroupActiveCount = 0;
+    for (final item in activeItems) {
+      if (item.status != _ItemStatus.exiting &&
+          item.widget.resolvedGroupKey == entryGroupKey) {
+        currentGroupActiveCount++;
+      }
+    }
+    if (currentGroupActiveCount >= maxStack) {
+      return false;
+    }
+
+    // 2. Visual slot budget: simulate total slots if entry is admitted.
+    int exitingCount = 0;
+    final groupCounts = <String, int>{};
+    for (final item in activeItems) {
+      if (item.status == _ItemStatus.exiting) {
+        exitingCount++;
+      } else {
+        final key = item.widget.resolvedGroupKey;
+        groupCounts[key] = (groupCounts[key] ?? 0) + 1;
+      }
+    }
+    groupCounts[entryGroupKey] = (groupCounts[entryGroupKey] ?? 0) + 1;
+
+    final threshold = widget.queue.groupingBehavior.maxBeforeGrouping;
+    int simulatedSlots = exitingCount;
+    for (final count in groupCounts.values) {
+      if (count >= threshold) {
+        simulatedSlots += 1;
+      } else {
+        simulatedSlots += count;
+      }
+    }
+
+    return simulatedSlots <= maxStack;
+  }
+
+  void _processPending() {
+    if (_pendingNotifications.isEmpty) {
+      return;
+    }
+
+    final toAdd = <_NotificationItemState>[];
+    final remaining = Queue<NotificationEntry>();
+    final simulatedActive = <_NotificationItemState>[..._items];
+
+    while (_pendingNotifications.isNotEmpty) {
+      final entry = _pendingNotifications.removeFirst();
+      if (_canAdmitEntry(entry, simulatedActive)) {
+        _pendingById.remove(entry.id);
+        final controller = AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 300),
+          reverseDuration: const Duration(milliseconds: 200),
+        );
+        final itemState = _NotificationItemState(
+          entry: entry,
+          controller: controller,
+        );
+        toAdd.add(itemState);
+        simulatedActive.add(itemState);
+        _itemById[entry.id] = itemState;
+      } else {
+        remaining.add(entry);
+      }
+    }
+
+    _pendingNotifications.addAll(remaining);
 
     if (toAdd.isNotEmpty) {
       setState(() {
         _items.addAll(toAdd);
         _invalidateSnapshot();
       });
+      final affectedGroupKeys = <String>{};
       for (final item in toAdd) {
+        affectedGroupKeys.add(item.widget.resolvedGroupKey);
         item.controller.forward();
+      }
+      for (final groupKey in affectedGroupKeys) {
+        _syncGroupTimers(groupKey);
       }
     }
   }
@@ -718,11 +826,13 @@ class QueueWidgetState extends State<QueueWidget>
   }
 
   void _triagePriorityEviction() {
-    if (_items.length < widget.queue.maxStackSize ||
-        _pendingNotifications.isEmpty) {
+    if (_pendingNotifications.isEmpty) {
       return;
     }
     final highestPending = _pendingNotifications.first;
+    if (_canAdmitEntry(highestPending, _items)) {
+      return;
+    }
 
     _NotificationItemState? lowestActiveItem;
     for (final item in _items) {
@@ -928,18 +1038,25 @@ class QueueWidgetState extends State<QueueWidget>
     }
   }
 
-  /// Removes [groupKey] from [_expandedGroups] if no item in [_items]
-  /// still belongs to that group.
+  /// Removes [groupKey] from [_expandedGroups] if the group no longer qualifies
+  /// for group rendering (e.g. dropped below grouping threshold or removed).
   /// Must be called *after* the departing item has been removed from [_items].
   void _pruneExpandedGroup(final String groupKey) {
-    final stillExists = _items.any(
-      (final i) => i.widget.resolvedGroupKey == groupKey,
-    );
-    if (!stillExists) {
-      setState(() {
-        _expandedGroups.remove(groupKey);
-        _invalidateSnapshot();
-      });
+    final activeCount = _items
+        .where(
+          (final i) =>
+              i.widget.resolvedGroupKey == groupKey &&
+              i.status != _ItemStatus.exiting,
+        )
+        .length;
+
+    if (activeCount < widget.queue.groupingBehavior.maxBeforeGrouping) {
+      if (_expandedGroups.contains(groupKey)) {
+        setState(() {
+          _expandedGroups.remove(groupKey);
+          _invalidateSnapshot();
+        });
+      }
     }
   }
 
@@ -1039,6 +1156,8 @@ class QueueWidgetState extends State<QueueWidget>
     final blocks = <_QueueRenderBlock>[];
     final processedGroupKeys = <String>{};
 
+    final focusedKey = _expandedGroups.isEmpty ? null : _expandedGroups.first;
+
     for (final item in _items) {
       if (_isItemVisible(item)) {
         visibleIndexById[item.widget.id] = visibleItems.length;
@@ -1052,6 +1171,13 @@ class QueueWidgetState extends State<QueueWidget>
       }
 
       final key = item.widget.resolvedGroupKey;
+
+      // In Focus Mode, sibling blocks are stashed (omitted from the
+      // render tree).
+      if (focusedKey != null && key != focusedKey) {
+        continue;
+      }
+
       if (!widget.queue.groupingBehavior.enabled) {
         blocks.add(_SingleItemBlock(item));
         continue;
@@ -1113,23 +1239,7 @@ class QueueWidgetState extends State<QueueWidget>
           items: items,
           isExpanded: _expandedGroups.contains(groupKey),
           isLastBlock: isLastBlock,
-          onToggle: () {
-            setState(() {
-              if (_expandedGroups.contains(groupKey)) {
-                _expandedGroups.remove(groupKey);
-              } else {
-                _expandedGroups.add(groupKey);
-              }
-              _invalidateSnapshot();
-            });
-            _syncGroupTimers(groupKey);
-            _coordinator.emitGroupToggled(
-              groupKey: groupKey,
-              position: widget.queue.position,
-              expanded: _expandedGroups.contains(groupKey),
-              count: items.length,
-            );
-          },
+          onToggle: () => toggleGroupExpansion(groupKey),
         );
     }
   }
