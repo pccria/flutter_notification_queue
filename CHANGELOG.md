@@ -26,6 +26,7 @@
   - Extracted `NotificationTheme` from `part of 'notification.dart'` into a
     standalone library under `lib/src/notification/theme/`.
   - Introduced `NotificationThemeTarget` interface to resolve themes without
+    tight coupling to concrete widget implementations.
 - **Unified Coordinator Resolution (`A-03`)**:
   - Introduced `CoordinatorResolver` mixin in
     `lib/src/core/coordinator_resolver.dart`.
@@ -34,6 +35,13 @@
     and `_NotificationOverlayState`.
   - Enforced consistent precedence hierarchy: explicit widget override ->
     ambient `NotificationScope` in widget tree -> descriptive `StateError`.
+- **Configuration Encapsulation & Immutability (`A-04`)**:
+  - Encapsulated internal state of `ConfigurationManager` by converting
+    `queues`, `channels`, `strictChannelLookup`, `maxHistoryEntries`, and
+    `a11yOptions` to private fields exposed via read-only getters.
+  - Wrapped `queues` and `channels` collections in `Set.unmodifiable` on both
+    initialization and dynamic `reconfigure` calls, guaranteeing external
+    immutability.
 
 ### Desktop & Platform Perfection (Track 4)
 - **Desktop Context Menu Support (`F-07`)**:

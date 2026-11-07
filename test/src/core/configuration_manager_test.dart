@@ -324,5 +324,81 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    // 14. Encapsulation & Immutability (A-04)
+    test('Encapsulation: queues and channels sets are unmodifiable', () {
+      final manager = ConfigurationManager(
+        queues: {
+          const NotificationQueue(position: QueuePosition.topCenter),
+        },
+        channels: {
+          const NotificationChannel(name: 'initial'),
+        },
+      );
+
+      expect(
+        () => manager.queues.add(
+          const NotificationQueue(position: QueuePosition.bottomCenter),
+        ),
+        throwsUnsupportedError,
+      );
+
+      expect(
+        () => manager.channels.add(
+          const NotificationChannel(name: 'mutated'),
+        ),
+        throwsUnsupportedError,
+      );
+    });
+
+    test('Encapsulation: reconfigure safely updates immutable collections', () {
+      final manager = ConfigurationManager(
+        queues: {
+          const NotificationQueue(position: QueuePosition.topCenter),
+        },
+        channels: {
+          const NotificationChannel(name: 'initial'),
+        },
+        strictChannelLookup: false,
+        maxHistoryEntries: 10,
+      );
+
+      expect(manager.queues.length, equals(1));
+      expect(manager.queues.first.position, equals(QueuePosition.topCenter));
+
+      manager.reconfigure(
+        queues: {
+          const NotificationQueue(position: QueuePosition.bottomRight),
+        },
+        channels: {
+          const NotificationChannel(name: 'updated'),
+        },
+        strictChannelLookup: true,
+        maxHistoryEntries: 50,
+        a11yOptions: const NotificationA11yOptions(enableContextMenu: false),
+      );
+
+      expect(manager.queues.length, equals(1));
+      expect(manager.queues.first.position, equals(QueuePosition.bottomRight));
+      expect(manager.channels.length, equals(1));
+      expect(manager.channels.first.name, equals('updated'));
+      expect(manager.strictChannelLookup, isTrue);
+      expect(manager.maxHistoryEntries, equals(50));
+      expect(manager.a11yOptions.enableContextMenu, isFalse);
+
+      // Verify unmodifiable after reconfigure as well
+      expect(
+        () => manager.queues.add(
+          const NotificationQueue(position: QueuePosition.topLeft),
+        ),
+        throwsUnsupportedError,
+      );
+      expect(
+        () => manager.channels.add(
+          const NotificationChannel(name: 'mutated_again'),
+        ),
+        throwsUnsupportedError,
+      );
+    });
   });
 }

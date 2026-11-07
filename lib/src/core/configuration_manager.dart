@@ -10,25 +10,45 @@ part of 'core.dart';
 class ConfigurationManager {
   ConfigurationManager({
     final Set<NotificationQueue> queues = const {},
-    this.channels = const {},
-    this.strictChannelLookup = false,
-    this.maxHistoryEntries = 0,
-    this.a11yOptions = const NotificationA11yOptions(),
-  }) : queues = _initQueues(queues);
+    final Set<NotificationChannel> channels = const {},
+    final bool strictChannelLookup = false,
+    final int maxHistoryEntries = 0,
+    final NotificationA11yOptions a11yOptions =
+        const NotificationA11yOptions(),
+  })  : _queues = _initQueues(queues),
+        _channels = Set.unmodifiable(channels),
+        _strictChannelLookup = strictChannelLookup,
+        _maxHistoryEntries = maxHistoryEntries,
+        _a11yOptions = a11yOptions;
 
   static Set<NotificationQueue> _initQueues(
     final Set<NotificationQueue> inputQueues,
   ) {
     _validateRelocationGroups(inputQueues);
     _validateInputResilience(inputQueues);
-    return _expandRelocationGroups(inputQueues);
+    return Set.unmodifiable(_expandRelocationGroups(inputQueues));
   }
 
-  Set<NotificationQueue> queues;
-  Set<NotificationChannel> channels;
-  bool strictChannelLookup;
-  int maxHistoryEntries;
-  NotificationA11yOptions a11yOptions;
+  Set<NotificationQueue> _queues;
+  Set<NotificationChannel> _channels;
+  bool _strictChannelLookup;
+  int _maxHistoryEntries;
+  NotificationA11yOptions _a11yOptions;
+
+  /// The immutable set of active notification queues.
+  Set<NotificationQueue> get queues => _queues;
+
+  /// The immutable set of registered notification channels.
+  Set<NotificationChannel> get channels => _channels;
+
+  /// Whether missing channel lookups throw an exception.
+  bool get strictChannelLookup => _strictChannelLookup;
+
+  /// The maximum number of entries to retain in event history.
+  int get maxHistoryEntries => _maxHistoryEntries;
+
+  /// The accessibility options configured for the notification system.
+  NotificationA11yOptions get a11yOptions => _a11yOptions;
 
   /// Updates the configuration settings in-place.
   void reconfigure({
@@ -39,19 +59,19 @@ class ConfigurationManager {
     final NotificationA11yOptions? a11yOptions,
   }) {
     if (queues != null) {
-      this.queues = _initQueues(queues);
+      _queues = _initQueues(queues);
     }
     if (channels != null) {
-      this.channels = channels;
+      _channels = Set.unmodifiable(channels);
     }
     if (strictChannelLookup != null) {
-      this.strictChannelLookup = strictChannelLookup;
+      _strictChannelLookup = strictChannelLookup;
     }
     if (maxHistoryEntries != null) {
-      this.maxHistoryEntries = maxHistoryEntries;
+      _maxHistoryEntries = maxHistoryEntries;
     }
     if (a11yOptions != null) {
-      this.a11yOptions = a11yOptions;
+      _a11yOptions = a11yOptions;
     }
   }
 
