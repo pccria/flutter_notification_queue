@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -577,6 +578,9 @@ class NotificationWidgetState extends State<NotificationWidget>
   bool _isMouseHovering = false;
   bool _isDragPaused = false;
   bool _isContextMenuOpen = false;
+  bool _hasWebHoverDisable = false;
+  bool _hasWebMenuDisable = false;
+  QueueCoordinator? _cachedCoordinator;
   OverlayEntry? _contextMenuEntry;
   VoidCallback? _dismissContextMenu;
   TapDownDetails? _lastSecondaryTapDown;
@@ -633,6 +637,9 @@ class NotificationWidgetState extends State<NotificationWidget>
     )..value = 1.0;
 
     widget.isPinnedNotifier.addListener(_handlePinChanged);
+    if (widget.coordinator != null) {
+      _cachedCoordinator = widget.coordinator;
+    }
     if (NotificationTimerScope.isEnabledNonSubscribing(context)) {
       initDismissTimer();
     }
@@ -640,6 +647,10 @@ class NotificationWidgetState extends State<NotificationWidget>
 
   @override
   void didChangeDependencies() {
+    _cachedCoordinator = resolveCoordinator(
+      explicitCoordinator: widget.coordinator,
+      callerName: 'NotificationWidget',
+    );
     // Only re-resolve the theme when the platform brightness actually
     // changes. Skipping on every inherited-widget notification prevents
     // a full NotificationTheme reconstruction on each resize frame.
@@ -723,7 +734,9 @@ class NotificationWidgetState extends State<NotificationWidget>
     }
   }
 
-  QueueCoordinator get coordinator => resolveCoordinator(
+  QueueCoordinator get coordinator =>
+      _cachedCoordinator ??
+      resolveCoordinator(
         explicitCoordinator: widget.coordinator,
         callerName: 'NotificationWidget',
       );
@@ -744,8 +757,15 @@ class NotificationWidgetState extends State<NotificationWidget>
     _dismissContextMenu = null;
     _contextMenuEntry?.remove();
     _contextMenuEntry = null;
-    if (kIsWeb && (_isMouseHovering || _isContextMenuOpen)) {
-      unawaited(BrowserContextMenu.enableContextMenu());
+    if (kIsWeb) {
+      if (_hasWebHoverDisable) {
+        _cachedCoordinator?.webContextMenuController.releaseDisable();
+        _hasWebHoverDisable = false;
+      }
+      if (_hasWebMenuDisable) {
+        _cachedCoordinator?.webContextMenuController.releaseDisable();
+        _hasWebMenuDisable = false;
+      }
     }
     _focusNode
       ..removeListener(_handleFocusChanged)
@@ -1001,25 +1021,44 @@ class NotificationWidgetState extends State<NotificationWidget>
       items = _buildDefaultContextMenuItems();
     }
 
-    if (kIsWeb) {
-      unawaited(BrowserContextMenu.disableContextMenu());
+    if (kIsWeb && !_hasWebMenuDisable) {
+      coordinator.webContextMenuController.requestDisable();
+      _hasWebMenuDisable = true;
     }
 
     try {
       if (Navigator.maybeOf(context) != null) {
-        await showMenu<void>(
-          context: context,
-          position: position,
-          items: items,
-          elevation: 6,
-        );
+        final nav = Navigator.of(context);
+        var isPopped = false;
+        void dismissNavMenu() {
+          if (!isPopped) {
+            isPopped = true;
+            if (nav.canPop()) {
+              nav.pop();
+            }
+          }
+        }
+
+        coordinator.registerContextMenuDismiss(dismissNavMenu);
+        try {
+          await showMenu<void>(
+            context: context,
+            position: position,
+            items: items,
+            elevation: 6,
+          );
+        } finally {
+          isPopped = true;
+          coordinator.unregisterContextMenuDismiss(dismissNavMenu);
+        }
       } else {
         await _openContextMenuViaOverlay(globalPosition, items);
       }
     } finally {
       _isContextMenuOpen = false;
-      if (kIsWeb && !_isMouseHovering) {
-        unawaited(BrowserContextMenu.enableContextMenu());
+      if (kIsWeb && _hasWebMenuDisable) {
+        coordinator.webContextMenuController.releaseDisable();
+        _hasWebMenuDisable = false;
       }
       if (mounted &&
           !_isMouseHovering &&
@@ -1060,9 +1099,34 @@ class NotificationWidgetState extends State<NotificationWidget>
 
     final completer = Completer<void>();
     OverlayEntry? entry;
+    final menuKey = GlobalKey();
+    var isRouteAdded = false;
+    late final VoidCallback dismissOverlayMenu;
+    late final PointerRoute onGlobalPointerEvent;
 
-    void dismissOverlayMenu() {
+    onGlobalPointerEvent = (final event) {
+      if (event is PointerDownEvent) {
+        final renderBox =
+            menuKey.currentContext?.findRenderObject() as RenderBox?;
+        if (renderBox != null && renderBox.hasSize) {
+          final local = renderBox.globalToLocal(event.position);
+          if (!renderBox.paintBounds.contains(local)) {
+            dismissOverlayMenu();
+          }
+        } else {
+          dismissOverlayMenu();
+        }
+      }
+    };
+
+    dismissOverlayMenu = () {
       if (entry != null) {
+        coordinator.unregisterContextMenuDismiss(dismissOverlayMenu);
+        if (isRouteAdded) {
+          isRouteAdded = false;
+          GestureBinding.instance.pointerRouter
+              .removeGlobalRoute(onGlobalPointerEvent);
+        }
         entry!.remove();
         if (_contextMenuEntry == entry) {
           _contextMenuEntry = null;
@@ -1073,9 +1137,13 @@ class NotificationWidgetState extends State<NotificationWidget>
           completer.complete();
         }
       }
-    }
+    };
 
     _dismissContextMenu = dismissOverlayMenu;
+    coordinator.registerContextMenuDismiss(dismissOverlayMenu);
+    isRouteAdded = true;
+    GestureBinding.instance.pointerRouter
+        .addGlobalRoute(onGlobalPointerEvent);
 
     entry = OverlayEntry(
       builder: (final _) => Theme(
@@ -1084,13 +1152,6 @@ class NotificationWidgetState extends State<NotificationWidget>
           textDirection: Directionality.of(context),
           child: Stack(
             children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onTap: dismissOverlayMenu,
-                  onSecondaryTap: dismissOverlayMenu,
-                ),
-              ),
               Positioned(
                 left: left,
                 top: top,
@@ -1104,46 +1165,53 @@ class NotificationWidgetState extends State<NotificationWidget>
                     child: Semantics(
                       role: SemanticsRole.menu,
                       explicitChildNodes: true,
-                      child: Material(
-                        type: MaterialType.card,
-                        elevation: 6,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      clipBehavior: Clip.antiAlias,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minWidth: 160.0,
-                          maxWidth: 280.0,
-                        ),
-                        child: IntrinsicWidth(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: items.map((final item) {
-                              if (item is PopupMenuItem) {
-                                return InkWell(
-                                  onTap: item.enabled
-                                      ? () {
-                                          dismissOverlayMenu();
-                                          item.onTap?.call();
-                                        }
-                                      : null,
-                                  child: IgnorePointer(
-                                    child: item,
-                                  ),
-                                );
-                              }
-                              if (item is PopupMenuDivider) {
-                                return item;
-                              }
-                              return InkWell(
-                                onTap: dismissOverlayMenu,
-                                child: IgnorePointer(
-                                  child: item,
-                                ),
-                              );
-                            }).toList(),
+                      child: TapRegion(
+                        key: menuKey,
+                        consumeOutsideTaps: false,
+                        onTapOutside: (final _) => dismissOverlayMenu(),
+                        child: Material(
+                          type: MaterialType.card,
+                          elevation: 6,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minWidth: 160.0,
+                              maxWidth: 280.0,
+                            ),
+                            child: IntrinsicWidth(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.stretch,
+                                children: items.map((final item) {
+                                  if (item is PopupMenuItem) {
+                                    return InkWell(
+                                      onTap: item.enabled
+                                          ? () {
+                                              dismissOverlayMenu();
+                                              item.onTap?.call();
+                                            }
+                                          : null,
+                                      child: IgnorePointer(
+                                        child: item,
+                                      ),
+                                    );
+                                  }
+                                  if (item is PopupMenuDivider) {
+                                    return item;
+                                  }
+                                  return InkWell(
+                                    onTap: dismissOverlayMenu,
+                                    child: IgnorePointer(
+                                      child: item,
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -1151,8 +1219,7 @@ class NotificationWidgetState extends State<NotificationWidget>
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       ),
@@ -1350,7 +1417,10 @@ class NotificationWidgetState extends State<NotificationWidget>
                     if (kIsWeb &&
                         coordinator
                             .configuration.a11yOptions.enableContextMenu) {
-                      unawaited(BrowserContextMenu.disableContextMenu());
+                      if (!_hasWebHoverDisable) {
+                        coordinator.webContextMenuController.requestDisable();
+                        _hasWebHoverDisable = true;
+                      }
                     }
                     _showCloseButton.value = widget.queue.closeButtonBehavior
                         .onHover(isHovering: true);
@@ -1358,8 +1428,9 @@ class NotificationWidgetState extends State<NotificationWidget>
                   },
                   onExit: (final _) {
                     _isMouseHovering = false;
-                    if (kIsWeb && !_isContextMenuOpen) {
-                      unawaited(BrowserContextMenu.enableContextMenu());
+                    if (kIsWeb && _hasWebHoverDisable) {
+                      coordinator.webContextMenuController.releaseDisable();
+                      _hasWebHoverDisable = false;
                     }
                     _showCloseButton.value = widget.queue.closeButtonBehavior
                         .onHover(isHovering: false);

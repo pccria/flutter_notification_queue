@@ -84,6 +84,17 @@
   - Guaranteed auto-dismiss timer stops completely while context menu is open,
     preventing timer ticks and timeout dismissals when moving mouse pointer
     off card to select menu items.
+  - Implemented reference-counted `WebContextMenuController` on
+    `QueueCoordinator` to prevent premature re-enabling of the native browser
+    context menu on Flutter Web when moving between notification cards, across
+    queue gaps, or transitioning between context menus.
+  - Eliminated pointer-blocking overlay barrier in `_openContextMenuViaOverlay`,
+    allowing right-clicking a second notification card to dismiss the first
+    context menu and immediately open the second card's menu in a single click
+    without swallowing the gesture or triggering the browser context menu.
+  - Deferred browser context menu re-enabling via event-loop microturn on
+    dismissal to protect against accidental browser context menu popups from
+    in-flight dismissing clicks.
 - **L-Shaped Unified Corner Bars (`F-08`)**:
   - Automatically unifies orthogonal drop zones (`Top + Left`, `Top + Right`,
     `Bottom + Left`, `Bottom + Right`) for corner queues

@@ -661,5 +661,130 @@ void main() {
         expect(find.text('Mouse exit timer test'), findsNothing);
       },
     );
+
+    testWidgets(
+      'right-clicking card 2 while card 1 context menu is open '
+      'immediately opens card 2 menu in a single click',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: Center(child: Text('App Content')),
+            ),
+          ),
+        );
+
+        controller.show(
+          AppNotification(
+            id: 'card-1',
+            message: 'First Card',
+            contextMenuBuilder: (final context, final notif, final c) => [
+              const PopupMenuItem<void>(
+                child: Text('Action For Card 1'),
+              ),
+            ],
+          ),
+        );
+        controller.show(
+          AppNotification(
+            id: 'card-2',
+            message: 'Second Card',
+            contextMenuBuilder: (final context, final notif, final c) => [
+              const PopupMenuItem<void>(
+                child: Text('Action For Card 2'),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('First Card'), findsOneWidget);
+        expect(find.text('Second Card'), findsOneWidget);
+
+        // Right-click Card 1 to open Card 1's context menu
+        await tester.tap(
+          find.text('First Card'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Action For Card 1'), findsOneWidget);
+        expect(find.text('Action For Card 2'), findsNothing);
+
+        // Right-click Card 2 directly while Card 1's menu is open
+        await tester.tap(
+          find.text('Second Card'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        // Card 1 menu must be dismissed and Card 2 menu must be open!
+        expect(find.text('Action For Card 1'), findsNothing);
+        expect(find.text('Action For Card 2'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'tapping outside overlay context menu dismisses menu and '
+      'allows background interaction without swallowing click',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        var backgroundTapped = false;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    backgroundTapped = true;
+                  },
+                  child: const Text('Background Button'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'menu-card',
+            message: 'Card With Menu',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Right-click card to open menu
+        await tester.tap(
+          find.text('Card With Menu'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Dismiss'), findsOneWidget);
+        expect(backgroundTapped, isFalse);
+
+        // Tap the background button while the menu is open
+        await tester.tap(find.text('Background Button'));
+        await tester.pumpAndSettle();
+
+        // Menu is dismissed and background button received the tap!
+        expect(find.text('Dismiss'), findsNothing);
+        expect(backgroundTapped, isTrue);
+      },
+    );
   });
 }

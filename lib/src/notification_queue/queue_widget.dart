@@ -32,7 +32,12 @@ class QueueWidget extends StatefulWidget {
 
 class QueueWidgetState extends State<QueueWidget>
     with TickerProviderStateMixin, CoordinatorResolver<QueueWidget> {
-  QueueCoordinator get _coordinator => resolveCoordinator(
+  QueueCoordinator? _cachedCoordinator;
+  bool _hasWebQueueHoverDisable = false;
+
+  QueueCoordinator get _coordinator =>
+      _cachedCoordinator ??
+      resolveCoordinator(
         explicitCoordinator: widget.coordinator,
         callerName: 'QueueWidget',
       );
@@ -260,6 +265,10 @@ class QueueWidgetState extends State<QueueWidget>
   @override
   void initState() {
     super.initState();
+    _cachedCoordinator = resolveCoordinator(
+      explicitCoordinator: widget.coordinator,
+      callerName: 'QueueWidget',
+    );
     final startupItems =
         _coordinator.consumeInitializationQueue(widget.queue.position);
     for (final item in startupItems) {
@@ -268,6 +277,15 @@ class QueueWidgetState extends State<QueueWidget>
     }
     _sortPending();
     _processPending();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _cachedCoordinator = resolveCoordinator(
+      explicitCoordinator: widget.coordinator,
+      callerName: 'QueueWidget',
+    );
   }
 
   /// Stops and cancels all active dismiss timers and tickers in this queue.
@@ -290,6 +308,10 @@ class QueueWidgetState extends State<QueueWidget>
 
   @override
   void dispose() {
+    if (kIsWeb && _hasWebQueueHoverDisable) {
+      _cachedCoordinator?.webContextMenuController.releaseDisable();
+      _hasWebQueueHoverDisable = false;
+    }
     _reorderDragState.dispose();
     ditchAllDismissTimers();
     super.dispose();
@@ -1260,18 +1282,35 @@ class QueueWidgetState extends State<QueueWidget>
       constraints: BoxConstraints(
         maxHeight: Utils.screenSize(context).height * 0.6,
       ),
-      child: Column(
-        key: _listKey,
-        spacing: 0, // We handle spacing in the wrapper
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: widget.queue.mainAxisAlignment,
-        crossAxisAlignment: widget.queue.crossAxisAlignment,
-        verticalDirection: widget.queue.verticalDirection,
-        children: [
-          widget.queue.queueIndicatorBuilder?.call(pendingCount) ??
-              const SizedBox.shrink(),
-          for (final block in blocks) _buildBlock(block, blocks),
-        ],
+      child: MouseRegion(
+        onEnter: (final _) {
+          if (kIsWeb &&
+              _coordinator.configuration.a11yOptions.enableContextMenu) {
+            if (!_hasWebQueueHoverDisable) {
+              _coordinator.webContextMenuController.requestDisable();
+              _hasWebQueueHoverDisable = true;
+            }
+          }
+        },
+        onExit: (final _) {
+          if (kIsWeb && _hasWebQueueHoverDisable) {
+            _coordinator.webContextMenuController.releaseDisable();
+            _hasWebQueueHoverDisable = false;
+          }
+        },
+        child: Column(
+          key: _listKey,
+          spacing: 0, // We handle spacing in the wrapper
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: widget.queue.mainAxisAlignment,
+          crossAxisAlignment: widget.queue.crossAxisAlignment,
+          verticalDirection: widget.queue.verticalDirection,
+          children: [
+            widget.queue.queueIndicatorBuilder?.call(pendingCount) ??
+                const SizedBox.shrink(),
+            for (final block in blocks) _buildBlock(block, blocks),
+          ],
+        ),
       ),
     );
 

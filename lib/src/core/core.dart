@@ -41,3 +41,4 @@ part 'notification_handle.dart';
 part 'notification_id_generator.dart';
 part 'notification_scope.dart';
 part 'queue_coordinator.dart';
+part 'web_context_menu_controller.dart';

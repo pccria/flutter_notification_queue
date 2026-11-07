@@ -48,6 +48,35 @@ class QueueCoordinator implements NotificationScopeState {
 
   static final _logger = Logger.get('fnq.Core.Coordinator');
 
+  /// Manages the browser context menu state on web platforms.
+  final WebContextMenuController webContextMenuController =
+      WebContextMenuController();
+
+  VoidCallback? _activeContextMenuDismiss;
+
+  /// Registers an active context menu dismissal callback, closing any
+  /// previously active context menu across the coordinator.
+  void registerContextMenuDismiss(final VoidCallback dismiss) {
+    if (_activeContextMenuDismiss != null &&
+        _activeContextMenuDismiss != dismiss) {
+      _activeContextMenuDismiss!.call();
+    }
+    _activeContextMenuDismiss = dismiss;
+  }
+
+  /// Unregisters the active context menu dismissal callback if it matches.
+  void unregisterContextMenuDismiss(final VoidCallback dismiss) {
+    if (_activeContextMenuDismiss == dismiss) {
+      _activeContextMenuDismiss = null;
+    }
+  }
+
+  /// Dismisses any currently open context menu managed by this coordinator.
+  void dismissActiveContextMenu() {
+    _activeContextMenuDismiss?.call();
+    _activeContextMenuDismiss = null;
+  }
+
   OverlayPortalController? _controller;
 
   /// Broadcast stream of all notification lifecycle events.
@@ -121,6 +150,8 @@ class QueueCoordinator implements NotificationScopeState {
 
   void detach() {
     _logger.debug('Detaching OverlayPortalController...');
+    dismissActiveContextMenu();
+    webContextMenuController.reset();
     for (final timer in _snoozeTimers) {
       timer.cancel();
     }
