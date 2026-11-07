@@ -265,10 +265,28 @@ void main() {
 
       expect(
         channelsCode,
-        contains("final channels = <String, NotificationChannel>{"),
+        contains('final channels = <NotificationChannel>{'),
       );
-      expect(channelsCode, isNot(contains("controller.show(")));
-      expect(channelsCode, isNot(contains("NotificationScope(")));
+      expect(channelsCode, isNot(contains('controller.show(')));
+      expect(channelsCode, isNot(contains('NotificationScope(')));
+    });
+
+    test('generateCode respects CodeSnippetScope.queuesOnly', () {
+      final studioSetup = StudioSetup.withDefaults();
+      const draft = NotificationDraft();
+
+      final queuesCode = generateCode(
+        setup: studioSetup,
+        draft: draft,
+        scope: CodeSnippetScope.queuesOnly,
+      );
+
+      expect(
+        queuesCode,
+        contains('final queues = <NotificationQueue>{'),
+      );
+      expect(queuesCode, isNot(contains('controller.show(')));
+      expect(queuesCode, isNot(contains('NotificationScope(')));
     });
   });
 

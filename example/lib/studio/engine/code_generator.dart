@@ -42,7 +42,7 @@ String generateCode({
     case CodeSnippetScope.channelsOnly:
       buf
         ..writeln('// Channel Configurations')
-        ..writeln('final channels = <String, NotificationChannel>{');
+        ..writeln('final channels = <NotificationChannel>{');
       for (final channel in setup.channels.values) {
         _writeChannel(buf, channel);
       }
@@ -52,7 +52,7 @@ String generateCode({
     case CodeSnippetScope.queuesOnly:
       buf
         ..writeln('// Queue Baseline Configurations')
-        ..writeln('final queues = <QueuePosition, NotificationQueue>{');
+        ..writeln('final queues = <NotificationQueue>{');
       for (final entry in setup.queues.entries) {
         _writeQueue(buf, entry.key, entry.value);
       }
@@ -61,7 +61,7 @@ String generateCode({
 
     case CodeSnippetScope.fullSetup:
       buf
-        ..writeln('// NFQ Studio — Generated Code (v0.5.0)\n')
+        ..writeln('// NFQ Studio — Generated Code (v0.6.0)\n')
         ..writeln('final controller = NotificationController(')
         ..writeln('  queues: {');
 
@@ -138,8 +138,8 @@ void _writeDispatch(final StringBuffer buf, final NotificationDraft draft) {
       ..writeln('    ),');
   } else if (draft.actionStyle == NotificationActionStyle.onTap) {
     buf
-      ..writeln('    action: NotificationAction.onTap(')
-      ..writeln('      onPressed: () {},')
+      ..writeln('    tapBehavior: TapToAct(')
+      ..writeln('      onTap: () {},')
       ..writeln('    ),');
   }
 
@@ -195,8 +195,15 @@ void _writeQueue(
     ..writeln(
       '      closeButtonBehavior: '
       '${_closeButtonSnippet(q.closeButtonBehaviorType)},',
-    )
-    ..writeln(
+    );
+
+  if (q.tapBehaviorType != TapToDismiss) {
+    buf.writeln(
+      '      tapBehavior: ${_tapBehaviorSnippet(q.tapBehaviorType)},',
+    );
+  }
+
+  buf.writeln(
       '      margin: const EdgeInsets.symmetric(\n'
       '        vertical: ${q.verticalMargin},\n'
       '        horizontal: ${q.horizontalMargin},\n'
@@ -206,14 +213,14 @@ void _writeQueue(
   if (q.groupingEnabled) {
     final countSnippet = switch (q.groupingCountType) {
       GroupCountType.hiddenCount =>
-        (q.groupingCountMaxCount == 99 && q.groupingCountIncludePending)
+        (q.groupingCountMaxCount == 9 && q.groupingCountIncludePending)
             ? 'const HiddenCount()'
             : 'const HiddenCount(\n'
                 '          maxCount: ${q.groupingCountMaxCount},\n'
                 '          includePending: ${q.groupingCountIncludePending},\n'
                 '        )',
       GroupCountType.totalCount =>
-        (q.groupingCountMaxCount == 99 && q.groupingCountIncludePending)
+        (q.groupingCountMaxCount == 9 && q.groupingCountIncludePending)
             ? 'const TotalCount()'
             : 'const TotalCount(\n'
                 '          maxCount: ${q.groupingCountMaxCount},\n'
@@ -280,7 +287,7 @@ void _writeChannel(final StringBuffer buf, final ChannelSetup c) {
       ChannelIconPreset.notification => 'notifications',
       ChannelIconPreset.none => '',
     };
-    buf.writeln('      defaultIcon: Icon(Icons.$iconName),');
+    buf.writeln('      defaultIcon: const Icon(Icons.$iconName),');
   }
   // Only emit `enabled: false` — omitting it implies true (the default).
   if (!c.enabled) {
@@ -372,8 +379,15 @@ String _closeButtonSnippet(final Type t) => switch (t) {
       _ => 'const $t()',
     };
 
+String _tapBehaviorSnippet(final Type t) => switch (t) {
+      == TapToExpand => 'const TapToExpand()',
+      == TapToAct => 'TapToAct(onTap: () {})',
+      == TapDisabled => 'const TapDisabled()',
+      _ => 'const TapToDismiss()',
+    };
+
 String _colorHex(final Color color) =>
-    '0x${color.toARGB32().toRadixString(16).padLeft(8, '0')}';
+    '0x${color.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()}';
 
 void _writeThemeSnippet(
   final StringBuffer buf,
