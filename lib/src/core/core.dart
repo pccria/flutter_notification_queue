@@ -30,6 +30,7 @@ import '../notification_queue/notification_queue.dart';
 import '../utils/utils.dart';
 
 part 'configuration_manager.dart';
+part 'coordinator_resolver.dart';
 part 'notification_event.dart';
 part 'history_logger.dart';
 part 'notification_a11y_options.dart';

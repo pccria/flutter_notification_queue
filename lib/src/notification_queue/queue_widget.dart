@@ -31,19 +31,11 @@ class QueueWidget extends StatefulWidget {
 }
 
 class QueueWidgetState extends State<QueueWidget>
-    with TickerProviderStateMixin {
-  QueueCoordinator get _coordinator {
-    final c =
-        widget.coordinator ?? NotificationScope.maybeCoordinatorOf(context);
-    if (c == null) {
-      throw StateError(
-        'No QueueCoordinator available for QueueWidget. '
-        'Ensure your app or test tree is wrapped in a NotificationScope or '
-        'pass a coordinator explicitly.',
+    with TickerProviderStateMixin, CoordinatorResolver<QueueWidget> {
+  QueueCoordinator get _coordinator => resolveCoordinator(
+        explicitCoordinator: widget.coordinator,
+        callerName: 'QueueWidget',
       );
-    }
-    return c;
-  }
 
   final _pendingNotifications = Queue<NotificationEntry>();
   final Map<String, NotificationEntry> _pendingById = {};

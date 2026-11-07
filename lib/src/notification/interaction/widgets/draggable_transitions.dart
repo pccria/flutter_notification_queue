@@ -15,7 +15,9 @@ class DraggableTransitions extends StatefulWidget {
 }
 
 class DraggableTransitionsState extends State<DraggableTransitions>
-    with SingleTickerProviderStateMixin
+    with
+        SingleTickerProviderStateMixin,
+        CoordinatorResolver<DraggableTransitions>
     implements DragGestureContext {
   Size get _screenSize => Utils.screenSize(context);
 
@@ -154,18 +156,10 @@ class DraggableTransitionsState extends State<DraggableTransitions>
     super.dispose();
   }
 
-  QueueCoordinator get coordinator {
-    final c = widget.notification.coordinator ??
-        NotificationScope.maybeCoordinatorOf(context);
-    if (c == null) {
-      throw StateError(
-        'No QueueCoordinator available for DraggableTransitions. '
-        'Ensure your app or test tree is wrapped in a NotificationScope or '
-        'pass a coordinator explicitly.',
+  QueueCoordinator get coordinator => resolveCoordinator(
+        explicitCoordinator: widget.notification.coordinator,
+        callerName: 'DraggableTransitions',
       );
-    }
-    return c;
-  }
 
   int stateIndexOfThisItem() {
     final position = widget.notification.queue.position;

@@ -54,7 +54,8 @@ class NotificationOverlay extends StatefulWidget {
   State<NotificationOverlay> createState() => _NotificationOverlayState();
 }
 
-class _NotificationOverlayState extends State<NotificationOverlay> {
+class _NotificationOverlayState extends State<NotificationOverlay>
+    with CoordinatorResolver<NotificationOverlay> {
   final OverlayPortalController _overlayPortalController =
       OverlayPortalController();
   QueueCoordinator? _attachedCoordinator;
@@ -77,15 +78,10 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
   }
 
   void _updateCoordinator() {
-    final scopeCoordinator = NotificationScope.maybeCoordinatorOf(context);
-    final resolved = widget.coordinator ?? scopeCoordinator;
-    if (resolved == null) {
-      throw StateError(
-        'No QueueCoordinator available for NotificationOverlay. '
-        'Ensure your app or test tree is wrapped in a NotificationScope or '
-        'pass a coordinator explicitly.',
-      );
-    }
+    final resolved = resolveCoordinator(
+      explicitCoordinator: widget.coordinator,
+      callerName: 'NotificationOverlay',
+    );
     if (_attachedCoordinator != resolved) {
       _attachedCoordinator?.detach();
       _attachedCoordinator = resolved;

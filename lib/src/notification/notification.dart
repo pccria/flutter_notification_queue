@@ -532,7 +532,7 @@ class NotificationWidget extends StatefulWidget
 /// and entrance/exit transitions.
 @internal
 class NotificationWidgetState extends State<NotificationWidget>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, CoordinatorResolver<NotificationWidget> {
   late NotificationTheme theme;
 
   /// Caches the brightness last used to resolve the theme so that
@@ -717,18 +717,10 @@ class NotificationWidgetState extends State<NotificationWidget>
     }
   }
 
-  QueueCoordinator get coordinator {
-    final c =
-        widget.coordinator ?? NotificationScope.maybeCoordinatorOf(context);
-    if (c == null) {
-      throw StateError(
-        'No QueueCoordinator available for NotificationWidget. '
-        'Ensure your app or test tree is wrapped in a NotificationScope or '
-        'pass a coordinator explicitly.',
+  QueueCoordinator get coordinator => resolveCoordinator(
+        explicitCoordinator: widget.coordinator,
+        callerName: 'NotificationWidget',
       );
-    }
-    return c;
-  }
 
   Future<void> dismiss({
     final DismissReason reason = DismissReason.programmatic,

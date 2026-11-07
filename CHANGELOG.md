@@ -26,7 +26,14 @@
   - Extracted `NotificationTheme` from `part of 'notification.dart'` into a
     standalone library under `lib/src/notification/theme/`.
   - Introduced `NotificationThemeTarget` interface to resolve themes without
-    circular dependencies on concrete notification widgets.
+- **Unified Coordinator Resolution (`A-03`)**:
+  - Introduced `CoordinatorResolver` mixin in
+    `lib/src/core/coordinator_resolver.dart`.
+  - Replaced repetitive coordinator lookup logic across
+    `NotificationWidgetState`, `DraggableTransitionsState`, `QueueWidgetState`,
+    and `_NotificationOverlayState`.
+  - Enforced consistent precedence hierarchy: explicit widget override ->
+    ambient `NotificationScope` in widget tree -> descriptive `StateError`.
 
 ### Desktop & Platform Perfection (Track 4)
 - **Desktop Context Menu Support (`F-07`)**:
