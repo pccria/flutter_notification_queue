@@ -88,7 +88,7 @@ Complexity Tiers:
 | ID | Task Description | Priority | Complexity | Status | Target Files |
 |---|---|---|---|---|---|
 | **A-01** | Decompose 26-file `notification.dart` `part` monolith into distinct sub-libraries | 🟡 P1 | 🔴 High | 📅 Pending | `lib/src/notification/` |
-| **A-02** | Extract `NotificationTheme` system from notification `part` into standalone library | 🟡 P1 | 🟡 Medium | 📅 Pending | `lib/src/notification/theme/notification_theme.dart` |
+| **A-02** | Extract `NotificationTheme` system from notification `part` into standalone library | 🟡 P1 | 🟡 Medium | ✅ Completed | `lib/src/notification/theme/notification_theme.dart` |
 | **A-03** | Extract duplicate coordinator resolution into shared mixin (`CoordinatorResolver`) | 🟢 P2 | 🟢 Low | 📅 Pending | `lib/src/notification/notification.dart`, `lib/src/notification/interaction/widgets/draggable_transitions.dart`, `lib/src/notification_queue/queue_widget.dart` |
 | **A-04** | Encapsulate `ConfigurationManager` fields (make private, enforce immutability) | 🟢 P2 | 🟢 Low | 📅 Pending | `lib/src/core/configuration_manager.dart` |
 | **A-05** | Add `NotificationWidget? get notification` accessor to sealed `NotificationEvent` | 🟢 P2 | 🟢 Low | 📅 Pending | `lib/src/core/notification_event.dart`, `lib/src/core/history_logger.dart` |

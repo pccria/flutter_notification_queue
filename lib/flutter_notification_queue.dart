@@ -60,7 +60,7 @@ export 'src/notification/notification.dart'
         SnoozeFeedbackOverlay,
         SnoozeGesturePlugin,
         SnoozeTargets;
-export 'src/notification/theme/notification_theme_data.dart';
+export 'src/notification/theme/theme.dart';
 export 'src/notification_channel/notification_channel.dart';
 export 'src/notification_queue/group_count_behavior.dart';
 export 'src/notification_queue/notification_queue.dart'

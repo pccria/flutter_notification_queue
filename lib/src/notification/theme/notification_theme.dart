@@ -1,5 +1,21 @@
-part of '../notification.dart';
+import 'package:flutter/material.dart';
 
+import '../../notification_channel/notification_channel.dart';
+import '../../notification_queue/notification_queue.dart';
+import 'notification_theme_data.dart';
+
+/// An interface for objects providing channel and accent color overrides to
+/// [NotificationTheme.resolveWith].
+abstract interface class NotificationThemeTarget {
+  /// The channel for cascading theme resolution.
+  NotificationChannel? get channel;
+
+  /// The per-notification accent color override.
+  Color? get accentColor;
+}
+
+/// Runtime resolved theme for an in-app notification card.
+@immutable
 class NotificationTheme {
   const NotificationTheme._({
     required this.themeData,
@@ -24,7 +40,7 @@ class NotificationTheme {
   factory NotificationTheme.resolveWith(
     final BuildContext context,
     final QueueStyle style, [
-    final NotificationWidget? notification,
+    final NotificationThemeTarget? notification,
     final NotificationChannel? channel,
     final Color? accentColor,
   ]) {

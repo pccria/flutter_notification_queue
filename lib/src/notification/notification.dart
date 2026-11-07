@@ -16,9 +16,9 @@ import '../notification_channel/notification_channel.dart';
 import '../notification_queue/notification_queue.dart';
 import '../types/type_defs.dart';
 import '../utils/utils.dart';
-import 'theme/notification_theme_data.dart';
+import 'theme/theme.dart';
 
-export 'theme/notification_theme_data.dart';
+export 'theme/theme.dart';
 
 part 'app_notification.dart';
 part 'interaction/drag_gesture_context.dart';
@@ -44,7 +44,6 @@ part 'interaction/zones/positions.dart';
 part 'interaction/zones/resolvers.dart';
 part 'interaction/zones/slots.dart';
 part 'notification_action.dart';
-part 'theme/notification_theme.dart';
 
 /// A widget representing an individual notification card in a queue.
 ///
@@ -61,7 +60,8 @@ part 'theme/notification_theme.dart';
 /// ```
 @internal
 @immutable
-class NotificationWidget extends StatefulWidget {
+class NotificationWidget extends StatefulWidget
+    implements NotificationThemeTarget {
   /// Creates a new [NotificationWidget] with the specified content and style
   /// overrides.
   ///
@@ -328,6 +328,7 @@ class NotificationWidget extends StatefulWidget {
   final Color? backgroundColor;
 
   /// Optional experimental accent color override.
+  @override
   @experimental
   final Color? accentColor;
 
@@ -343,6 +344,7 @@ class NotificationWidget extends StatefulWidget {
 
   final NotificationQueue queue;
 
+  @override
   final NotificationChannel channel;
 
   /// Custom builder for the notification stack indicator.
