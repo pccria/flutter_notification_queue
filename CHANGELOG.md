@@ -42,6 +42,17 @@
   - Wrapped `queues` and `channels` collections in `Set.unmodifiable` on both
     initialization and dynamic `reconfigure` calls, guaranteeing external
     immutability.
+- **Polymorphic Event Notification Accessor (`A-05`)**:
+  - Added polymorphic `NotificationWidget? get notification => null;` accessor
+    on sealed `NotificationEvent` base class.
+  - Subclasses carrying a notification target implement `@override
+    NotificationWidget get notification;` (`NotificationQueued`,
+    `NotificationUpdated`, `NotificationDismissed`, `NotificationTapped`,
+    `NotificationRelocated`, `NotificationReordered`, `NotificationSnoozed`,
+    `NotificationPinned`, `NotificationUnpinned`, and
+    `NotificationCustomActionTriggered`).
+  - Simplified `HistoryLogger` event filtering logic by eliminating verbose
+    type-checking cascades.
 
 ### Desktop & Platform Perfection (Track 4)
 - **Desktop Context Menu Support (`F-07`)**:

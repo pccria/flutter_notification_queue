@@ -72,34 +72,9 @@ class HistoryLogger {
     Iterable<HistoryEntry> query = _history;
 
     if (channelName != null) {
-      query = query.where((final entry) {
-        final e = entry.event;
-        if (e is NotificationQueued) {
-          return e.notification.channelName == channelName;
-        }
-        if (e is NotificationDismissed) {
-          return e.notification.channelName == channelName;
-        }
-        if (e is NotificationTapped) {
-          return e.notification.channelName == channelName;
-        }
-        if (e is NotificationPinned) {
-          return e.notification.channelName == channelName;
-        }
-        if (e is NotificationUnpinned) {
-          return e.notification.channelName == channelName;
-        }
-        if (e is NotificationSnoozed) {
-          return e.notification.channelName == channelName;
-        }
-        if (e is NotificationCustomActionTriggered) {
-          return e.notification.channelName == channelName;
-        }
-        if (e is NotificationRelocated) {
-          return e.notification.channelName == channelName;
-        }
-        return false;
-      });
+      query = query.where(
+        (final entry) => entry.event.notification?.channelName == channelName,
+      );
     }
 
     if (dismissReason != null) {

@@ -100,6 +100,91 @@ void main() {
       );
     });
 
+    test('Polymorphic notification accessor returns widget for item events',
+        () {
+      final notifWidget2 = NotificationWidget(
+        id: 'e2',
+        message: 'Old Widget',
+        channelName: 'info',
+      );
+
+      final List<NotificationEvent> itemEvents = [
+        NotificationQueued(notification: notifWidget),
+        NotificationUpdated(
+          notification: notifWidget,
+          oldNotification: notifWidget2,
+        ),
+        NotificationDismissed(
+          notification: notifWidget,
+          reason: DismissReason.timeout,
+        ),
+        NotificationTapped(
+          notification: notifWidget,
+          behavior: const TapToDismiss(),
+        ),
+        NotificationRelocated(
+          notification: notifWidget,
+          from: QueuePosition.topRight,
+          to: QueuePosition.bottomLeft,
+        ),
+        NotificationReordered(
+          notification: notifWidget,
+          toIndex: 1,
+        ),
+        NotificationSnoozed(
+          notification: notifWidget,
+          duration: const Duration(minutes: 5),
+        ),
+        NotificationPinned(notification: notifWidget),
+        NotificationUnpinned(notification: notifWidget),
+        NotificationCustomActionTriggered(
+          notification: notifWidget,
+          actionName: 'archive',
+        ),
+      ];
+
+      for (final event in itemEvents) {
+        expect(event.notification, equals(notifWidget));
+      }
+    });
+
+    test(
+        'Polymorphic notification accessor returns null for queue/group events',
+        () {
+      const queue = NotificationQueue(position: QueuePosition.topRight);
+      final List<NotificationEvent> nonItemEvents = [
+        QueueOverflowed(queue: queue, dropped: notifWidget),
+        const NotificationGroupExpanded(
+          groupKey: 'grp',
+          position: QueuePosition.topRight,
+          count: 5,
+        ),
+        const NotificationGroupCollapsed(
+          groupKey: 'grp',
+          position: QueuePosition.topRight,
+          count: 2,
+        ),
+        const NotificationGroupDismissed(
+          groupKey: 'grp',
+          position: QueuePosition.topRight,
+        ),
+        const QueuePositionRelocated(
+          from: QueuePosition.topRight,
+          to: QueuePosition.bottomRight,
+        ),
+        // ignore: deprecated_member_use_from_same_package
+        const NotificationChannelRouteUpdated(
+          channelName: 'info',
+          oldPosition: QueuePosition.topRight,
+          newPosition: QueuePosition.bottomRight,
+        ),
+      ];
+
+      for (final event in nonItemEvents) {
+        expect(event.notification, isNull);
+      }
+    });
+
     test('QueueGroupingBehavior equality and hashCode', () {
       const g1 = QueueGroupingBehavior(
         enabled: true,

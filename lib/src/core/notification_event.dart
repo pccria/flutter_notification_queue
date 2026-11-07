@@ -48,6 +48,10 @@ enum DismissReason {
 /// ```
 sealed class NotificationEvent {
   const NotificationEvent();
+
+  /// The notification associated with this event, or `null` if the event is a
+  /// queue-level, group-level, or routing event.
+  NotificationWidget? get notification => null;
 }
 
 /// Emitted when a [NotificationWidget] is accepted into a queue.
@@ -57,6 +61,7 @@ final class NotificationQueued extends NotificationEvent {
   const NotificationQueued({required this.notification});
 
   /// The notification that was queued.
+  @override
   final NotificationWidget notification;
 
   @override
@@ -72,6 +77,7 @@ final class NotificationUpdated extends NotificationEvent {
   });
 
   /// The updated notification widget.
+  @override
   final NotificationWidget notification;
 
   /// The previous notification widget before the update.
@@ -89,6 +95,7 @@ final class NotificationDismissed extends NotificationEvent {
   });
 
   /// The notification that was dismissed.
+  @override
   final NotificationWidget notification;
 
   /// Why the notification was dismissed.
@@ -114,6 +121,7 @@ final class NotificationTapped extends NotificationEvent {
   });
 
   /// The notification that was tapped.
+  @override
   final NotificationWidget notification;
 
   /// The resolved tap behavior that handled this tap.
@@ -135,6 +143,7 @@ final class NotificationRelocated extends NotificationEvent {
 
   /// The notification after relocation (its [NotificationWidget.queue] now
   /// points to [to]).
+  @override
   final NotificationWidget notification;
 
   /// The queue position the notification was moved *from*.
@@ -156,6 +165,7 @@ final class NotificationReordered extends NotificationEvent {
   });
 
   /// The notification that was reordered.
+  @override
   final NotificationWidget notification;
 
   /// The new zero-based index within the queue stack.
@@ -193,6 +203,7 @@ final class NotificationSnoozed extends NotificationEvent {
   });
 
   /// The notification that was snoozed.
+  @override
   final NotificationWidget notification;
 
   /// The duration for which the notification was snoozed.
@@ -208,6 +219,7 @@ final class NotificationPinned extends NotificationEvent {
   const NotificationPinned({required this.notification});
 
   /// The notification that was pinned.
+  @override
   final NotificationWidget notification;
 
   @override
@@ -219,6 +231,7 @@ final class NotificationUnpinned extends NotificationEvent {
   const NotificationUnpinned({required this.notification});
 
   /// The notification that was unpinned.
+  @override
   final NotificationWidget notification;
 
   @override
@@ -233,6 +246,7 @@ final class NotificationCustomActionTriggered extends NotificationEvent {
   });
 
   /// The notification on which the action was triggered.
+  @override
   final NotificationWidget notification;
 
   /// The name of the custom action that was triggered.
