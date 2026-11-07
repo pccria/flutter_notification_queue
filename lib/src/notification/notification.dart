@@ -62,6 +62,7 @@ class NotificationWidget extends StatefulWidget
   factory NotificationWidget({
     required final String message,
     final String? id,
+    final NotificationIdGenerator? idGenerator,
     final String channelName = 'default',
     final String? title,
     final QueuePosition? position,
@@ -96,8 +97,10 @@ class NotificationWidget extends StatefulWidget
           queues: {const NotificationQueue()},
           channels: NotificationChannel.standardChannels(),
         );
-    final resolvedId =
-        id ?? 'notif_${_idCounter++}_${DateTime.now().microsecondsSinceEpoch}';
+    final resolvedId = id ??
+        idGenerator?.nextId() ??
+        coordinator?.idGenerator.nextId() ??
+        config.idGenerator.nextId();
     final resolvedKey = GlobalObjectKey<NotificationWidgetState>(resolvedId);
     final resolveChannel = config.getChannel(channelName);
     final targetPosition = position ?? resolveChannel.position;
@@ -180,8 +183,6 @@ class NotificationWidget extends StatefulWidget
       'NotificationController and NotificationScope.',
     );
   }
-
-  static int _idCounter = 0;
 
   final GlobalKey<NotificationWidgetState> _key;
 

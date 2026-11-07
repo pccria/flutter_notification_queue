@@ -53,6 +53,13 @@
     `NotificationCustomActionTriggered`).
   - Simplified `HistoryLogger` event filtering logic by eliminating verbose
     type-checking cascades.
+- **Instance-Scoped ID Generator (`A-06`)**:
+  - Replaced global static mutable counter `_idCounter` on `NotificationWidget`
+    with `NotificationIdGenerator`.
+  - Scoped sequence generation to coordinator, configuration, and controller
+    instances to eliminate cross-test state leakage and test ordering flakiness.
+  - Exported `NotificationIdGenerator` allowing custom seed configuration and
+    predictable monotonic sequencing.
 
 ### Desktop & Platform Perfection (Track 4)
 - **Desktop Context Menu Support (`F-07`)**:

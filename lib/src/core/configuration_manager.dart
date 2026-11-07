@@ -15,11 +15,13 @@ class ConfigurationManager {
     final int maxHistoryEntries = 0,
     final NotificationA11yOptions a11yOptions =
         const NotificationA11yOptions(),
+    final NotificationIdGenerator? idGenerator,
   })  : _queues = _initQueues(queues),
         _channels = Set.unmodifiable(channels),
         _strictChannelLookup = strictChannelLookup,
         _maxHistoryEntries = maxHistoryEntries,
-        _a11yOptions = a11yOptions;
+        _a11yOptions = a11yOptions,
+        _idGenerator = idGenerator ?? NotificationIdGenerator();
 
   static Set<NotificationQueue> _initQueues(
     final Set<NotificationQueue> inputQueues,
@@ -34,6 +36,10 @@ class ConfigurationManager {
   bool _strictChannelLookup;
   int _maxHistoryEntries;
   NotificationA11yOptions _a11yOptions;
+  final NotificationIdGenerator _idGenerator;
+
+  /// The instance-scoped notification ID generator.
+  NotificationIdGenerator get idGenerator => _idGenerator;
 
   /// The immutable set of active notification queues.
   Set<NotificationQueue> get queues => _queues;

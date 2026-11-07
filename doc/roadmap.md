@@ -83,7 +83,7 @@ Complexity Tiers:
 
 ---
 
-### Track 3: Release 0.6.0 — Architecture & Encapsulation (Scheduled 🏗️)
+### Track 3: Release 0.6.0 — Architecture & Encapsulation (Completed ✅)
 
 | ID | Task Description | Priority | Complexity | Status | Target Files |
 |---|---|---|---|---|---|
@@ -92,7 +92,7 @@ Complexity Tiers:
 | **A-03** | Extract duplicate coordinator resolution into shared mixin (`CoordinatorResolver`) | 🟢 P2 | 🟢 Low | ✅ Completed | `lib/src/notification/notification.dart`, `lib/src/notification/interaction/widgets/draggable_transitions.dart`, `lib/src/notification_queue/queue_widget.dart` |
 | **A-04** | Encapsulate `ConfigurationManager` fields (make private, enforce immutability) | 🟢 P2 | 🟢 Low | ✅ Completed | `lib/src/core/configuration_manager.dart` |
 | **A-05** | Add `NotificationWidget? get notification` accessor to sealed `NotificationEvent` | 🟢 P2 | 🟢 Low | ✅ Completed | `lib/src/core/notification_event.dart`, `lib/src/core/history_logger.dart` |
-| **A-06** | Replace static mutable `_idCounter` with instance-scoped ID generator | 🟢 P2 | 🟢 Low | 📅 Pending | `lib/src/notification/notification.dart` |
+| **A-06** | Replace static mutable `_idCounter` with instance-scoped ID generator | 🟢 P2 | 🟢 Low | ✅ Completed | `lib/src/notification/notification.dart` |
 | **A-07** | Enforce 3-Tier Hierarchy: Deprecate per-notification `dragBehavior` physics overrides | 🟡 P1 | 🟡 Medium | ✅ Completed | `lib/src/notification/app_notification.dart`, `lib/src/notification/notification.dart` |
 | **A-08** | Migrate channel & notification theming to `NotificationThemeData`; eliminate loose scalar colors | 🟡 P1 | 🟡 Medium | ✅ Completed | `lib/src/notification_channel/notification_channel.dart`, `lib/src/notification/app_notification.dart` |
 | **A-09** | Decouple `AppNotification.position`: route via channel defaults or `controller.show(..., targetPosition:)` | 🟡 P1 | 🟢 Low | ✅ Completed | `lib/src/notification/app_notification.dart`, `lib/src/core/notification_controller.dart` |

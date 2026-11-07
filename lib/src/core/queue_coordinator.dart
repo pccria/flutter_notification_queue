@@ -9,11 +9,15 @@ class QueueCoordinator implements NotificationScopeState {
   QueueCoordinator({
     final ConfigurationManager? configuration,
     this.controller,
-  }) : configuration = configuration ??
+    final NotificationIdGenerator? idGenerator,
+  })  : configuration = configuration ??
             ConfigurationManager(
               queues: {const NotificationQueue()},
               channels: NotificationChannel.standardChannels(),
-            ) {
+            ),
+        idGenerator = idGenerator ??
+            configuration?.idGenerator ??
+            NotificationIdGenerator() {
     _historyLogger = HistoryLogger(
       maxEntries: this.configuration.maxHistoryEntries,
     )..startListening(events);
@@ -27,6 +31,7 @@ class QueueCoordinator implements NotificationScopeState {
       QueueCoordinator(
         configuration: controller.configuration,
         controller: controller,
+        idGenerator: controller.idGenerator,
       );
 
   /// The owning [NotificationController] driving this coordinator, if bound.
@@ -34,6 +39,9 @@ class QueueCoordinator implements NotificationScopeState {
 
   /// The configuration this coordinator was initialised with.
   final ConfigurationManager configuration;
+
+  /// The instance-scoped notification ID generator for this coordinator.
+  final NotificationIdGenerator idGenerator;
 
   late final HistoryLogger _historyLogger;
   HistoryLogger get historyLogger => _historyLogger;

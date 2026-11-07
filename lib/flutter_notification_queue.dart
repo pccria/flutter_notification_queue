@@ -14,6 +14,7 @@ export 'src/core/core.dart'
         NotificationGroupDismissed,
         NotificationGroupExpanded,
         NotificationHandle,
+        NotificationIdGenerator,
         NotificationPinned,
         NotificationQueued,
         NotificationRelocated,
