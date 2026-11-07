@@ -16,9 +16,20 @@
   pointer devices. Upon stack exit or dismissal of the final card, previous host
   app focus is restored automatically.
 - **Card Keyboard Navigation & Semantics**: Individual notification cards expose
-  container semantics with detailed hints (`Press Delete or Escape to dismiss`).
-  Added arrow key navigation (`ArrowDown` / `ArrowUp`), `Escape` card dismissal,
-  and `CustomSemanticsAction` for screen reader accessibility actions.
+  container semantics with detailed hints. Added keyboard shortcuts when a card
+  has focus:
+  - `Enter`: Triggers primary action (`widget.action.onPressed()`) if defined,
+    or triggers card tap behavior (`_resolvedTapBehavior`).
+  - `Space`: Reserved for focused inner controls (action button, close button,
+    expand toggle) reached via `Tab` cycling.
+  - `E`: Toggles card body expansion between collapsed and preview lines.
+  - `P`: Toggles pin/unpin status, canceling or re-initiating auto-dismiss.
+  - `S`: Snoozes notification for its default or configured duration.
+  - `Shift + Delete` / `Shift + Backspace`: Dismisses the active bundle group.
+  - `Delete` / `Backspace` / `Escape`: Dismisses the single focused card.
+  - `ArrowDown` / `ArrowUp`: Navigates between cards in the active queue.
+  - Exposes `CustomSemanticsAction` for 'Dismiss', 'Expand', 'Pin', 'Snooze',
+    and custom action buttons for assistive technologies.
 - **Group Toggle Pill Accessibility**: Toggle pills expose `Semantics` button
   roles, dynamic state labels (`Grouped notifications` /
   `Collapse notification group`), and keyboard toggle activation using `Enter`

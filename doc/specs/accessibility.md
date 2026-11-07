@@ -146,13 +146,18 @@ When focus is transferred into the notification stack (`Alt + N`):
 | Shortcut Key | Scope | Action |
 | :--- | :--- | :--- |
 | `Alt + N` / `Option + N` | Global | Transfer focus from app to top-most active notification card. |
-| `Tab` | Notification Stack | Cycle focus to next focusable element (Card $\rightarrow$ Action Button $\rightarrow$ Dismiss Button $\rightarrow$ Next Card). |
+| `Tab` | Notification Stack | Cycle focus between card and inner controls (Expand $\rightarrow$ Close $\rightarrow$ Action Button $\rightarrow$ Next Card). |
 | `Shift + Tab` | Notification Stack | Cycle focus to previous focusable element. |
 | `ArrowDown` / `ArrowRight` | Queue Stack | Shift focus to next card in the current queue stack. |
 | `ArrowUp` / `ArrowLeft` | Queue Stack | Shift focus to previous card in the current queue stack. |
+| `Enter` | Focused Card | Trigger primary notification action if defined, or card tap behavior. |
+| `Space` | Inner Control | Activate focused inner control (action button, close button, expand toggle). |
+| `E` | Focused Card | Toggle card body expansion between collapsed and multi-line preview. |
+| `P` | Focused Card | Toggle pinned status (locks notification and ditches auto-dismiss timer). |
+| `S` | Focused Card | Snooze focused notification for default/configured duration. |
 | `Delete` / `Backspace` | Focused Card | Programmatically dismiss the currently focused notification. |
+| `Shift + Delete` / `Shift + Backspace` | Focused Card | Dismiss entire active bundle/group sharing the resolved group key. |
 | `Escape` | Focused Card | Dismiss currently focused notification and return focus to application. |
-| `Space` / `Enter` | Focused Control | Trigger action button callback or toggle group stack expansion. |
 
 ---
 
