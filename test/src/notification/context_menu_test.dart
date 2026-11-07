@@ -1,0 +1,455 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_notification_queue/flutter_notification_queue.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('F-07: Desktop Context Menu Support', () {
+    testWidgets(
+      'secondary tap (right-click) opens default context menu',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: NotificationScope(
+                controller: controller,
+                child: const Center(child: Text('App Content')),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'test-1',
+            title: 'Test Title',
+            message: 'Right-click me',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Right-click me'), findsOneWidget);
+        expect(find.text('Pin'), findsNothing);
+
+        // Secondary tap (right-click)
+        await tester.tap(
+          find.text('Right-click me'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        // Default menu items should be visible
+        expect(find.text('Pin'), findsOneWidget);
+        expect(find.text('Snooze'), findsOneWidget);
+        expect(find.text('Copy Message'), findsOneWidget);
+        expect(find.text('Dismiss'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'tapping Pin in context menu pins the notification',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: NotificationScope(
+                controller: controller,
+                child: const Center(child: Text('App Content')),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'test-pin',
+            message: 'Pinnable notification',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.text('Pinnable notification'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Pin'));
+        await tester.pumpAndSettle();
+
+        final coordinator = controller.coordinator!;
+        expect(coordinator.activeNotifications.first.isPinned, isTrue);
+      },
+    );
+
+    testWidgets(
+      'tapping Snooze in context menu snoozes the notification',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: NotificationScope(
+                controller: controller,
+                child: const Center(child: Text('App Content')),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'test-snooze',
+            message: 'Snooze me',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.text('Snooze me'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Snooze'));
+        await tester.pumpAndSettle();
+
+        final coordinator = controller.coordinator!;
+        expect(coordinator.activeNotifications, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'tapping Copy Message copies text to Clipboard',
+      (final tester) async {
+        String? copiedText;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(
+          SystemChannels.platform,
+          (final methodCall) async {
+            if (methodCall.method == 'Clipboard.setData') {
+              copiedText = (methodCall.arguments
+                  as Map<dynamic, dynamic>)['text'] as String?;
+            }
+            return null;
+          },
+        );
+        addTearDown(() {
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(SystemChannels.platform, null);
+        });
+
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: NotificationScope(
+                controller: controller,
+                child: const Center(child: Text('App Content')),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'test-copy',
+            message: 'Text to copy',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.text('Text to copy'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Copy Message'));
+        await tester.pumpAndSettle();
+
+        expect(copiedText, equals('Text to copy'));
+      },
+    );
+
+    testWidgets(
+      'notification with action renders action option in context menu',
+      (final tester) async {
+        var actionInvoked = false;
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: NotificationScope(
+                controller: controller,
+                child: const Center(child: Text('App Content')),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          AppNotification(
+            id: 'test-action',
+            message: 'Has action',
+            action: NotificationAction.button(
+              label: 'Undo Action',
+              onPressed: () {
+                actionInvoked = true;
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.text('Has action'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Undo Action'), findsWidgets);
+
+        await tester.tap(find.text('Undo Action').last);
+        await tester.pumpAndSettle();
+
+        expect(actionInvoked, isTrue);
+      },
+    );
+
+    testWidgets(
+      'tapping Dismiss in context menu dismisses notification',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: NotificationScope(
+                controller: controller,
+                child: const Center(child: Text('App Content')),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'test-dismiss',
+            message: 'Dismiss me',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.text('Dismiss me'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Dismiss'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Dismiss me'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Shift+F10 opens context menu when card has focus',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: NotificationScope(
+                controller: controller,
+                child: const Center(child: Text('App Content')),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'test-kbd',
+            message: 'Keyboard focus card',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Transfer focus to notification stack (Alt + N)
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pumpAndSettle();
+
+        // Press Shift + F10
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+
+        // Context menu items should appear
+        expect(find.text('Copy Message'), findsOneWidget);
+        expect(find.text('Dismiss'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'custom contextMenuBuilder overrides default menu items',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: NotificationScope(
+                controller: controller,
+                child: const Center(child: Text('App Content')),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          AppNotification(
+            id: 'test-custom',
+            message: 'Custom menu card',
+            contextMenuBuilder: (final context, final notif, final ctrl) => [
+              const PopupMenuItem<void>(
+                child: Text('Custom Item 1'),
+              ),
+              const PopupMenuItem<void>(
+                child: Text('Custom Item 2'),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.text('Custom menu card'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Custom Item 1'), findsOneWidget);
+        expect(find.text('Custom Item 2'), findsOneWidget);
+        expect(find.text('Pin'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'enableContextMenu: false suppresses context menu',
+      (final tester) async {
+        final controller = NotificationController(
+          a11yOptions: const NotificationA11yOptions(
+            enableContextMenu: false,
+          ),
+        );
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: NotificationScope(
+                controller: controller,
+                child: const Center(child: Text('App Content')),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'test-disabled',
+            message: 'No context menu',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.text('No context menu'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Pin'), findsNothing);
+        expect(find.text('Dismiss'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'opening context menu pauses auto-dismiss timer',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: NotificationScope(
+                controller: controller,
+                child: const Center(child: Text('App Content')),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'test-timer',
+            message: 'Timed notification',
+            dismissDuration: Duration(seconds: 3),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Right-click to open context menu
+        await tester.tap(
+          find.text('Timed notification'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Dismiss'), findsOneWidget);
+
+        // Advance 2 seconds (beyond dismiss duration)
+        await tester.pump(const Duration(seconds: 2));
+
+        // Notification must still be alive because menu paused timer
+        expect(find.text('Timed notification'), findsOneWidget);
+
+        // Close menu by tapping barrier
+        await tester.tapAt(const Offset(10, 10));
+        await tester.pumpAndSettle();
+
+        // Now resume timer and wait for auto-dismiss
+        await tester.pump(const Duration(seconds: 2));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Timed notification'), findsNothing);
+      },
+    );
+  });
+}

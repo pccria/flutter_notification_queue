@@ -1,5 +1,6 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
+import '../core/core.dart';
 import '../enums/enums.dart';
 import '../notification/notification.dart';
 
@@ -18,4 +19,11 @@ typedef NotificationBuilder = Widget Function({
 /// Builder function for custom queue overflow indicators.
 typedef QueueIndicatorBuilder = Widget? Function(
   int pendingNotificationsCount,
+);
+
+/// Builder function for custom notification context menus.
+typedef NotificationContextMenuBuilder = List<PopupMenuEntry<void>> Function(
+  BuildContext context,
+  AppNotification notification,
+  NotificationController? controller,
 );

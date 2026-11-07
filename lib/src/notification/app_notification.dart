@@ -63,6 +63,7 @@ class AppNotification {
     this.permanent = false,
     this.builder,
     this.action,
+    this.contextMenuBuilder,
   });
 
   /// The main message text body of the notification.
@@ -134,6 +135,12 @@ class AppNotification {
   /// Action button or tap callback configuration attached to the card.
   final NotificationAction? action;
 
+  /// Optional builder for a custom context menu (right-click / Shift+F10).
+  ///
+  /// When `null`, a default context menu with Pin, Snooze, Copy Message,
+  /// Action, and Dismiss options is displayed.
+  final NotificationContextMenuBuilder? contextMenuBuilder;
+
   /// Internal conversion helper to adapt [AppNotification] to
   /// [NotificationWidget] for rendering pipeline compatibility during v0.3.0.
   @internal
@@ -159,6 +166,7 @@ class AppNotification {
         groupKey: groupKey,
         configuration: configuration,
         coordinator: coordinator,
+        contextMenuBuilder: contextMenuBuilder,
       );
 
   /// Creates a copy of this [AppNotification] with the given fields replaced.
@@ -176,6 +184,7 @@ class AppNotification {
     final bool? permanent,
     final NotificationBuilder? builder,
     final NotificationAction? action,
+    final NotificationContextMenuBuilder? contextMenuBuilder,
   }) =>
       AppNotification(
         id: id ?? this.id,
@@ -191,6 +200,7 @@ class AppNotification {
         permanent: permanent ?? this.permanent,
         builder: builder ?? this.builder,
         action: action ?? this.action,
+        contextMenuBuilder: contextMenuBuilder ?? this.contextMenuBuilder,
       );
 
   /// Internal conversion helper to create a [NotificationEntry] from this

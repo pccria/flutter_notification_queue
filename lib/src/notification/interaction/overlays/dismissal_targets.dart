@@ -50,13 +50,29 @@ class DismissalTargets extends StatelessWidget {
           IgnorePointer(
             child: Stack(
               children: [
-                for (final zone in zones)
-                  _PositionedZone(
-                    zone: zone,
+                if (_detectCorner(zones) case final cornerType?)
+                  _UnifiedCornerZone(
+                    cornerType: cornerType,
+                    horizontalZone: zones.firstWhere(
+                      (final z) =>
+                          z is TopEdgeDropZone || z is BottomEdgeDropZone,
+                    ),
+                    verticalZone: zones.firstWhere(
+                      (final z) =>
+                          z is LeftEdgeDropZone || z is RightEdgeDropZone,
+                    ),
                     dragPosition: pointerPositionNotifier,
-                    inverseThreshold: 1.0 / threshold,
+                    threshold: threshold,
                     screenSize: screenSize,
-                  ),
+                  )
+                else
+                  for (final zone in zones)
+                    _PositionedZone(
+                      zone: zone,
+                      dragPosition: pointerPositionNotifier,
+                      inverseThreshold: 1.0 / threshold,
+                      screenSize: screenSize,
+                    ),
               ],
             ),
           ),
@@ -484,6 +500,396 @@ class _EdgeAura extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+          );
+        },
+      );
+}
+
+enum _CornerType {
+  topLeft,
+  topRight,
+  bottomLeft,
+  bottomRight,
+}
+
+_CornerType? _detectCorner(final List<EdgeDropZone> zones) {
+  if (zones.length != 2) {
+    return null;
+  }
+  final hasTop = zones.any((final z) => z is TopEdgeDropZone);
+  final hasBottom = zones.any((final z) => z is BottomEdgeDropZone);
+  final hasLeft = zones.any((final z) => z is LeftEdgeDropZone);
+  final hasRight = zones.any((final z) => z is RightEdgeDropZone);
+
+  if (hasTop && hasLeft) {
+    return _CornerType.topLeft;
+  }
+  if (hasTop && hasRight) {
+    return _CornerType.topRight;
+  }
+  if (hasBottom && hasLeft) {
+    return _CornerType.bottomLeft;
+  }
+  if (hasBottom && hasRight) {
+    return _CornerType.bottomRight;
+  }
+  return null;
+}
+
+Alignment _cornerAlignment(final _CornerType corner) => switch (corner) {
+      _CornerType.topLeft => Alignment.topLeft,
+      _CornerType.topRight => Alignment.topRight,
+      _CornerType.bottomLeft => Alignment.bottomLeft,
+      _CornerType.bottomRight => Alignment.bottomRight,
+    };
+
+class _CornerLClipper extends CustomClipper<Path> {
+  const _CornerLClipper({
+    required this.cornerType,
+    required this.hThickness,
+    required this.vThickness,
+  });
+
+  final _CornerType cornerType;
+  final double hThickness;
+  final double vThickness;
+
+  @override
+  Path getClip(final Size size) {
+    final w = size.width;
+    final h = size.height;
+    final thH = hThickness.clamp(0.0, h);
+    final thV = vThickness.clamp(0.0, w);
+    final path = Path();
+
+    switch (cornerType) {
+      case _CornerType.topRight:
+        path
+          ..moveTo(0, 0)
+          ..lineTo(w, 0)
+          ..lineTo(w, h)
+          ..lineTo(w - thV, h)
+          ..lineTo(w - thV, thH)
+          ..lineTo(0, thH)
+          ..close();
+      case _CornerType.topLeft:
+        path
+          ..moveTo(0, 0)
+          ..lineTo(w, 0)
+          ..lineTo(w, thH)
+          ..lineTo(thV, thH)
+          ..lineTo(thV, h)
+          ..lineTo(0, h)
+          ..close();
+      case _CornerType.bottomRight:
+        path
+          ..moveTo(w, 0)
+          ..lineTo(w, h)
+          ..lineTo(0, h)
+          ..lineTo(0, h - thH)
+          ..lineTo(w - thV, h - thH)
+          ..lineTo(w - thV, 0)
+          ..close();
+      case _CornerType.bottomLeft:
+        path
+          ..moveTo(0, 0)
+          ..lineTo(thV, 0)
+          ..lineTo(thV, h - thH)
+          ..lineTo(w, h - thH)
+          ..lineTo(w, h)
+          ..lineTo(0, h)
+          ..close();
+    }
+    return path;
+  }
+
+  @override
+  bool shouldReclip(final _CornerLClipper oldClipper) =>
+      oldClipper.cornerType != cornerType ||
+      oldClipper.hThickness != hThickness ||
+      oldClipper.vThickness != vThickness;
+}
+
+class _CornerLBorderPainter extends CustomPainter {
+  const _CornerLBorderPainter({
+    required this.cornerType,
+    required this.hThickness,
+    required this.vThickness,
+    required this.borderColor,
+  });
+
+  final _CornerType cornerType;
+  final double hThickness;
+  final double vThickness;
+  final Color borderColor;
+
+  @override
+  void paint(final Canvas canvas, final Size size) {
+    final paint = Paint()
+      ..color = borderColor
+      ..strokeWidth = 0.5
+      ..style = PaintingStyle.stroke;
+
+    final w = size.width;
+    final h = size.height;
+    final thH = hThickness.clamp(0.0, h);
+    final thV = vThickness.clamp(0.0, w);
+
+    final path = Path();
+    switch (cornerType) {
+      case _CornerType.topRight:
+        path
+          ..moveTo(0, thH)
+          ..lineTo(w - thV, thH)
+          ..lineTo(w - thV, h);
+      case _CornerType.topLeft:
+        path
+          ..moveTo(w, thH)
+          ..lineTo(thV, thH)
+          ..lineTo(thV, h);
+      case _CornerType.bottomRight:
+        path
+          ..moveTo(0, h - thH)
+          ..lineTo(w - thV, h - thH)
+          ..lineTo(w - thV, 0);
+      case _CornerType.bottomLeft:
+        path
+          ..moveTo(w, h - thH)
+          ..lineTo(thV, h - thH)
+          ..lineTo(thV, 0);
+    }
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(final _CornerLBorderPainter oldDelegate) =>
+      oldDelegate.cornerType != cornerType ||
+      oldDelegate.hThickness != hThickness ||
+      oldDelegate.vThickness != vThickness ||
+      oldDelegate.borderColor != borderColor;
+}
+
+class _CornerIdleHandle extends StatefulWidget {
+  const _CornerIdleHandle({
+    required this.cornerType,
+  });
+
+  final _CornerType cornerType;
+
+  @override
+  State<_CornerIdleHandle> createState() => _CornerIdleHandleState();
+}
+
+class _CornerIdleHandleState extends State<_CornerIdleHandle>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(final BuildContext context) {
+    final themeData = Theme.of(context);
+    final colorScheme = themeData.colorScheme;
+
+    return FadeTransition(
+      opacity: Tween(begin: 0.15, end: 0.4).animate(_pulseController),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: colorScheme.onSurface,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          Icons.close_rounded,
+          size: 18,
+          color: colorScheme.surface,
+        ),
+      ),
+    );
+  }
+}
+
+class _UnifiedCornerZone extends StatelessWidget {
+  const _UnifiedCornerZone({
+    required this.cornerType,
+    required this.horizontalZone,
+    required this.verticalZone,
+    required this.dragPosition,
+    required this.threshold,
+    required this.screenSize,
+  });
+
+  final _CornerType cornerType;
+  final EdgeDropZone horizontalZone;
+  final EdgeDropZone verticalZone;
+  final ValueNotifier<OffsetPair?> dragPosition;
+  final double threshold;
+  final Size screenSize;
+
+  @override
+  Widget build(final BuildContext context) =>
+      ValueListenableBuilder<OffsetPair?>(
+        valueListenable: dragPosition,
+        builder: (final context, final dragPair, final child) {
+          final pointerOffset = dragPair?.global;
+          if (pointerOffset == null) {
+            return const SizedBox.shrink();
+          }
+
+          final inverseThreshold = 1.0 / threshold;
+          final progressH = horizontalZone.calculateProgress(
+            pointerOffset,
+            screenSize,
+            inverseThreshold,
+          );
+          final progressV = verticalZone.calculateProgress(
+            pointerOffset,
+            screenSize,
+            inverseThreshold,
+          );
+          final progress = max(progressH, progressV);
+
+          final isHitH = horizontalZone.isHit(
+            pointerOffset,
+            screenSize,
+            threshold,
+          );
+          final isHitV = verticalZone.isHit(
+            pointerOffset,
+            screenSize,
+            threshold,
+          );
+          final isHit = isHitH || isHitV;
+
+          final themeData = Theme.of(context);
+          final colorScheme = themeData.colorScheme;
+          final isDark = themeData.brightness == Brightness.dark;
+
+          final baseColor = isHit
+              ? colorScheme.error.withValues(alpha: 0.6)
+              : colorScheme.onSurface.withValues(alpha: 0.1);
+
+          final double blur =
+              isHit ? 0.0 : (progress * _InteractionPhysics.kMaxBlur);
+
+          final handleOpacity = (1.0 - (progress * 5.0)).clamp(0.0, 1.0);
+          final barOpacity = (progress * 5.0).clamp(0.0, 1.0);
+
+          final hThickness =
+              threshold * (isHit ? 1.0 : progressH.clamp(0.0, 1.0));
+          final vThickness =
+              threshold * (isHit ? 1.0 : progressV.clamp(0.0, 1.0));
+
+          final double? iconLeft = switch (cornerType) {
+            _CornerType.topLeft || _CornerType.bottomLeft =>
+              max(vThickness / 2 - 10, 8.0),
+            _ => null,
+          };
+          final double? iconRight = switch (cornerType) {
+            _CornerType.topRight || _CornerType.bottomRight =>
+              max(vThickness / 2 - 10, 8.0),
+            _ => null,
+          };
+          final double? iconTop = switch (cornerType) {
+            _CornerType.topLeft || _CornerType.topRight =>
+              max(hThickness / 2 - 10, 8.0),
+            _ => null,
+          };
+          final double? iconBottom = switch (cornerType) {
+            _CornerType.bottomLeft || _CornerType.bottomRight =>
+              max(hThickness / 2 - 10, 8.0),
+            _ => null,
+          };
+
+          return Positioned.fill(
+            child: Stack(
+              children: [
+                if (!isHit && handleOpacity > 0.0)
+                  Positioned(
+                    left: iconLeft != null ? 14 : null,
+                    right: iconRight != null ? 14 : null,
+                    top: iconTop != null ? 14 : null,
+                    bottom: iconBottom != null ? 14 : null,
+                    child: Opacity(
+                      opacity: handleOpacity,
+                      child: _CornerIdleHandle(cornerType: cornerType),
+                    ),
+                  ),
+                if (progress > 0.0 || isHit)
+                  Opacity(
+                    opacity: isHit ? 1.0 : barOpacity,
+                    child: CustomPaint(
+                      foregroundPainter: _CornerLBorderPainter(
+                        cornerType: cornerType,
+                        hThickness: hThickness,
+                        vThickness: vThickness,
+                        borderColor: colorScheme.onSurface
+                            .withValues(alpha: isDark ? 0.2 : 0.1),
+                      ),
+                      child: ClipPath(
+                        clipper: _CornerLClipper(
+                          cornerType: cornerType,
+                          hThickness: hThickness,
+                          vThickness: vThickness,
+                        ),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: baseColor,
+                              gradient: isHit
+                                  ? RadialGradient(
+                                      center: _cornerAlignment(cornerType),
+                                      radius: 1.2,
+                                      colors: [
+                                        colorScheme.error
+                                            .withValues(alpha: 0.8),
+                                        colorScheme.error
+                                            .withValues(alpha: 0.5),
+                                      ],
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (progress > 0.05)
+                  Positioned(
+                    left: iconLeft,
+                    right: iconRight,
+                    top: iconTop,
+                    bottom: iconBottom,
+                    child: Opacity(
+                      opacity: (progress * 2).clamp(0.0, 1.0),
+                      child: Transform.scale(
+                        scale: 0.5 + (progress * 0.5),
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: isHit ? Colors.white : colorScheme.onSurface,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           );
         },

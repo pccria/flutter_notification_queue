@@ -100,6 +100,7 @@ class NotificationWidget extends StatefulWidget {
     final String? groupKey,
     final ConfigurationManager? configuration,
     final QueueCoordinator? coordinator,
+    final NotificationContextMenuBuilder? contextMenuBuilder,
   }) {
     assert(
       dismissDuration == null || dismissDuration > Duration.zero,
@@ -149,6 +150,7 @@ class NotificationWidget extends StatefulWidget {
       snoozedAt: snoozedAt,
       groupKey: groupKey,
       coordinator: coordinator,
+      contextMenuBuilder: contextMenuBuilder,
     );
   }
   NotificationWidget._({
@@ -178,6 +180,7 @@ class NotificationWidget extends StatefulWidget {
     final DateTime? createdAt,
     this.groupKey,
     this.coordinator,
+    this.contextMenuBuilder,
   })  : _key = key,
         isPinnedNotifier =
             isPinnedNotifier ?? ValueNotifier<bool>(initialIsPinned),
@@ -347,6 +350,27 @@ class NotificationWidget extends StatefulWidget {
 
   /// The [QueueCoordinator] driving this notification instance.
   final QueueCoordinator? coordinator;
+
+  /// Custom context menu builder for right-click and keyboard shortcut.
+  final NotificationContextMenuBuilder? contextMenuBuilder;
+
+  /// Converts this [NotificationWidget] back into an [AppNotification] intent.
+  AppNotification toNotification() => AppNotification(
+        id: id,
+        title: title,
+        message: message,
+        channelName: channelName,
+        priority: priority,
+        tapBehavior: tapBehavior,
+        groupKey: groupKey,
+        icon: icon,
+        accentColor: accentColor,
+        dismissDuration: dismissDuration,
+        permanent: permanent,
+        builder: builder,
+        action: action,
+        contextMenuBuilder: contextMenuBuilder,
+      );
 
   void show() => effectiveCoordinator.queue(this);
 
@@ -565,6 +589,7 @@ class NotificationWidgetState extends State<NotificationWidget>
   AnimationController? _dismissProgressController;
   bool _isMouseHovering = false;
   bool _isDragPaused = false;
+  TapDownDetails? _lastSecondaryTapDown;
   static final Timer _dummyTimer = Timer(Duration.zero, () {});
   Timer? get dismissTimer =>
       _dismissProgressController != null ? _dummyTimer : null;
@@ -877,6 +902,18 @@ class NotificationWidgetState extends State<NotificationWidget>
       return KeyEventResult.handled;
     }
 
+    // Context menu shortcut (Shift + F10 or ContextMenu key).
+    if (a11y.enableContextMenu &&
+        (event.logicalKey == LogicalKeyboardKey.contextMenu ||
+            (isShift && event.logicalKey == LogicalKeyboardKey.f10))) {
+      final renderBox = context.findRenderObject() as RenderBox?;
+      final center = renderBox != null
+          ? renderBox.localToGlobal(renderBox.size.center(Offset.zero))
+          : Offset.zero;
+      _openContextMenu(center);
+      return KeyEventResult.handled;
+    }
+
     // Enter triggers the primary action if available, or card tap behavior.
     // Space is intentionally not handled here so it activates focused inner
     // elements (buttons, icons) when cycling through them via Tab.
@@ -938,6 +975,126 @@ class NotificationWidgetState extends State<NotificationWidget>
 
     return KeyEventResult.ignored;
   }
+
+  Future<void> _openContextMenu(final Offset globalPosition) async {
+    final a11y = coordinator.configuration.a11yOptions;
+    if (!a11y.enableContextMenu) {
+      return;
+    }
+
+    _dismissProgressController?.stop(canceled: false);
+
+    final position = RelativeRect.fromLTRB(
+      globalPosition.dx,
+      globalPosition.dy,
+      globalPosition.dx,
+      globalPosition.dy,
+    );
+
+    final List<PopupMenuEntry<void>> items;
+    if (widget.contextMenuBuilder != null) {
+      items = widget.contextMenuBuilder!(
+        context,
+        widget.toNotification(),
+        coordinator.controller,
+      );
+    } else {
+      items = _buildDefaultContextMenuItems();
+    }
+
+    try {
+      await showMenu<void>(
+        context: context,
+        position: position,
+        items: items,
+        elevation: 6,
+      );
+    } finally {
+      if (mounted &&
+          !_isMouseHovering &&
+          !widget.isPinned &&
+          !isExpanded.value) {
+        _dismissProgressController?.forward();
+      }
+    }
+  }
+
+  List<PopupMenuEntry<void>> _buildDefaultContextMenuItems() => [
+        PopupMenuItem<void>(
+          onTap: () {
+            if (widget.isPinned) {
+              coordinator.unpinById(widget.id);
+            } else {
+              coordinator.pinById(widget.id);
+            }
+          },
+          child: Row(
+            children: [
+              Icon(
+                widget.isPinned
+                    ? Icons.push_pin_outlined
+                    : Icons.push_pin_rounded,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(widget.isPinned ? 'Unpin' : 'Pin'),
+            ],
+          ),
+        ),
+        PopupMenuItem<void>(
+          onTap: () {
+            final snoozeDuration = widget.dismissDuration ??
+                widget.channel.defaultDismissDuration ??
+                const Duration(seconds: 10);
+            coordinator.snoozeById(widget.id, snoozeDuration);
+          },
+          child: const Row(
+            children: [
+              Icon(Icons.snooze_rounded, size: 18),
+              SizedBox(width: 8),
+              Text('Snooze'),
+            ],
+          ),
+        ),
+        PopupMenuItem<void>(
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: widget.message));
+          },
+          child: const Row(
+            children: [
+              Icon(Icons.copy_rounded, size: 18),
+              SizedBox(width: 8),
+              Text('Copy Message'),
+            ],
+          ),
+        ),
+        if (widget.action != null && widget.action!.label != null)
+          PopupMenuItem<void>(
+            onTap: () {
+              widget.action!.onPressed();
+              dismiss(reason: DismissReason.userTap);
+            },
+            child: Row(
+              children: [
+                const Icon(Icons.touch_app_rounded, size: 18),
+                const SizedBox(width: 8),
+                Text(widget.action!.label!),
+              ],
+            ),
+          ),
+        PopupMenuItem<void>(
+          onTap: () {
+            dismiss(reason: DismissReason.userTap);
+          },
+          child: const Row(
+            children: [
+              Icon(Icons.close_rounded, size: 18),
+              SizedBox(width: 8),
+              Text('Dismiss'),
+            ],
+          ),
+        ),
+      ];
 
   @override
   // The transition animation is already applied by QueueWidget._buildItem using
@@ -1057,6 +1214,14 @@ class NotificationWidgetState extends State<NotificationWidget>
                     }
                   },
                   child: InkWell(
+                    onSecondaryTapDown: (final details) {
+                      _lastSecondaryTapDown = details;
+                    },
+                    onSecondaryTap: () {
+                      if (_lastSecondaryTapDown != null) {
+                        _openContextMenu(_lastSecondaryTapDown!.globalPosition);
+                      }
+                    },
                     onTap: switch (_resolvedTapBehavior) {
                       TapDisabled() =>
                         () {}, // Intercept tap to prevent drag FSM reset

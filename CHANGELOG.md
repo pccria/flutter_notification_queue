@@ -2,6 +2,32 @@
 
 ## [0.6.0-dev]
 
+### Desktop & Platform Perfection (Track 4)
+- **Desktop Context Menu Support (`F-07`)**:
+  - Secondary-tap (right-click on desktop/web) opens a rich native context menu
+    on notification cards.
+  - Keyboard accessible via `Shift + F10` or dedicated `contextMenu` key when a
+    notification card holds focus.
+  - Built-in default menu entries: **Pin / Unpin**, **Snooze**, **Copy Message**
+    (copies notification message to platform clipboard), **Action** (calls
+    `action.onPressed()`), and **Dismiss**.
+  - Opening the context menu pauses card auto-dismiss progress timers; closing
+    resumes the timer smoothly.
+  - Fully customizable via `NotificationContextMenuBuilder` on
+    `AppNotification.contextMenuBuilder` and toggleable via
+    `NotificationA11yOptions.enableContextMenu`.
+- **L-Shaped Unified Corner Bars (`F-08`)**:
+  - Automatically unifies orthogonal drop zones (`Top + Left`, `Top + Right`,
+    `Bottom + Left`, `Bottom + Right`) for corner queues
+    (`QueuePosition.topLeft`, `topRight`, `bottomLeft`, `bottomRight`).
+  - Eliminates overlapping double-backdrop filters, dark artifact seams, and
+    duplicate close icons.
+  - Renders a seamless continuous L-shaped corner dismissal target with a single
+    pulsing idle handle when idle, a unified `ClipPath` with radial gradient
+    during drag engagement, and a single apex `Icons.close_rounded` icon at the
+    corner junction.
+
+
 ### Architecture & API Surface Hardening (Track 3 Phase 1)
 - **Breaking Changes - Deprecated v0.5.0 Fields Removed (`AppNotification`)**:
   - Removed `position` parameter (route queue positions via

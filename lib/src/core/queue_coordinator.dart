@@ -8,6 +8,7 @@ part of 'core.dart';
 class QueueCoordinator implements NotificationScopeState {
   QueueCoordinator({
     final ConfigurationManager? configuration,
+    this.controller,
   }) : configuration = configuration ??
             ConfigurationManager(
               queues: {const NotificationQueue()},
@@ -23,7 +24,13 @@ class QueueCoordinator implements NotificationScopeState {
   factory QueueCoordinator.fromController(
     final NotificationController controller,
   ) =>
-      QueueCoordinator(configuration: controller.configuration);
+      QueueCoordinator(
+        configuration: controller.configuration,
+        controller: controller,
+      );
+
+  /// The owning [NotificationController] driving this coordinator, if bound.
+  final NotificationController? controller;
 
   /// The configuration this coordinator was initialised with.
   final ConfigurationManager configuration;

@@ -17,6 +17,7 @@ class NotificationA11yOptions {
     this.escapeDismissesFocused = true,
     this.restoreFocusOnExit = true,
     this.globalEscapeDismiss = true,
+    this.enableContextMenu = true,
   });
 
   /// Whether screen reader live announcements are triggered on notification
@@ -67,6 +68,12 @@ class NotificationA11yOptions {
   /// Defaults to `true`.
   final bool globalEscapeDismiss;
 
+  /// Whether context menus (right-click or keyboard shortcut) are enabled
+  /// on notification cards.
+  ///
+  /// Defaults to `true`.
+  final bool enableContextMenu;
+
   /// Creates a copy of this options object with the given fields replaced.
   NotificationA11yOptions copyWith({
     final bool? enableLiveRegions,
@@ -77,6 +84,7 @@ class NotificationA11yOptions {
     final bool? escapeDismissesFocused,
     final bool? restoreFocusOnExit,
     final bool? globalEscapeDismiss,
+    final bool? enableContextMenu,
   }) =>
       NotificationA11yOptions(
         enableLiveRegions: enableLiveRegions ?? this.enableLiveRegions,
@@ -90,6 +98,7 @@ class NotificationA11yOptions {
             escapeDismissesFocused ?? this.escapeDismissesFocused,
         restoreFocusOnExit: restoreFocusOnExit ?? this.restoreFocusOnExit,
         globalEscapeDismiss: globalEscapeDismiss ?? this.globalEscapeDismiss,
+        enableContextMenu: enableContextMenu ?? this.enableContextMenu,
       );
 
   @override
@@ -104,7 +113,8 @@ class NotificationA11yOptions {
           dismissKey == other.dismissKey &&
           escapeDismissesFocused == other.escapeDismissesFocused &&
           restoreFocusOnExit == other.restoreFocusOnExit &&
-          globalEscapeDismiss == other.globalEscapeDismiss;
+          globalEscapeDismiss == other.globalEscapeDismiss &&
+          enableContextMenu == other.enableContextMenu;
 
   @override
   int get hashCode => Object.hash(
@@ -116,5 +126,6 @@ class NotificationA11yOptions {
         escapeDismissesFocused,
         restoreFocusOnExit,
         globalEscapeDismiss,
+        enableContextMenu,
       );
 }
