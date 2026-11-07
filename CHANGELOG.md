@@ -75,6 +75,12 @@
   - Fully customizable via `NotificationContextMenuBuilder` on
     `AppNotification.contextMenuBuilder` and toggleable via
     `NotificationA11yOptions.enableContextMenu`.
+  - Added seamless `Overlay` fallback for applications mounting
+    `NotificationScope` inside `MaterialApp.builder` where no `Navigator`
+    ancestor exists, preventing route crashes on right-click and `Shift + F10`.
+  - Disabled default browser context menu on Flutter Web when hovering over
+    notification cards or while the context menu is open, ensuring right-click
+    delivers directly to the notification context menu.
 - **L-Shaped Unified Corner Bars (`F-08`)**:
   - Automatically unifies orthogonal drop zones (`Top + Left`, `Top + Right`,
     `Bottom + Left`, `Bottom + Right`) for corner queues

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -575,6 +576,9 @@ class NotificationWidgetState extends State<NotificationWidget>
   AnimationController? _dismissProgressController;
   bool _isMouseHovering = false;
   bool _isDragPaused = false;
+  bool _isContextMenuOpen = false;
+  OverlayEntry? _contextMenuEntry;
+  VoidCallback? _dismissContextMenu;
   TapDownDetails? _lastSecondaryTapDown;
   static final Timer _dummyTimer = Timer(Duration.zero, () {});
   Timer? get dismissTimer =>
@@ -735,6 +739,13 @@ class NotificationWidgetState extends State<NotificationWidget>
 
   @override
   void dispose() {
+    _dismissContextMenu?.call();
+    _dismissContextMenu = null;
+    _contextMenuEntry?.remove();
+    _contextMenuEntry = null;
+    if (kIsWeb && (_isMouseHovering || _isContextMenuOpen)) {
+      unawaited(BrowserContextMenu.enableContextMenu());
+    }
     _focusNode
       ..removeListener(_handleFocusChanged)
       ..dispose();
@@ -821,6 +832,14 @@ class NotificationWidgetState extends State<NotificationWidget>
   ) {
     if (event is! KeyDownEvent) {
       return KeyEventResult.ignored;
+    }
+
+    if (_isContextMenuOpen) {
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        _dismissContextMenu?.call();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.handled;
     }
 
     final a11y = coordinator.configuration.a11yOptions;
@@ -980,14 +999,27 @@ class NotificationWidgetState extends State<NotificationWidget>
       items = _buildDefaultContextMenuItems();
     }
 
+    _isContextMenuOpen = true;
+    if (kIsWeb) {
+      unawaited(BrowserContextMenu.disableContextMenu());
+    }
+
     try {
-      await showMenu<void>(
-        context: context,
-        position: position,
-        items: items,
-        elevation: 6,
-      );
+      if (Navigator.maybeOf(context) != null) {
+        await showMenu<void>(
+          context: context,
+          position: position,
+          items: items,
+          elevation: 6,
+        );
+      } else {
+        await _openContextMenuViaOverlay(globalPosition, items);
+      }
     } finally {
+      _isContextMenuOpen = false;
+      if (kIsWeb && !_isMouseHovering) {
+        unawaited(BrowserContextMenu.enableContextMenu());
+      }
       if (mounted &&
           !_isMouseHovering &&
           !widget.isPinned &&
@@ -995,6 +1027,139 @@ class NotificationWidgetState extends State<NotificationWidget>
         _dismissProgressController?.forward();
       }
     }
+  }
+
+  Future<void> _openContextMenuViaOverlay(
+    final Offset globalPosition,
+    final List<PopupMenuEntry<void>> items,
+  ) async {
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) {
+      return;
+    }
+
+    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
+    final screenSize = overlayBox?.size ?? MediaQuery.sizeOf(context);
+
+    const double menuMargin = 8.0;
+    const double menuEstimatedWidth = 200.0;
+    const double menuEstimatedHeight = 240.0;
+
+    double left = globalPosition.dx;
+    if (left + menuEstimatedWidth > screenSize.width - menuMargin) {
+      left = screenSize.width - menuEstimatedWidth - menuMargin;
+    }
+    left = left.clamp(menuMargin, screenSize.width - menuMargin);
+
+    double top = globalPosition.dy;
+    if (top + menuEstimatedHeight > screenSize.height - menuMargin) {
+      top = screenSize.height - menuEstimatedHeight - menuMargin;
+    }
+    top = top.clamp(menuMargin, screenSize.height - menuMargin);
+
+    final completer = Completer<void>();
+    OverlayEntry? entry;
+
+    void dismissOverlayMenu() {
+      if (entry != null) {
+        entry!.remove();
+        if (_contextMenuEntry == entry) {
+          _contextMenuEntry = null;
+        }
+        entry = null;
+        _dismissContextMenu = null;
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      }
+    }
+
+    _dismissContextMenu = dismissOverlayMenu;
+
+    entry = OverlayEntry(
+      builder: (final _) => Theme(
+        data: Theme.of(context),
+        child: Directionality(
+          textDirection: Directionality.of(context),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: dismissOverlayMenu,
+                  onSecondaryTap: dismissOverlayMenu,
+                ),
+              ),
+              Positioned(
+                left: left,
+                top: top,
+                child: CallbackShortcuts(
+                  bindings: <ShortcutActivator, VoidCallback>{
+                    const SingleActivator(LogicalKeyboardKey.escape):
+                        dismissOverlayMenu,
+                  },
+                  child: Focus(
+                    autofocus: true,
+                    child: Semantics(
+                      role: SemanticsRole.menu,
+                      explicitChildNodes: true,
+                      child: Material(
+                        type: MaterialType.card,
+                        elevation: 6,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      clipBehavior: Clip.antiAlias,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minWidth: 160.0,
+                          maxWidth: 280.0,
+                        ),
+                        child: IntrinsicWidth(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: items.map((final item) {
+                              if (item is PopupMenuItem) {
+                                return InkWell(
+                                  onTap: item.enabled
+                                      ? () {
+                                          dismissOverlayMenu();
+                                          item.onTap?.call();
+                                        }
+                                      : null,
+                                  child: IgnorePointer(
+                                    child: item,
+                                  ),
+                                );
+                              }
+                              if (item is PopupMenuDivider) {
+                                return item;
+                              }
+                              return InkWell(
+                                onTap: dismissOverlayMenu,
+                                child: IgnorePointer(
+                                  child: item,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+          ),
+        ),
+      ),
+    );
+
+    _contextMenuEntry = entry;
+    overlay.insert(entry!);
+    await completer.future;
   }
 
   List<PopupMenuEntry<void>> _buildDefaultContextMenuItems() => [
@@ -1179,12 +1344,20 @@ class NotificationWidgetState extends State<NotificationWidget>
                 child: MouseRegion(
                   onEnter: (final _) {
                     _isMouseHovering = true;
+                    if (kIsWeb &&
+                        coordinator
+                            .configuration.a11yOptions.enableContextMenu) {
+                      unawaited(BrowserContextMenu.disableContextMenu());
+                    }
                     _showCloseButton.value = widget.queue.closeButtonBehavior
                         .onHover(isHovering: true);
                     _dismissProgressController?.stop(canceled: false);
                   },
                   onExit: (final _) {
                     _isMouseHovering = false;
+                    if (kIsWeb && !_isContextMenuOpen) {
+                      unawaited(BrowserContextMenu.enableContextMenu());
+                    }
                     _showCloseButton.value = widget.queue.closeButtonBehavior
                         .onHover(isHovering: false);
                     if (!isExpanded) {
@@ -1192,7 +1365,12 @@ class NotificationWidgetState extends State<NotificationWidget>
                     }
                   },
                   child: InkWell(
+                    canRequestFocus: false,
+                    onTapDown: (final _) {
+                      _focusNode.requestFocus();
+                    },
                     onSecondaryTapDown: (final details) {
+                      _focusNode.requestFocus();
                       _lastSecondaryTapDown = details;
                     },
                     onSecondaryTap: () {

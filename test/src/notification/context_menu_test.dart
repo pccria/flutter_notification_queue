@@ -451,5 +451,149 @@ void main() {
         expect(find.text('Timed notification'), findsNothing);
       },
     );
+
+    testWidgets(
+      'context menu opens and functions when mounted in MaterialApp.builder',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: Center(child: Text('App Content')),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'builder-card',
+            message: 'Builder notification',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Builder notification'), findsOneWidget);
+        expect(find.text('Pin'), findsNothing);
+
+        // Secondary tap (right-click)
+        await tester.tap(
+          find.text('Builder notification'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        // Menu items should be visible
+        expect(find.text('Pin'), findsOneWidget);
+        expect(find.text('Snooze'), findsOneWidget);
+        expect(find.text('Copy Message'), findsOneWidget);
+        expect(find.text('Dismiss'), findsOneWidget);
+
+        // Tapping Pin should pin the notification
+        await tester.tap(find.text('Pin'));
+        await tester.pumpAndSettle();
+
+        final coordinator = controller.coordinator!;
+        expect(coordinator.activeNotifications.first.isPinned, isTrue);
+        expect(find.text('Pin'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Shift+F10 opens context menu in MaterialApp.builder and '
+      'Escape closes it',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: Center(child: Text('App Content')),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'shortcut-builder',
+            message: 'Shortcut notification',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Focus the notification card
+        final focused = controller.coordinator!.focusFirstNotification();
+        expect(focused, isTrue);
+        await tester.pumpAndSettle();
+
+        // Press Shift + F10
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Dismiss'), findsOneWidget);
+
+        // Escape key dismisses the context menu
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('Dismiss'), findsNothing);
+        expect(find.text('Shortcut notification'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'barrier tap closes context menu in MaterialApp.builder',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: Center(child: Text('App Content')),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'barrier-builder',
+            message: 'Barrier test',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.text('Barrier test'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Dismiss'), findsOneWidget);
+
+        // Tap outside the context menu
+        await tester.tapAt(const Offset(10, 10));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Dismiss'), findsNothing);
+      },
+    );
   });
 }
