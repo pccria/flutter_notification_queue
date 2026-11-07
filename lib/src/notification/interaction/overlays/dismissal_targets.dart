@@ -1,9 +1,9 @@
-part of '../../notification.dart';
+part of 'overlays.dart';
 
 /// A purely visual widget that renders the dismissal target zones (auras and
 /// engagement bars) during a drag interaction.
 ///
-/// Drop resolution is handled by [DraggableTransitionsState] in `onDragEnd`
+/// Drop resolution is handled by `DraggableTransitionsState` in `onDragEnd`
 /// via coordinate-based zone evaluation — this widget has no callbacks.
 class DismissalTargets extends StatelessWidget {
   const DismissalTargets({

@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'overlays.dart';
 
 class IntentTargets extends StatelessWidget {
   const IntentTargets({
@@ -579,10 +579,11 @@ class _IntentFeedbackOverlayState extends State<IntentFeedbackOverlay>
     }
 
     Offset correction = Offset.zero;
-    if (widget.dragOffset != null && widget.startData != null) {
+    final startData = widget.startData;
+    if (widget.dragOffset != null && startData != null) {
       correction = _calculateMagnetCorrection(
         dragOffset: widget.dragOffset!,
-        startData: widget.startData!,
+        startData: startData,
         lockedZone: lockedZone,
       );
     }

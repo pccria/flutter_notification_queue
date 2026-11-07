@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'zones.dart';
 
 /// The abstract base for all spatial drop zones in a drag-and-drop interaction.
 ///

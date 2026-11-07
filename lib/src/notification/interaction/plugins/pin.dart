@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'plugins.dart';
 
 /// Gesture plugin implementing pin behavior.
 class PinGesturePlugin extends NotificationGesturePlugin {

@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'zones.dart';
 
 /// A sealed [DropZone] that monitors proximity to a physical screen edge.
 ///

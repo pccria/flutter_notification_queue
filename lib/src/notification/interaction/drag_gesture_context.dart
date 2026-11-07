@@ -1,21 +1,14 @@
-part of '../notification.dart';
+library;
 
-/// Captures initial positional and geometry metadata when a drag gesture
-/// starts.
-class DragStartData {
-  const DragStartData({
-    required this.widgetPosition,
-    required this.pointerPosition,
-    required this.widgetSize,
-  });
+import 'package:flutter/widgets.dart';
 
-  final Offset widgetPosition;
-  final Offset pointerPosition;
-  final Size widgetSize;
+import '../../enums/enums.dart';
+import '../../models/offset_pair.dart';
+import '../notification.dart' show NotificationWidget;
+import 'drag_start_data.dart';
+import 'zones/zones.dart';
 
-  /// Distance from top-left of widget to touch/pointer position.
-  Offset get touchOffset => pointerPosition - widgetPosition;
-}
+export 'drag_start_data.dart';
 
 /// The facade interface through which gesture plugins interact with host
 /// widget state.

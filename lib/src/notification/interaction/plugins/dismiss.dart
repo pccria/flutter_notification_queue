@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'plugins.dart';
 
 /// Gesture plugin implementing swipe-to-dismiss behavior.
 class DismissGesturePlugin extends NotificationGesturePlugin {

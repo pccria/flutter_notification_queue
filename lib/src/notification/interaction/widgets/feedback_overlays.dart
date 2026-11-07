@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'widgets.dart';
 
 /// A sophisticated overlay that handles the physical transformation of the
 /// Notification Widget during dismissal and relocation interactions.
@@ -499,3 +499,27 @@ class _LiftedFeedbackState extends State<LiftedFeedback>
     );
   }
 }
+
+// Identity matrix — no color change.
+const List<double> _kIdentityMatrix = [
+  1, 0, 0, 0, 0, //
+  0, 1, 0, 0, 0,
+  0, 0, 1, 0, 0,
+  0, 0, 0, 1, 0,
+];
+
+// 50% desaturation — engaged (approaching a slot).
+const List<double> _kSlightDesatMatrix = [
+  0.67, 0.21, 0.07, 0, 0, //
+  0.17, 0.72, 0.07, 0, 0,
+  0.17, 0.21, 0.57, 0, 0,
+  0.00, 0.00, 0.00, 1, 0,
+];
+
+// ~80% desaturation — committed (will drop on release).
+const List<double> _kDesatMatrix = [
+  0.33, 0.34, 0.33, 0, 0, //
+  0.33, 0.34, 0.33, 0, 0,
+  0.33, 0.34, 0.33, 0, 0,
+  0.00, 0.00, 0.00, 1, 0,
+];

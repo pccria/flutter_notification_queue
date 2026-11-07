@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'plugins.dart';
 
 /// Gesture plugin implementing custom action behavior.
 class CustomActionGesturePlugin extends NotificationGesturePlugin {

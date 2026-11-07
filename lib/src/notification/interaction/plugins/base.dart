@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'plugins.dart';
 
 /// Defines the operational and rendering contract for all gestural
 /// interactions.

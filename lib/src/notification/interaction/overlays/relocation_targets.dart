@@ -1,8 +1,8 @@
-part of '../../notification.dart';
+part of 'overlays.dart';
 
 /// A purely visual widget that renders the relocation drop-zone buttons.
 ///
-/// Drop resolution is handled by [DraggableTransitionsState] in `onDragEnd`.
+/// Drop resolution is handled by `DraggableTransitionsState` in `onDragEnd`.
 /// Hover state is driven by [pointerPositionNotifier] proximity rather than
 /// [DragTarget] candidateData, keeping the visual system independent of the
 /// Draggable type.

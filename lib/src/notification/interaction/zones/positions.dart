@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'zones.dart';
 
 /// A [DropZone] that accepts a drop when the pointer is within `threshold`
 /// pixels of the [position]'s anchor on screen.

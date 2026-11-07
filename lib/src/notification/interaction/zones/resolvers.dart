@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'zones.dart';
 
 // ─── Drop Zone Resolvers ───────────────────────────────────────────────────
 

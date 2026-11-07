@@ -2,6 +2,32 @@
 
 ## [0.6.0-dev]
 
+### Architecture & Sub-Library Decomposition (Track 3 Phase 2)
+- **Monolith Decomposition (`A-01`)**:
+  - Decomposed the 26-part `notification.dart` monolith into dedicated,
+    cohesive sub-libraries:
+    - `interaction/zones/`: self-contained spatial drop zones (`DropZone`,
+      `EdgeDropZone`, `PositionDropZone`, `SlotDropZone`, and resolvers).
+    - `interaction/overlays/`: visual target overlays (`DismissalTargets`,
+      `IntentTargets`, `RelocationTargets`, `ReorderTargets`).
+    - `interaction/widgets/`: draggable transitions and feedback overlays
+      (`DraggableTransitions`, `feedback_overlays.dart`).
+    - `interaction/plugins/`: interaction behavior plugins (`plugins.dart`,
+      `DismissGesturePlugin`, `RelocateGesturePlugin`, `ReorderGesturePlugin`,
+      `ReorderRelocateGesturePlugin`, `SnoozeGesturePlugin`, `PinGesturePlugin`,
+      `CustomActionGesturePlugin`, and resolvers).
+    - `interaction/gesture_state_machine.dart`: standalone FSM tracking drag
+      lifecycles.
+    - `interaction/drag_gesture_context.dart` & `drag_start_data.dart`:
+      decoupled drag context and metadata interfaces.
+  - Exported interaction plugins cleanly through
+    `lib/src/notification/plugins.dart`.
+- **Theming System Decoupling (`A-02`)**:
+  - Extracted `NotificationTheme` from `part of 'notification.dart'` into a
+    standalone library under `lib/src/notification/theme/`.
+  - Introduced `NotificationThemeTarget` interface to resolve themes without
+    circular dependencies on concrete notification widgets.
+
 ### Desktop & Platform Perfection (Track 4)
 - **Desktop Context Menu Support (`F-07`)**:
   - Secondary-tap (right-click on desktop/web) opens a rich native context menu

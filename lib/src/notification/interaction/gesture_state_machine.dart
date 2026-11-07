@@ -1,4 +1,11 @@
-part of '../notification.dart';
+library;
+
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
+import 'package:logd/logd.dart';
+
+import '../../enums/enums.dart';
 
 /// The reactive states of a notification drag-gesture transaction.
 enum GestureState {

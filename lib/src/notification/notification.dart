@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:logd/logd.dart';
@@ -11,38 +9,23 @@ import 'package:meta/meta.dart';
 
 import '../core/core.dart';
 import '../enums/enums.dart';
-import '../models/offset_pair.dart';
 import '../notification_channel/notification_channel.dart';
 import '../notification_queue/notification_queue.dart';
 import '../types/type_defs.dart';
 import '../utils/utils.dart';
 import 'theme/theme.dart';
 
+export 'interaction/drag_gesture_context.dart';
+export 'interaction/drag_start_data.dart';
+export 'interaction/gesture_state_machine.dart';
+export 'interaction/overlays/overlays.dart';
+export 'interaction/plugins/plugins.dart';
+export 'interaction/widgets/widgets.dart';
+export 'interaction/zones/zones.dart';
+export 'plugins.dart';
 export 'theme/theme.dart';
 
 part 'app_notification.dart';
-part 'interaction/drag_gesture_context.dart';
-part 'interaction/gesture_state_machine.dart';
-part 'interaction/overlays/dismissal_targets.dart';
-part 'interaction/overlays/intent_targets.dart';
-part 'interaction/overlays/relocation_targets.dart';
-part 'interaction/overlays/reorder_targets.dart';
-part 'interaction/plugins/base.dart';
-part 'interaction/plugins/custom_action.dart';
-part 'interaction/plugins/dismiss.dart';
-part 'interaction/plugins/pin.dart';
-part 'interaction/plugins/relocate.dart';
-part 'interaction/plugins/reorder.dart';
-part 'interaction/plugins/reorder_relocate.dart';
-part 'interaction/plugins/resolver.dart';
-part 'interaction/plugins/snooze.dart';
-part 'interaction/widgets/draggable_transitions.dart';
-part 'interaction/widgets/feedback_overlays.dart';
-part 'interaction/zones/base.dart';
-part 'interaction/zones/edges.dart';
-part 'interaction/zones/positions.dart';
-part 'interaction/zones/resolvers.dart';
-part 'interaction/zones/slots.dart';
 part 'notification_action.dart';
 
 /// A widget representing an individual notification card in a queue.

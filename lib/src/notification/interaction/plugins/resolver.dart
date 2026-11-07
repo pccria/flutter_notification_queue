@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'plugins.dart';
 
 /// Extension defining the resolution mapping from behavior configuration models
 /// to their visual and operational execution plugins.

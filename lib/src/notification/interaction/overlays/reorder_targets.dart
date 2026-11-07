@@ -1,28 +1,4 @@
-part of '../../notification.dart';
-
-// Identity matrix — no color change.
-const List<double> _kIdentityMatrix = [
-  1, 0, 0, 0, 0, //
-  0, 1, 0, 0, 0,
-  0, 0, 1, 0, 0,
-  0, 0, 0, 1, 0,
-];
-
-// 50% desaturation — engaged (approaching a slot).
-const List<double> _kSlightDesatMatrix = [
-  0.67, 0.21, 0.07, 0, 0, //
-  0.17, 0.72, 0.07, 0, 0,
-  0.17, 0.21, 0.57, 0, 0,
-  0.00, 0.00, 0.00, 1, 0,
-];
-
-// ~80% desaturation — committed (will drop on release).
-const List<double> _kDesatMatrix = [
-  0.33, 0.34, 0.33, 0, 0, //
-  0.33, 0.34, 0.33, 0, 0,
-  0.33, 0.34, 0.33, 0, 0,
-  0.00, 0.00, 0.00, 1, 0,
-];
+part of 'overlays.dart';
 
 // ---------------------------------------------------------------------------
 // _ReorderOverlay
@@ -143,7 +119,7 @@ class _ReorderTargetsState extends State<ReorderTargets> {
 /// | **Engaged**   | Nearest, `progress > 0.15`   | Blue pill + label |
 /// | **Committed** | `passedThreshold`             | Green + glow      |
 ///
-/// Drop resolution is handled by [DraggableTransitionsState] in `onDragEnd` —
+/// Drop resolution is handled by `DraggableTransitionsState` in `onDragEnd` —
 /// this widget is purely visual with no callbacks.
 class _SlotReticle extends StatelessWidget {
   const _SlotReticle({

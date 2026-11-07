@@ -1,4 +1,4 @@
-part of '../../notification.dart';
+part of 'widgets.dart';
 
 class DraggableTransitions extends StatefulWidget {
   const DraggableTransitions({
