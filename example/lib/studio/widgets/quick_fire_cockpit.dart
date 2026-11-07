@@ -182,6 +182,21 @@ class QuickFireCockpit extends StatelessWidget {
             accentColor: const Color(0xFF0EA5E9),
             onTap: () => _fireGroupBurst(context),
           ),
+          // ── Keyboard Shortcuts Guide ──
+          IconButton(
+            icon: const Icon(Icons.keyboard_outlined, size: 18),
+            tooltip: 'Keyboard shortcuts',
+            style: IconButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(
+                  color: colorScheme.onSurface.withValues(alpha: 0.1),
+                ),
+              ),
+            ),
+            onPressed: () => _showShortcutsDialog(context),
+          ),
           const SizedBox(width: 6),
 
           // ── Stage Utility: Clear All ──
@@ -200,6 +215,93 @@ class QuickFireCockpit extends StatelessWidget {
             onPressed: () {
               context.read<SetupBloc>().controller.dismissAll();
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  static void _showShortcutsDialog(final BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isMac = defaultTargetPlatform == TargetPlatform.macOS;
+    final focusKey = isMac ? '⌥N' : 'Alt+N';
+    final mod = isMac ? '⌘' : 'Ctrl+';
+
+    showDialog<void>(
+      context: context,
+      builder: (final context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.keyboard_outlined, color: colorScheme.primary),
+            const SizedBox(width: 10),
+            const Text('Keyboard Shortcuts'),
+          ],
+        ),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'NOTIFICATION CARD SHORTCUTS',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _ShortcutRow(focusKey, 'Focus notification stack (handoff)'),
+                const _ShortcutRow(
+                  'Tab',
+                  'Cycle between card and inner buttons',
+                ),
+                const _ShortcutRow(
+                  'Space',
+                  'Activate focused inner button or control',
+                ),
+                const _ShortcutRow(
+                  'Enter',
+                  'Trigger action button or card tap behavior',
+                ),
+                const _ShortcutRow('E', 'Toggle body expansion'),
+                const _ShortcutRow('P', 'Toggle pin / unpin notification'),
+                const _ShortcutRow('S', 'Snooze notification'),
+                const _ShortcutRow(
+                  'Delete / Backspace',
+                  'Dismiss focused card',
+                ),
+                const _ShortcutRow(
+                  'Shift+Delete',
+                  'Dismiss entire active bundle group',
+                ),
+                const _ShortcutRow('↑ / ↓', 'Navigate between active cards'),
+                const Divider(height: 24),
+                Text(
+                  'STUDIO SHORTCUTS',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _ShortcutRow('${mod}Enter', 'Fire draft notification preview'),
+                _ShortcutRow('${mod}E', 'Toggle Code Editor panel'),
+                _ShortcutRow('${mod}L', 'Toggle Event Log panel'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
           ),
         ],
       ),
@@ -666,6 +768,55 @@ class _CockpitChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ShortcutRow extends StatelessWidget {
+  const _ShortcutRow(this.keys, this.description);
+
+  final String keys;
+  final String description;
+
+  @override
+  Widget build(final BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: colorScheme.onSurface.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Text(
+              keys,
+              style: TextStyle(
+                fontSize: 10,
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
+                color: colorScheme.primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              description,
+              style: TextStyle(
+                fontSize: 11,
+                color: colorScheme.onSurface.withValues(alpha: 0.8),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

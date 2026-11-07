@@ -225,6 +225,14 @@ class ProjectInfoDialog extends StatelessWidget {
                             'State ownership decoupled from BuildContext '
                             'via OverlayPortal and QueueCoordinator.',
                       ),
+                      const SizedBox(height: 8),
+                      const _CapabilityTile(
+                        icon: Icons.keyboard_alt_outlined,
+                        title: 'WCAG 2.1 AA Accessibility',
+                        description:
+                            'Alt+N reversible focus handoff, screen reader '
+                            'live announcements, and full keyboard control.',
+                      ),
                       const SizedBox(height: 24),
 
                       // Links & Documentation Section
@@ -246,28 +254,32 @@ class ProjectInfoDialog extends StatelessWidget {
                             icon: Icons.shopping_bag_outlined,
                             label: 'Pub.dev Package',
                             onTap: () => _launchUrl(
-                              'https://pub.dev/packages/flutter_notification_queue',
+                              'https://pub.dev/packages/'
+                              'flutter_notification_queue',
                             ),
                           ),
                           _LinkChip(
                             icon: Icons.menu_book_outlined,
                             label: 'API Reference',
                             onTap: () => _launchUrl(
-                              'https://pccria.github.io/flutter_notification_queue/api/',
+                              'https://pccria.github.io/'
+                              'flutter_notification_queue/api/',
                             ),
                           ),
                           _LinkChip(
                             icon: Icons.code_rounded,
                             label: 'GitHub Repository',
                             onTap: () => _launchUrl(
-                              'https://github.com/pccria/flutter_notification_queue',
+                              'https://github.com/pccria/'
+                              'flutter_notification_queue',
                             ),
                           ),
                           _LinkChip(
                             icon: Icons.bug_report_outlined,
                             label: 'Issue Tracker',
                             onTap: () => _launchUrl(
-                              'https://github.com/pccria/flutter_notification_queue/issues',
+                              'https://github.com/pccria/'
+                              'flutter_notification_queue/issues',
                             ),
                           ),
                           _LinkChip(
