@@ -29,7 +29,7 @@ graph LR
 | **v0.5.0** | **Stability Foundation** | ✅ Completed | Snooze timer cleanup, idempotent disposal, error handler chaining, single source-of-truth pinning, golden test tolerance. |
 | **v0.5.1** | **Account Migration** | ✅ Completed | Repository, homepage, documentation, and tooling links migrated to `pccria`. |
 | **v0.5.2** | **Grouping UX & Performance** | ✅ Completed | `GroupCountBehavior` hierarchy, peek card timer stasis, drag auto-dismiss suspension, atomic bundle dismiss, `CurvedAnimation` leak fixes, relocation safety. |
-| **v0.6.0** | **Architecture & Encapsulation** | 📅 Next Up | Decompose `notification.dart` monolith, extract theme & interaction modules, DRY coordinator resolution mixin, configuration immutability. |
+| **v0.6.0** | **Architecture & Encapsulation** | ✅ Completed | Decompose `notification.dart` monolith, extract theme & interaction modules, DRY coordinator resolution mixin, configuration immutability. |
 | **v0.6.x** | **Platform & CI Hardening** | 📅 Scheduled | Accessibility / FocusNode traversal, desktop right-click context menu, CI golden matrix, documentation audits. |
 | **v1.0.0** | **Production GA** | 🎯 Target | Public API freeze, 100% test coverage on critical paths, full multi-window support, zero memory leaks. |
 
