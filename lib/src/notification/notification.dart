@@ -660,7 +660,8 @@ class NotificationWidgetState extends State<NotificationWidget>
         !widget.isPinned &&
         !isExpanded.value &&
         !_isMouseHovering &&
-        !_isDragPaused) {
+        !_isDragPaused &&
+        !_isContextMenuOpen) {
       initDismissTimer();
     }
 
@@ -761,7 +762,7 @@ class NotificationWidgetState extends State<NotificationWidget>
   }
 
   void initDismissTimer() {
-    if (_isDragPaused) {
+    if (_isDragPaused || _isContextMenuOpen) {
       return;
     }
     if (mounted && !NotificationTimerScope.isEnabledNonSubscribing(context)) {
@@ -804,7 +805,7 @@ class NotificationWidgetState extends State<NotificationWidget>
   /// Resumes the auto-dismiss timer if not paused by expansion or hover.
   void resumeDismissTimer() {
     _isDragPaused = false;
-    if (!_isMouseHovering && !isExpanded.value) {
+    if (!_isMouseHovering && !isExpanded.value && !_isContextMenuOpen) {
       if (_dismissProgressController != null) {
         _dismissProgressController!.forward();
       } else {
@@ -818,7 +819,7 @@ class NotificationWidgetState extends State<NotificationWidget>
 
     if (isExpanded.value) {
       _dismissProgressController?.stop(canceled: false);
-    } else if (!_isMouseHovering) {
+    } else if (!_isMouseHovering && !_isContextMenuOpen) {
       _dismissProgressController?.forward();
     }
     if (mounted) {
@@ -979,6 +980,7 @@ class NotificationWidgetState extends State<NotificationWidget>
       return;
     }
 
+    _isContextMenuOpen = true;
     _dismissProgressController?.stop(canceled: false);
 
     final position = RelativeRect.fromLTRB(
@@ -999,7 +1001,6 @@ class NotificationWidgetState extends State<NotificationWidget>
       items = _buildDefaultContextMenuItems();
     }
 
-    _isContextMenuOpen = true;
     if (kIsWeb) {
       unawaited(BrowserContextMenu.disableContextMenu());
     }
@@ -1337,7 +1338,9 @@ class NotificationWidgetState extends State<NotificationWidget>
                   _dismissProgressController?.stop(canceled: false);
                 },
                 onPointerUp: (final _) {
-                  if (!_isMouseHovering && !isExpanded) {
+                  if (!_isMouseHovering &&
+                      !isExpanded &&
+                      !_isContextMenuOpen) {
                     _dismissProgressController?.forward();
                   }
                 },
@@ -1360,7 +1363,7 @@ class NotificationWidgetState extends State<NotificationWidget>
                     }
                     _showCloseButton.value = widget.queue.closeButtonBehavior
                         .onHover(isHovering: false);
-                    if (!isExpanded) {
+                    if (!isExpanded && !_isContextMenuOpen) {
                       _dismissProgressController?.forward();
                     }
                   },

@@ -81,6 +81,9 @@
   - Disabled default browser context menu on Flutter Web when hovering over
     notification cards or while the context menu is open, ensuring right-click
     delivers directly to the notification context menu.
+  - Guaranteed auto-dismiss timer stops completely while context menu is open,
+    preventing timer ticks and timeout dismissals when moving mouse pointer
+    off card to select menu items.
 - **L-Shaped Unified Corner Bars (`F-08`)**:
   - Automatically unifies orthogonal drop zones (`Top + Left`, `Top + Right`,
     `Bottom + Left`, `Bottom + Right`) for corner queues

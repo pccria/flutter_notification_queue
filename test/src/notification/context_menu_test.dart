@@ -595,5 +595,71 @@ void main() {
         expect(find.text('Dismiss'), findsNothing);
       },
     );
+
+    testWidgets(
+      'moving mouse outside notification card while context menu is open '
+      'does not resume auto-dismiss timer',
+      (final tester) async {
+        final controller = NotificationController();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: NotificationScope(
+                controller: controller,
+                child: const Center(child: Text('App Content')),
+              ),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'mouse-exit-timer',
+            message: 'Mouse exit timer test',
+            dismissDuration: Duration(seconds: 3),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Right-click the notification card to open context menu
+        await tester.tap(
+          find.text('Mouse exit timer test'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Dismiss'), findsOneWidget);
+
+        // Move the mouse off the notification card (e.g. to (10, 10))
+        // This triggers MouseRegion.onExit
+        final gesture =
+            await tester.createGesture(kind: PointerDeviceKind.mouse);
+        final cardCenter =
+            tester.getCenter(find.text('Mouse exit timer test'));
+        await gesture.addPointer(location: cardCenter);
+        await gesture.moveTo(const Offset(10, 10));
+        await tester.pump();
+
+        // Advance 4 seconds (well beyond the 3-second dismissDuration)
+        await tester.pump(const Duration(seconds: 4));
+
+        // Notification must still be present because context menu is open!
+        expect(find.text('Mouse exit timer test'), findsOneWidget);
+        expect(find.text('Dismiss'), findsOneWidget);
+
+        // Dismiss the context menu by tapping the barrier
+        await tester.tapAt(const Offset(10, 10));
+        await tester.pumpAndSettle();
+
+        // Now that the menu is closed, timer should resume and dismiss
+        await tester.pump(const Duration(seconds: 4));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Mouse exit timer test'), findsNothing);
+      },
+    );
   });
 }
