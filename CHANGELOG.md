@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.0-dev]
+## [0.6.0] - 2026-11-08
 
 ### Architecture & Sub-Library Decomposition (Track 3 Phase 2)
 - **Monolith Decomposition (`A-01`)**:

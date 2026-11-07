@@ -400,10 +400,28 @@ NotificationQueue(
 
 ## 🌐 Platform & Accessibility Support
 
-* **RTL Detection**: Automatic text direction detection for Arabic, Persian, Hebrew, and Urdu.
-* **Safe Area Integration**: Automatic handling of notches, status bars, and navigation bars.
-* **Desktop & Web**: Mouse hover detection, desktop scroll wheel support, and progressive close button visibility (`VisibleOnHover`, `AlwaysVisible`, `Hidden`).
-* **Haptics & Touch**: Native touch gesture feedback and spring snapback physics.
+* **WCAG 2.1 AA Accessibility**: Screen reader announcements
+  (`SemanticsService`) with assertive/polite priority tiers and non-intrusive
+  focus ingestion.
+* **Hardware Keyboard Navigation**: Global focus handoff (`Alt + N` / `⌥N`) with
+  visible 2.5px focus rings, card navigation (`Arrow` keys), inner element
+  cycling (`Tab`), actions (`Space`/`Enter`), and dismissals
+  (`Delete`/`Escape`/`Shift + Escape`).
+* **Desktop Context Menu**: Secondary-click and `Shift + F10` / Menu key context
+  menus with auto-dismiss timer freezing and seamless single-click transitions.
+* **L-Shaped Corner Targets**: Unified corner drop zone bars eliminating visual
+  seams and duplicate close handles.
+* **Live Updates & Async Handles**: `NotificationHandle` and
+  `controller.showAsync<T>()` for progress bars and promise-based operations.
+* **RTL Detection**: Automatic text direction detection for Arabic, Persian,
+  Hebrew, and Urdu.
+* **Safe Area Integration**: Automatic handling of notches, status bars, and
+  navigation bars.
+* **Desktop & Web**: Mouse hover detection, desktop scroll wheel support, and
+  progressive close button visibility (`VisibleOnHover`, `AlwaysVisible`,
+  `Hidden`).
+* **Haptics & Touch**: Native touch gesture feedback and spring snapback
+  physics.
 
 ---
 

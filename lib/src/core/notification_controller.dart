@@ -165,7 +165,7 @@ class NotificationController {
   }
 
   /// The current version of the flutter_notification_queue package.
-  static const String version = '0.6.0-dev';
+  static const String version = '0.6.0';
 
   /// The configuration manager for this controller instance.
   @internal

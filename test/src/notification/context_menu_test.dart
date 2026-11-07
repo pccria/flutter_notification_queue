@@ -681,28 +681,29 @@ void main() {
           ),
         );
 
-        controller.show(
-          AppNotification(
-            id: 'card-1',
-            message: 'First Card',
-            contextMenuBuilder: (final context, final notif, final c) => [
-              const PopupMenuItem<void>(
-                child: Text('Action For Card 1'),
-              ),
-            ],
-          ),
-        );
-        controller.show(
-          AppNotification(
-            id: 'card-2',
-            message: 'Second Card',
-            contextMenuBuilder: (final context, final notif, final c) => [
-              const PopupMenuItem<void>(
-                child: Text('Action For Card 2'),
-              ),
-            ],
-          ),
-        );
+        controller
+          ..show(
+            AppNotification(
+              id: 'card-1',
+              message: 'First Card',
+              contextMenuBuilder: (final context, final notif, final c) => [
+                const PopupMenuItem<void>(
+                  child: Text('Action For Card 1'),
+                ),
+              ],
+            ),
+          )
+          ..show(
+            AppNotification(
+              id: 'card-2',
+              message: 'Second Card',
+              contextMenuBuilder: (final context, final notif, final c) => [
+                const PopupMenuItem<void>(
+                  child: Text('Action For Card 2'),
+                ),
+              ],
+            ),
+          );
         await tester.pumpAndSettle();
 
         expect(find.text('First Card'), findsOneWidget);

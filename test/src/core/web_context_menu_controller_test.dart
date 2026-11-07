@@ -1,4 +1,3 @@
-import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 import 'package:flutter_notification_queue/src/core/core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -62,10 +61,10 @@ void main() {
         dismissed = true;
       }
 
-      coordinator.registerContextMenuDismiss(dismiss);
-      coordinator.unregisterContextMenuDismiss(dismiss);
-
-      coordinator.dismissActiveContextMenu();
+      coordinator
+        ..registerContextMenuDismiss(dismiss)
+        ..unregisterContextMenuDismiss(dismiss)
+        ..dismissActiveContextMenu();
       expect(dismissed, isFalse);
     });
 
@@ -76,11 +75,11 @@ void main() {
       addTearDown(coordinator.dispose);
 
       var dismissed = false;
-      coordinator.registerContextMenuDismiss(() {
-        dismissed = true;
-      });
-
-      coordinator.detach();
+      coordinator
+        ..registerContextMenuDismiss(() {
+          dismissed = true;
+        })
+        ..detach();
       expect(dismissed, isTrue);
     });
   });
