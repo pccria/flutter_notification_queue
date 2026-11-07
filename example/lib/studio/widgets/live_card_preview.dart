@@ -55,23 +55,14 @@ class LiveCardPreview extends StatelessWidget {
         setupState.setup.queues[targetPosition];
     final queueStyle = queueSetup?.toQueueStyle() ?? const FilledQueueStyle();
 
-    // Construct blueprint NotificationWidget to resolve the exact theme
-    final blueprint = NotificationWidget(
-      title: draft.title,
-      message: draft.message,
-      channelName: draft.channelName,
-      priority: draft.priority,
-      permanent: draft.permanent,
-      accentColor: draft.accentColorOverride,
-      position: targetPosition,
-      coordinator: coordinator,
-      dismissDuration: draft.dismissSeconds != null
-          ? Duration(seconds: draft.dismissSeconds!)
-          : null,
-    );
-
     // Resolve theme cascade
-    final theme = NotificationTheme.resolveWith(context, queueStyle, blueprint);
+    final theme = NotificationTheme.resolveWith(
+      context,
+      queueStyle,
+      null,
+      channel,
+      draft.accentColorOverride,
+    );
 
     final styleName = switch (queueStyle) {
       FilledQueueStyle() =>

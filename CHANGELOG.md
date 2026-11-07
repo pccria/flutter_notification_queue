@@ -2,6 +2,30 @@
 
 ## [0.6.0-dev]
 
+### Architecture & API Surface Hardening (Track 3 Phase 1)
+- **Breaking Changes - Deprecated v0.5.0 Fields Removed (`AppNotification`)**:
+  - Removed `position` parameter (route queue positions via
+    `NotificationChannel.position` or `controller.show(..., targetPosition:)`).
+  - Removed `dragBehavior` and `longPressDragBehavior` per-notification gesture
+    overrides (configure viewport-wide gesture physics on `NotificationQueue`).
+  - Removed scalar color properties `color`, `foregroundColor`, and
+    `backgroundColor` (use `accentColor` for content accents or
+    `NotificationChannel.theme` / `NotificationThemeData` for tokens).
+  - Removed `initialIsPinned` (use `permanent: true` or `controller.pin(id)`).
+  - Removed internal runtime state `snoozedAt` from public constructor.
+- **Public Export Surface Sealing (`flutter_notification_queue.dart`)**:
+  - Internal rendering widgets (`NotificationWidget`, `NotificationWidgetState`,
+    `NotificationTimerScope`) are now marked `@internal` and hidden from the
+    public export.
+  - Internal interaction overlays, gesture state machines, and plugins
+    (`DismissGesturePlugin`, `RelocateGesturePlugin`, `ReorderTargets`,
+    `GestureStateMachine`, etc.) are hidden to prevent namespace pollution.
+  - Public library export is now strictly sealed to core payload contracts
+    (`AppNotification`, `NotificationAction`), theming (`NotificationThemeData`,
+    `NotificationTheme`), queue configuration (`NotificationQueue`,
+    `NotificationChannel`), dispatch controllers (`NotificationController`,
+    `NotificationScope`, `NotificationHandle`), and lifecycle events.
+
 ### Accessibility (WCAG 2.1 AA) & Keyboard Traversal (Track 2 / F-06)
 - **Screen Reader Live Regions**: Real-time vocal announcements via
   `SemanticsService.sendAnnouncement` scoped to the platform view. Polite

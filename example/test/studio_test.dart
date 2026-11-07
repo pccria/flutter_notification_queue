@@ -400,7 +400,10 @@ void main() {
 
         await tester.tap(fireButton);
         await tester.pump();
-        expect(find.byType(NotificationWidget), findsOneWidget);
+        expect(
+          find.text('This notification was configured in NFQ Studio.'),
+          findsOneWidget,
+        );
 
         // Tap Quick Presets icon to verify bottom sheet opens
         await tester.tap(find.byTooltip('Quick Presets'));
@@ -840,7 +843,10 @@ void main() {
         await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
-        expect(find.byType(NotificationWidget), findsOneWidget);
+        expect(
+          find.text('This notification was configured in NFQ Studio.'),
+          findsOneWidget,
+        );
 
         // 2. Send Ctrl+E to toggle code editor
         expect(studioBloc.state.isCodeEditorOpen, isTrue);

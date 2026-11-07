@@ -34,7 +34,7 @@ void main() {
         priority: NotificationPriority.high,
         dismissDuration: Duration(seconds: 5),
         permanent: false,
-        initialIsPinned: true,
+        accentColor: Color(0xFF112233),
         groupKey: 'order_bundle',
       );
 
@@ -45,7 +45,7 @@ void main() {
       expect(notification.priority, equals(NotificationPriority.high));
       expect(notification.dismissDuration, equals(const Duration(seconds: 5)));
       expect(notification.permanent, isFalse);
-      expect(notification.initialIsPinned, isTrue);
+      expect(notification.accentColor, equals(const Color(0xFF112233)));
       expect(notification.groupKey, equals('order_bundle'));
     });
 

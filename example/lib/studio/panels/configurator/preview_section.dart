@@ -287,11 +287,14 @@ class _ProgrammaticControls extends StatefulWidget {
 
 class _ProgrammaticControlsState extends State<_ProgrammaticControls> {
   AppNotification? _activeDemo;
+  QueuePosition? _activePosition;
   bool _isPinned = false;
 
   void _fireDemo() {
     final id = 'demo_${DateTime.now().millisecondsSinceEpoch}';
     final channelName = widget.setupState.setup.channels.keys.first;
+    final channel = widget.setupState.setup.channels[channelName];
+    final pos = channel?.position ?? widget.setupState.activeQueuePosition;
     final n = AppNotification(
       id: id,
       title: 'Programmatic Demo',
@@ -302,6 +305,7 @@ class _ProgrammaticControlsState extends State<_ProgrammaticControls> {
     NotificationScope.of(context).show(n);
     setState(() {
       _activeDemo = n;
+      _activePosition = pos;
       _isPinned = false;
     });
   }
@@ -311,6 +315,7 @@ class _ProgrammaticControlsState extends State<_ProgrammaticControls> {
       NotificationScope.of(context).dismiss(_activeDemo!);
       setState(() {
         _activeDemo = null;
+        _activePosition = null;
         _isPinned = false;
       });
     }
@@ -350,7 +355,7 @@ class _ProgrammaticControlsState extends State<_ProgrammaticControls> {
     }
 
     // Find a queue that is different from current
-    final currentPos = _activeDemo!.position ?? queues.first;
+    final currentPos = _activePosition ?? queues.first;
     final targetPos = queues.firstWhere(
       (final q) => q != currentPos,
       orElse: () => queues.last,
@@ -358,7 +363,7 @@ class _ProgrammaticControlsState extends State<_ProgrammaticControls> {
 
     NotificationScope.of(context).relocate(_activeDemo!, targetPos);
     setState(() {
-      _activeDemo = _activeDemo!.copyWith(position: targetPos);
+      _activePosition = targetPos;
     });
   }
 

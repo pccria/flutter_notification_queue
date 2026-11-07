@@ -3,9 +3,9 @@ part of 'notification.dart';
 /// Represents an in-app notification payload to be enqueued and displayed.
 ///
 /// [AppNotification] is a pure, immutable data object that encapsulates the
-/// content (title, message, icon), visual overrides (colors), interaction
-/// behaviors (tap, drag, long-press), and routing metadata (channel, priority,
-/// position) for a single notification.
+/// content (title, message, icon), visual overrides (accent color), interaction
+/// behaviors (tap), and routing metadata (channel, priority)
+/// for a single notification.
 ///
 /// Unlike UI widgets, [AppNotification] has no UI dependencies, requires no
 /// [BuildContext], and performs no direct side effects. It represents the
@@ -33,7 +33,7 @@ part of 'notification.dart';
 ///  * [NotificationChannel], which defines channel-level defaults for
 ///    notifications.
 ///  * [NotificationPriority], which determines triage ranking in the queue.
-///  * [TapBehavior] and [DragBehavior], which define gesture interactions.
+///  * [TapBehavior], which defines tap interaction.
 @immutable
 class AppNotification {
   /// Creates an immutable [AppNotification] payload.
@@ -43,8 +43,9 @@ class AppNotification {
   /// Use [channelName] to route the notification through a specific registered
   /// [NotificationChannel] (defaults to `'default'`).
   ///
-  /// Override visual style settings like [color], [backgroundColor], and
-  /// [foregroundColor] to customize the card's appearance.
+  /// Set [accentColor] to apply content-driven color highlights
+  /// (e.g. status tags or brand colors). Channel-wide theming should be
+  /// configured via [NotificationChannel.theme].
   ///
   /// Set [permanent] to `true` to keep the notification on screen until
   /// explicitly dismissed by the user or programmatically.
@@ -53,21 +54,13 @@ class AppNotification {
     this.id,
     this.title,
     this.channelName = 'default',
-    this.position,
     this.priority,
     this.tapBehavior,
-    this.dragBehavior,
-    this.longPressDragBehavior,
     this.groupKey,
     this.icon,
-    this.color,
-    this.foregroundColor,
-    this.backgroundColor,
     this.accentColor,
     this.dismissDuration,
     this.permanent = false,
-    this.initialIsPinned = false,
-    this.snoozedAt,
     this.builder,
     this.action,
   });
@@ -89,17 +82,6 @@ class AppNotification {
   /// fallbacks from the global default channel are applied.
   final String channelName;
 
-  /// Optional override for the target screen position of the queue.
-  ///
-  /// When `null`, the position is resolved from the channel's configured
-  /// position or the default queue position.
-  @Deprecated(
-    'Do not specify position on data payloads. '
-    'Route via NotificationChannel.position, or supply targetPosition to '
-    'NotificationController.show(). Scheduled for removal in v0.6.0.',
-  )
-  final QueuePosition? position;
-
   /// Optional priority rank override for queue triage and backpressure.
   ///
   /// When `null`, defaults to the priority defined on the
@@ -113,24 +95,6 @@ class AppNotification {
   /// interaction policies.
   final TapBehavior? tapBehavior;
 
-  /// Per-notification override for drag interaction behavior.
-  ///
-  /// When set, this takes precedence over the queue's default [DragBehavior].
-  @Deprecated(
-    'Queue-level viewport gesture physics should not be overridden per '
-    'notification. Configure dragBehavior on NotificationQueue, or use '
-    'explicit action buttons. Scheduled for removal in v0.6.0.',
-  )
-  final DragBehavior? dragBehavior;
-
-  /// Per-notification override for long-press drag interaction behavior.
-  @Deprecated(
-    'Queue-level viewport gesture physics should not be overridden per '
-    'notification. Configure longPressDragBehavior on NotificationQueue. '
-    'Scheduled for removal in v0.6.0.',
-  )
-  final LongPressDragBehavior? longPressDragBehavior;
-
   /// Optional grouping key for bundling notifications into stack pills.
   ///
   /// Notifications sharing the same [groupKey] will be collapsed together.
@@ -142,37 +106,6 @@ class AppNotification {
   /// If `null`, falls back to the icon defined on the target
   /// [NotificationChannel].
   final Widget? icon;
-
-  /// Main accent color used for icons, borders, and body highlights.
-  ///
-  /// If `null`, falls back to the channel's default color or theme primary.
-  @Deprecated(
-    'Use accentColor instead. '
-    'Scheduled for removal in v0.6.0.',
-  )
-  final Color? color;
-
-  /// Foreground text, action button, and progress indicator color.
-  ///
-  /// If `null`, falls back to the channel's default foreground color or theme
-  /// `onSurface`.
-  @Deprecated(
-    'Configure colors via NotificationChannel.theme. '
-    'Use accentColor for one-off content accents. '
-    'Scheduled for removal in v0.6.0.',
-  )
-  final Color? foregroundColor;
-
-  /// Card body background color.
-  ///
-  /// If `null`, falls back to the channel's default background color or theme
-  /// `surface`.
-  @Deprecated(
-    'Configure colors via NotificationChannel.theme. '
-    'Use accentColor for one-off content accents. '
-    'Scheduled for removal in v0.6.0.',
-  )
-  final Color? backgroundColor;
 
   /// Optional experimental accent color override.
   ///
@@ -195,22 +128,6 @@ class AppNotification {
   /// Setting [permanent] to `true` overrides any [dismissDuration] settings.
   final bool permanent;
 
-  /// Whether the notification starts in a pinned state upon initial display.
-  ///
-  /// Pinned notifications are immune to auto-dismiss timers and swipe dismiss.
-  @Deprecated(
-    'Use permanent: true or controller.pin(id) to manage persistent '
-    'notifications. Scheduled for removal in v0.6.0.',
-  )
-  final bool initialIsPinned;
-
-  /// Optional timestamp recording when this notification was snoozed.
-  @Deprecated(
-    'snoozedAt is internal runtime state managed by QueueCoordinator. '
-    'Do not pass in public constructor. Scheduled for removal in v0.6.0.',
-  )
-  final DateTime? snoozedAt;
-
   /// Custom builder for customizing the card indicator or stack appearance.
   final NotificationBuilder? builder;
 
@@ -230,25 +147,15 @@ class AppNotification {
         id: id,
         channelName: channelName,
         title: title,
-        position: targetPosition ?? position,
+        position: targetPosition,
         action: action,
         tapBehavior: tapBehavior,
-        dragBehavior: dragBehavior,
-        longPressDragBehavior: longPressDragBehavior,
         icon: icon,
-        // ignore: deprecated_member_use_from_same_package
-        color: color,
-        // ignore: deprecated_member_use_from_same_package
-        foregroundColor: foregroundColor,
-        // ignore: deprecated_member_use_from_same_package
-        backgroundColor: backgroundColor,
         accentColor: accentColor,
         dismissDuration: dismissDuration,
         permanent: permanent,
         builder: builder,
         priority: priority,
-        initialIsPinned: initialIsPinned,
-        snoozedAt: snoozedAt,
         groupKey: groupKey,
         configuration: configuration,
         coordinator: coordinator,
@@ -260,21 +167,13 @@ class AppNotification {
     final String? title,
     final String? message,
     final String? channelName,
-    final QueuePosition? position,
     final NotificationPriority? priority,
     final TapBehavior? tapBehavior,
-    final DragBehavior? dragBehavior,
-    final LongPressDragBehavior? longPressDragBehavior,
     final String? groupKey,
     final Widget? icon,
-    final Color? color,
-    final Color? foregroundColor,
-    final Color? backgroundColor,
     final Color? accentColor,
     final Duration? dismissDuration,
     final bool? permanent,
-    final bool? initialIsPinned,
-    final DateTime? snoozedAt,
     final NotificationBuilder? builder,
     final NotificationAction? action,
   }) =>
@@ -283,25 +182,13 @@ class AppNotification {
         title: title ?? this.title,
         message: message ?? this.message,
         channelName: channelName ?? this.channelName,
-        position: position ?? this.position,
         priority: priority ?? this.priority,
         tapBehavior: tapBehavior ?? this.tapBehavior,
-        dragBehavior: dragBehavior ?? this.dragBehavior,
-        longPressDragBehavior:
-            longPressDragBehavior ?? this.longPressDragBehavior,
         groupKey: groupKey ?? this.groupKey,
         icon: icon ?? this.icon,
-        // ignore: deprecated_member_use_from_same_package
-        color: color ?? this.color,
-        // ignore: deprecated_member_use_from_same_package
-        foregroundColor: foregroundColor ?? this.foregroundColor,
-        // ignore: deprecated_member_use_from_same_package
-        backgroundColor: backgroundColor ?? this.backgroundColor,
         accentColor: accentColor ?? this.accentColor,
         dismissDuration: dismissDuration ?? this.dismissDuration,
         permanent: permanent ?? this.permanent,
-        initialIsPinned: initialIsPinned ?? this.initialIsPinned,
-        snoozedAt: snoozedAt ?? this.snoozedAt,
         builder: builder ?? this.builder,
         action: action ?? this.action,
       );

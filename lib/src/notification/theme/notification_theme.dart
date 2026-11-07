@@ -23,9 +23,11 @@ class NotificationTheme {
 
   factory NotificationTheme.resolveWith(
     final BuildContext context,
-    final QueueStyle style,
-    final NotificationWidget notification,
-  ) {
+    final QueueStyle style, [
+    final NotificationWidget? notification,
+    final NotificationChannel? channel,
+    final Color? accentColor,
+  ]) {
     final themeData = Theme.of(context);
     final colorScheme = themeData.colorScheme;
     final ambientExtension = themeData.extension<NotificationThemeData>();
@@ -34,10 +36,11 @@ class NotificationTheme {
     final effectiveStyle = style;
 
     // 2. Cascade theme tokens:
-    final cTheme = notification.channel.theme;
+    final effectiveChannel = notification?.channel ?? channel;
+    final cTheme = effectiveChannel?.theme;
 
-    final tokenColor = notification.color ??
-        notification.accentColor ??
+    final tokenColor = accentColor ??
+        notification?.accentColor ??
         cTheme?.color ??
         ambientExtension?.color;
     final tokenShadowColor = themeData.shadowColor;
@@ -51,8 +54,7 @@ class NotificationTheme {
 
     // Fallbacks to deprecated scalar color properties:
     // ignore: deprecated_member_use_from_same_package
-    final fallbackColor =
-        notification.color ?? notification.channel.defaultColor;
+    final fallbackColor = effectiveChannel?.defaultColor;
 
     final candidateColor = tokenColor ?? fallbackColor;
 

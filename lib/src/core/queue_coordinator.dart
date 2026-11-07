@@ -871,12 +871,6 @@ class QueueCoordinator implements NotificationScopeState {
           icon: transformed.icon,
           action: transformed.action,
           priority: transformed.priority,
-          // ignore: deprecated_member_use_from_same_package
-          color: transformed.color,
-          // ignore: deprecated_member_use_from_same_package
-          backgroundColor: transformed.backgroundColor,
-          // ignore: deprecated_member_use_from_same_package
-          foregroundColor: transformed.foregroundColor,
           accentColor: transformed.accentColor,
           dismissDuration: transformed.dismissDuration,
           permanent: transformed.permanent,
@@ -898,12 +892,6 @@ class QueueCoordinator implements NotificationScopeState {
           icon: transformed.icon,
           action: transformed.action,
           priority: transformed.priority,
-          // ignore: deprecated_member_use_from_same_package
-          color: transformed.color,
-          // ignore: deprecated_member_use_from_same_package
-          backgroundColor: transformed.backgroundColor,
-          // ignore: deprecated_member_use_from_same_package
-          foregroundColor: transformed.foregroundColor,
           accentColor: transformed.accentColor,
           dismissDuration: transformed.dismissDuration,
           permanent: transformed.permanent,

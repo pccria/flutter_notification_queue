@@ -380,33 +380,43 @@ final _scenarios = [
         setupBloc.add(const AddQueue(QueuePosition.topRight));
       }
 
-      _stagger(
-        NotificationScope.of(context),
-        [
+      final controller = NotificationScope.of(context);
+      final items = [
+        (
           const AppNotification(
             title: 'Top Left Queue',
             message: 'Fired into topLeft queue.',
             channelName: 'info',
-            position: QueuePosition.topLeft,
             dismissDuration: Duration(seconds: 12),
           ),
+          QueuePosition.topLeft,
+        ),
+        (
           const AppNotification(
             title: 'Top Center Queue',
             message: 'Fired into topCenter queue.',
             channelName: 'warning',
-            position: QueuePosition.topCenter,
             dismissDuration: Duration(seconds: 12),
           ),
+          QueuePosition.topCenter,
+        ),
+        (
           const AppNotification(
             title: 'Top Right Queue',
             message: 'Fired into topRight queue.',
             channelName: 'error',
-            position: QueuePosition.topRight,
             dismissDuration: Duration(seconds: 12),
           ),
-        ],
-        const Duration(milliseconds: 200),
-      );
+          QueuePosition.topRight,
+        ),
+      ];
+      for (var i = 0; i < items.length; i++) {
+        final item = items[i];
+        Future.delayed(
+          Duration(milliseconds: 200 * i),
+          () => controller.show(item.$1, targetPosition: item.$2),
+        );
+      }
     },
   ),
 

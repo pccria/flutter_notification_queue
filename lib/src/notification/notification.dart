@@ -59,6 +59,7 @@ part 'theme/notification_theme.dart';
 ///   channelName: 'success',
 /// ).show();
 /// ```
+@internal
 @immutable
 class NotificationWidget extends StatefulWidget {
   /// Creates a new [NotificationWidget] with the specified content and style
@@ -506,15 +507,7 @@ class NotificationWidget extends StatefulWidget {
         channelName: channelName,
         action: action,
         tapBehavior: tapBehavior,
-        dragBehavior: dragBehavior,
-        longPressDragBehavior: longPressDragBehavior,
         icon: icon,
-        // ignore: deprecated_member_use_from_same_package
-        color: color,
-        // ignore: deprecated_member_use_from_same_package
-        foregroundColor: foregroundColor,
-        // ignore: deprecated_member_use_from_same_package
-        backgroundColor: backgroundColor,
         accentColor: accentColor,
         dismissDuration: dismissDuration,
         permanent: permanent,
@@ -528,6 +521,7 @@ class NotificationWidget extends StatefulWidget {
 ///
 /// This state manages the notification's lifecycle, gesture detection, timers,
 /// and entrance/exit transitions.
+@internal
 class NotificationWidgetState extends State<NotificationWidget>
     with TickerProviderStateMixin {
   late NotificationTheme theme;
@@ -1316,6 +1310,7 @@ class NotificationWidgetState extends State<NotificationWidget>
 /// When [enabled] is false (e.g. for peek cards underneath lifted group
 /// representatives or paused bundles), descendant notifications ditch their
 /// dismiss timers and remain in a dormant state.
+@internal
 class NotificationTimerScope extends InheritedWidget {
   const NotificationTimerScope({
     required this.enabled,

@@ -1,4 +1,5 @@
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
+import 'package:flutter_notification_queue/src/notification/notification.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // ---------------------------------------------------------------------------
