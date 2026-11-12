@@ -61,8 +61,7 @@ void main() {
         expect(accessibilityLog.isNotEmpty, isTrue);
         final lastAnnouncement = accessibilityLog.last;
         expect(lastAnnouncement['type'], equals('announce'));
-        final data =
-            Map<String, dynamic>.from(lastAnnouncement['data'] as Map);
+        final data = Map<String, dynamic>.from(lastAnnouncement['data'] as Map);
         expect(
           data['message'],
           equals('Order Status: Your package has shipped.'),
@@ -99,8 +98,7 @@ void main() {
 
         expect(accessibilityLog.isNotEmpty, isTrue);
         final lastAnnouncement = accessibilityLog.last;
-        final data =
-            Map<String, dynamic>.from(lastAnnouncement['data'] as Map);
+        final data = Map<String, dynamic>.from(lastAnnouncement['data'] as Map);
         expect(
           data['message'],
           equals('System Alert: Server connection lost.'),
@@ -383,10 +381,8 @@ void main() {
         final card1Finder = find.widgetWithText(NotificationWidget, 'Card 1');
         final card2Finder = find.widgetWithText(NotificationWidget, 'Card 2');
 
-        final card1State =
-            tester.state<NotificationWidgetState>(card1Finder);
-        final card2State =
-            tester.state<NotificationWidgetState>(card2Finder);
+        final card1State = tester.state<NotificationWidgetState>(card1Finder);
+        final card2State = tester.state<NotificationWidgetState>(card2Finder);
 
         expect(card1State.isFocused, isTrue);
         expect(card2State.isFocused, isFalse);
@@ -677,8 +673,7 @@ void main() {
 
         final cardFinder =
             find.widgetWithText(NotificationWidget, 'Expand test');
-        final cardState =
-            tester.state<NotificationWidgetState>(cardFinder);
+        final cardState = tester.state<NotificationWidgetState>(cardFinder);
         expect(cardState.isExpanded.value, isFalse);
 
         // Focus card via Alt + N
@@ -723,10 +718,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        final cardFinder =
-            find.widgetWithText(NotificationWidget, 'Pin test');
-        final cardState =
-            tester.state<NotificationWidgetState>(cardFinder);
+        final cardFinder = find.widgetWithText(NotificationWidget, 'Pin test');
+        final cardState = tester.state<NotificationWidgetState>(cardFinder);
         expect(cardState.widget.isPinned, isFalse);
 
         // Focus card via Alt + N

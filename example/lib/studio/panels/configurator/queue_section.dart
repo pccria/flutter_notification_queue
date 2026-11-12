@@ -631,18 +631,74 @@ class _QueueEditorState extends State<_QueueEditor> {
         ],
         if (setup.dragBehaviorType == Dismiss) ...[
           const SizedBox(height: 12),
-          StudioDropdownTile<DismissZone>(
-            label: 'DRAG DISMISS ZONE',
-            value: setup.dragDismissZone,
-            items: DismissZone.values,
-            itemLabel: (final e) => switch (e) {
-              DismissZone.sideEdges => 'SIDE EDGES (LEFT / RIGHT)',
-              DismissZone.naturalDirection => 'NATURAL DIRECTION (UP / DOWN)',
+          StudioDropdownTile<DismissEgressOption>(
+            label: 'DISMISS EGRESS POLICY',
+            value: setup.dragDismissEgress,
+            items: DismissEgressOption.values,
+            itemLabel: (final e) => e.label.toUpperCase(),
+            onChanged: (final v) {
+              if (v != null) {
+                context.read<SetupBloc>().add(
+                      UpdateQueue(
+                        position,
+                        setup.copyWith(
+                          dragDismissEgress: v,
+                          clearDragDismissZone: true,
+                        ),
+                      ),
+                    );
+              }
             },
+          ),
+          const SizedBox(height: 8),
+          StudioSliderTile(
+            label: 'DISMISS DISTANCE: '
+                '${(setup.dragDismissThreshold * 100).toInt()}%',
+            value: setup.dragDismissThreshold,
+            min: 0.15,
+            max: 0.80,
+            divisions: 13,
             onChanged: (final v) => context.read<SetupBloc>().add(
                   UpdateQueue(
                     position,
-                    setup.copyWith(dragDismissZone: v),
+                    setup.copyWith(dragDismissThreshold: v),
+                  ),
+                ),
+          ),
+          const SizedBox(height: 8),
+          StudioSliderTile(
+            label:
+                'ESCAPE FLING VELOCITY: ${setup.dragEscapeVelocity.toInt()} px/s',
+            value: setup.dragEscapeVelocity,
+            min: 200.0,
+            max: 1500.0,
+            divisions: 26,
+            onChanged: (final v) => context.read<SetupBloc>().add(
+                  UpdateQueue(
+                    position,
+                    setup.copyWith(dragEscapeVelocity: v),
+                  ),
+                ),
+          ),
+          const SizedBox(height: 8),
+          StudioToggleTile(
+            label: 'DYNAMIC ANGULAR TILT',
+            value: setup.dragDismissEnableTilt,
+            onChanged: (final v) => context.read<SetupBloc>().add(
+                  UpdateQueue(
+                    position,
+                    setup.copyWith(dragDismissEnableTilt: v),
+                  ),
+                ),
+          ),
+          const SizedBox(height: 8),
+          StudioToggleTile(
+            label: 'SLOT EGRESS UNDERLAY',
+            value: setup.dragDismissShowUnderlay,
+            onChanged: (final v) => context.read<SetupBloc>().add(
+                  UpdateQueue(
+                    position,
+                    setup.copyWith(dragDismissShowUnderlay: v),
                   ),
                 ),
           ),
@@ -710,18 +766,74 @@ class _QueueEditorState extends State<_QueueEditor> {
         ],
         if (setup.longPressBehaviorType == Dismiss) ...[
           const SizedBox(height: 12),
-          StudioDropdownTile<DismissZone>(
-            label: 'LONG PRESS DISMISS ZONE',
-            value: setup.longPressDismissZone,
-            items: DismissZone.values,
-            itemLabel: (final e) => switch (e) {
-              DismissZone.sideEdges => 'SIDE EDGES (LEFT / RIGHT)',
-              DismissZone.naturalDirection => 'NATURAL DIRECTION (UP / DOWN)',
+          StudioDropdownTile<DismissEgressOption>(
+            label: 'LONG-PRESS DISMISS EGRESS',
+            value: setup.longPressDismissEgress,
+            items: DismissEgressOption.values,
+            itemLabel: (final e) => e.label.toUpperCase(),
+            onChanged: (final v) {
+              if (v != null) {
+                context.read<SetupBloc>().add(
+                      UpdateQueue(
+                        position,
+                        setup.copyWith(
+                          longPressDismissEgress: v,
+                          clearLongPressDismissZone: true,
+                        ),
+                      ),
+                    );
+              }
             },
+          ),
+          const SizedBox(height: 8),
+          StudioSliderTile(
+            label: 'DISMISS DISTANCE: '
+                '${(setup.longPressDismissThreshold * 100).toInt()}%',
+            value: setup.longPressDismissThreshold,
+            min: 0.15,
+            max: 0.80,
+            divisions: 13,
             onChanged: (final v) => context.read<SetupBloc>().add(
                   UpdateQueue(
                     position,
-                    setup.copyWith(longPressDismissZone: v),
+                    setup.copyWith(longPressDismissThreshold: v),
+                  ),
+                ),
+          ),
+          const SizedBox(height: 8),
+          StudioSliderTile(
+            label:
+                'ESCAPE FLING VELOCITY: ${setup.longPressEscapeVelocity.toInt()} px/s',
+            value: setup.longPressEscapeVelocity,
+            min: 200.0,
+            max: 1500.0,
+            divisions: 26,
+            onChanged: (final v) => context.read<SetupBloc>().add(
+                  UpdateQueue(
+                    position,
+                    setup.copyWith(longPressEscapeVelocity: v),
+                  ),
+                ),
+          ),
+          const SizedBox(height: 8),
+          StudioToggleTile(
+            label: 'DYNAMIC ANGULAR TILT',
+            value: setup.longPressDismissEnableTilt,
+            onChanged: (final v) => context.read<SetupBloc>().add(
+                  UpdateQueue(
+                    position,
+                    setup.copyWith(longPressDismissEnableTilt: v),
+                  ),
+                ),
+          ),
+          const SizedBox(height: 8),
+          StudioToggleTile(
+            label: 'SLOT EGRESS UNDERLAY',
+            value: setup.longPressDismissShowUnderlay,
+            onChanged: (final v) => context.read<SetupBloc>().add(
+                  UpdateQueue(
+                    position,
+                    setup.copyWith(longPressDismissShowUnderlay: v),
                   ),
                 ),
           ),

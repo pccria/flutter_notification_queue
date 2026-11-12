@@ -13,8 +13,7 @@ class ConfigurationManager {
     final Set<NotificationChannel> channels = const {},
     final bool strictChannelLookup = false,
     final int maxHistoryEntries = 0,
-    final NotificationA11yOptions a11yOptions =
-        const NotificationA11yOptions(),
+    final NotificationA11yOptions a11yOptions = const NotificationA11yOptions(),
     final NotificationIdGenerator? idGenerator,
   })  : _queues = _initQueues(queues),
         _channels = Set.unmodifiable(channels),

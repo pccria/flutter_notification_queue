@@ -1,11 +1,13 @@
 part of 'overlays.dart';
 
-/// A purely visual widget that renders the relocation drop-zone buttons.
+/// Renders destination-centric landing docks for candidate queue positions
+/// during `Relocate` and `ReorderAndRelocate` drag gestures.
 ///
-/// Drop resolution is handled by `DraggableTransitionsState` in `onDragEnd`.
-/// Hover state is driven by [gestureState] proximity rather than
-/// [DragTarget] candidateData, keeping the visual system independent of the
-/// Draggable type.
+/// For unmounted or empty destination queues, each candidate renders an
+/// on-location card-footprint landing pad aligned with its resolved screen dock
+/// coordinates ([dockRects]). Docks dynamically reorder along the z-axis so
+/// whichever target is hovered or engaged always paints on top, while
+/// intersecting idle siblings smoothly recede.
 class RelocationTargets extends StatelessWidget {
   const RelocationTargets({
     required this.currentPosition,
@@ -13,6 +15,9 @@ class RelocationTargets extends StatelessWidget {
     required this.screenSize,
     required this.gestureState,
     required this.threshold,
+    this.dockRects = const {},
+    this.suppressedPositions = const {},
+    this.borderRadius = const BorderRadius.all(Radius.circular(14)),
     super.key,
   });
 
@@ -28,8 +33,20 @@ class RelocationTargets extends StatelessWidget {
   /// Live gesture state listenable for computing per-target proximity hover.
   final ValueListenable<GestureState> gestureState;
 
-  /// The engagement threshold in pixels (same as behavior.thresholdInPixels).
+  /// The engagement threshold in pixels (fallback when [dockRects] lacks an
+  /// entry).
   final double threshold;
+
+  /// Nominal/de-overlapped global screen-space card-footprint rects for each
+  /// candidate queue position.
+  final Map<QueuePosition, Rect> dockRects;
+
+  /// Candidate queue positions whose coarse dock should be suppressed (for
+  /// instance because a mounted stack already renders slot-level feedback).
+  final Set<QueuePosition> suppressedPositions;
+
+  /// Corner radius matching the dragged card style.
+  final BorderRadius borderRadius;
 
   @override
   Widget build(final BuildContext context) =>
@@ -37,261 +54,375 @@ class RelocationTargets extends StatelessWidget {
         valueListenable: gestureState,
         builder: (final context, final state, final child) {
           final pointer = state.pointerPosition;
+          final entries = <({
+            QueuePosition position,
+            Rect? dockRect,
+            bool isTargeted,
+            double progress,
+            double zScore,
+          })>[];
+
+          for (final position in targets) {
+            if (position == currentPosition ||
+                suppressedPositions.contains(position)) {
+              continue;
+            }
+
+            if (state case GestureRearranging(:final target)) {
+              if (target is SlotTarget && target.position == position) {
+                continue;
+              }
+            }
+
+            final dockRect = dockRects[position];
+            final (isTargeted, progress) = _evaluateDockEngagement(
+              position: position,
+              state: state,
+              pointer: pointer,
+              dockRect: dockRect,
+            );
+            final zScore = (isTargeted ? 10.0 : 0.0) + progress;
+
+            entries.add(
+              (
+                position: position,
+                dockRect: dockRect,
+                isTargeted: isTargeted,
+                progress: progress,
+                zScore: zScore,
+              ),
+            );
+          }
+
+          // Dynamic Z-axis sort: idle first, engaged above, targeted on top.
+          entries.sort((final a, final b) => a.zScore.compareTo(b.zScore));
+
+          final activeEntry = entries
+              .where((final e) => e.isTargeted || e.progress >= 0.45)
+              .lastOrNull;
+
           return Stack(
             fit: StackFit.passthrough,
             children: [
-              ...targets.map((final position) {
-                if (position == currentPosition) {
-                  return const SizedBox.shrink();
-                }
-
-                final zone = PositionDropZone(position: position);
-                final isHovering = pointer != null &&
-                    zone.isHit(pointer, screenSize, threshold);
-
-                return Align(
-                  alignment: position.alignment,
-                  child: _DropZone(
-                    isDragging: true,
-                    hasCandidate: isHovering,
-                    willAccept: isHovering,
-                    alignment: position.alignment,
-                    icon: Icons.move_to_inbox_rounded,
-                    color: Colors.blue,
-                    label: position.displayName,
-                  ),
-                );
-              }),
+              for (final entry in entries)
+                _buildEntry(
+                  entry: entry,
+                  activeEntry: activeEntry,
+                ),
             ],
           );
         },
       );
+
+  Widget _buildEntry({
+    required final ({
+      QueuePosition position,
+      Rect? dockRect,
+      bool isTargeted,
+      double progress,
+      double zScore,
+    }) entry,
+    required final ({
+      QueuePosition position,
+      Rect? dockRect,
+      bool isTargeted,
+      double progress,
+      double zScore,
+    })? activeEntry,
+  }) {
+    var siblingDimFactor = 1.0;
+    if (activeEntry != null && activeEntry.position != entry.position) {
+      final overlapsActive = activeEntry.dockRect != null &&
+          entry.dockRect != null &&
+          activeEntry.dockRect!.inflate(16).overlaps(entry.dockRect!);
+      siblingDimFactor = overlapsActive ? 0.25 : 0.62;
+    }
+
+    final dockWidget = _LandingDock(
+      position: entry.position,
+      isTargeted: entry.isTargeted,
+      progress: entry.progress,
+      dimFactor: siblingDimFactor,
+      borderRadius: borderRadius,
+    );
+
+    final dockRect = entry.dockRect;
+    if (dockRect != null && !dockRect.isEmpty) {
+      return Positioned.fromRect(
+        key: ValueKey('dock_${entry.position.name}'),
+        rect: dockRect,
+        child: dockWidget,
+      );
+    }
+
+    return Align(
+      key: ValueKey('dock_${entry.position.name}'),
+      alignment: entry.position.alignment,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: 160,
+            maxWidth: 260,
+            minHeight: 64,
+            maxHeight: 84,
+          ),
+          child: dockWidget,
+        ),
+      ),
+    );
+  }
+
+  (bool, double) _evaluateDockEngagement({
+    required final QueuePosition position,
+    required final GestureState state,
+    required final Offset? pointer,
+    required final Rect? dockRect,
+  }) {
+    if (state case GestureRearranging(:final target)) {
+      if (target is QueueTarget && target.position == position) {
+        return (true, target.progress);
+      }
+      if (pointer == null) {
+        return (false, 0.0);
+      }
+      return (false, _proximityProgress(pointer, position, dockRect));
+    }
+
+    if (state
+        case GestureRelocating(
+          :final hoveredQueuePosition,
+          :final progress,
+        )) {
+      if (hoveredQueuePosition == position) {
+        return (true, progress > 0.0 ? progress : 1.0);
+      }
+      if (pointer == null) {
+        return (false, 0.0);
+      }
+      return (false, _proximityProgress(pointer, position, dockRect));
+    }
+
+    if (pointer == null) {
+      return (false, 0.0);
+    }
+    return (false, _proximityProgress(pointer, position, dockRect));
+  }
+
+  double _proximityProgress(
+    final Offset pointer,
+    final QueuePosition position,
+    final Rect? dockRect,
+  ) {
+    if (dockRect != null && !dockRect.isEmpty) {
+      final dx = max(
+        0.0,
+        max(dockRect.left - pointer.dx, pointer.dx - dockRect.right),
+      );
+      final dy = max(
+        0.0,
+        max(dockRect.top - pointer.dy, pointer.dy - dockRect.bottom),
+      );
+      final distToEdge = Offset(dx, dy).distance;
+      final approachRange = max(threshold, 96.0);
+      return (1.0 - (distToEdge / approachRange)).clamp(0.0, 1.0);
+    }
+
+    final zone = PositionDropZone(position: position);
+    final invThreshold = threshold > 0 ? 1.0 / threshold : 1.0;
+    return zone.calculateProgress(pointer, screenSize, invThreshold);
+  }
 }
 
-class _DropZone extends StatefulWidget {
-  const _DropZone({
-    required this.isDragging,
-    required this.hasCandidate,
-    required this.willAccept,
-    required this.alignment,
-    required this.icon,
-    required this.color,
-    this.label,
+class _LandingDock extends StatefulWidget {
+  const _LandingDock({
+    required this.position,
+    required this.isTargeted,
+    required this.progress,
+    required this.dimFactor,
+    required this.borderRadius,
   });
 
-  final bool isDragging;
-  final bool hasCandidate;
-  final bool willAccept;
-  final AlignmentGeometry alignment;
-  final IconData icon;
-  final Color color;
-  final String? label;
+  final QueuePosition position;
+  final bool isTargeted;
+  final double progress;
+  final double dimFactor;
+  final BorderRadius borderRadius;
 
   @override
-  State<_DropZone> createState() => _DropZoneState();
+  State<_LandingDock> createState() => _LandingDockState();
 }
 
-class _DropZoneState extends State<_DropZone>
+class _LandingDockState extends State<_LandingDock>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _hintController;
+  late final AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
-    _hintController = AnimationController(
+    _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1100),
     )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    _hintController.dispose();
+    _pulseController.dispose();
     super.dispose();
-  }
-
-  double _getArrowRotation(final BuildContext context) {
-    final Alignment resolved =
-        widget.alignment.resolve(Directionality.of(context));
-    return _RelocationPhysics.calculateRotation(resolved);
   }
 
   @override
   Widget build(final BuildContext context) {
-    final double opacity = widget.willAccept
-        ? 1.0
-        : widget.hasCandidate
-            ? 1.0
-            : widget.isDragging
-                ? 0.9
-                : 0.0;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final surface = theme.colorScheme.surface;
+    final onSurface = theme.colorScheme.onSurface;
 
-    final double scale = widget.willAccept
-        ? 1.1
-        : widget.hasCandidate
-            ? 1.05
-            : 1.0;
+    final committed = widget.isTargeted;
+    final engaged = !committed && widget.progress >= 0.25;
+    final activeColor = committed ? Colors.green : primary;
 
-    final Color effectiveColor = widget.willAccept
-        ? Colors.green
-        : widget.hasCandidate
-            ? widget.color
-            : Colors.grey.withValues(alpha: 0.5);
+    final double baseScale = committed
+        ? 1.03
+        : engaged
+            ? 1.01
+            : widget.dimFactor < 0.5
+                ? 0.92
+                : 0.97;
 
-    final Alignment resolvedAlignment =
-        widget.alignment.resolve(Directionality.of(context));
+    return IgnorePointer(
+      child: Semantics(
+        label: '${widget.position.displayName} drop zone',
+        excludeSemantics: true,
+        child: AnimatedBuilder(
+          animation: _pulseController,
+          builder: (final context, final child) {
+            final pulse = 0.65 + 0.35 * _pulseController.value;
+            final borderAlpha = committed
+                ? 0.95
+                : engaged
+                    ? 0.72
+                    : 0.42 * pulse;
+            final bgAlpha = committed
+                ? 0.24
+                : engaged
+                    ? 0.16
+                    : 0.08;
+            final surfaceAlpha = committed
+                ? 0.90
+                : engaged
+                    ? 0.80
+                    : 0.62;
 
-    final EdgeInsetsGeometry margin = widget.willAccept
-        ? EdgeInsets.fromLTRB(
-            resolvedAlignment.x == -1.0
-                ? _RelocationPhysics.kDockedMargin
-                : _RelocationPhysics.kBaseMargin,
-            resolvedAlignment.y == -1.0
-                ? _RelocationPhysics.kDockedMargin
-                : _RelocationPhysics.kBaseMargin,
-            resolvedAlignment.x == 1.0
-                ? _RelocationPhysics.kDockedMargin
-                : _RelocationPhysics.kBaseMargin,
-            resolvedAlignment.y == 1.0
-                ? _RelocationPhysics.kDockedMargin
-                : _RelocationPhysics.kBaseMargin,
-          )
-        : const EdgeInsets.all(_RelocationPhysics.kBaseMargin);
-
-    final bool showHintArrow = widget.isDragging && !widget.hasCandidate;
-
-    return AnimatedOpacity(
-      duration: _RelocationPhysics.kTransitionDuration,
-      curve: Curves.easeOut,
-      opacity: opacity,
-      child: AnimatedScale(
-        duration: _RelocationPhysics.kTransitionDuration,
-        curve: Curves.easeOutBack,
-        scale: scale,
-        child: AnimatedContainer(
-          duration: _RelocationPhysics.kTransitionDuration,
-          curve: Curves.easeOutCubic,
-          margin: margin,
-          child: AnimatedContainer(
-            duration: _RelocationPhysics.kTransitionDuration,
-            curve: Curves.easeOutCubic,
-            padding: EdgeInsets.symmetric(
-              horizontal: widget.hasCandidate ? 20 : 12,
-              vertical: 12,
-            ),
-            decoration: ShapeDecoration(
-              color: widget.hasCandidate
-                  ? effectiveColor
-                  : effectiveColor.withValues(alpha: 0.1),
-              shape: const StadiumBorder(),
-              shadows: [
-                if (widget.hasCandidate)
-                  BoxShadow(
-                    color: effectiveColor.withValues(alpha: 0.3),
-                    blurRadius: 12,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 4),
+            return AnimatedOpacity(
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOut,
+              opacity: widget.dimFactor,
+              child: AnimatedScale(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                scale: baseScale,
+                child: CustomPaint(
+                  painter: DashedRRectBorderPainter(
+                    borderRadius: widget.borderRadius,
+                    color: activeColor.withValues(alpha: borderAlpha),
+                    strokeWidth: committed ? 2.0 : 1.5,
+                    dashed: !committed,
                   ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (showHintArrow)
-                  RotationTransition(
-                    turns: AlwaysStoppedAnimation(
-                      _getArrowRotation(context) / (2 * 3.14159),
-                    ),
-                    child: FadeTransition(
-                      opacity: _hintController,
-                      child: ScaleTransition(
-                        scale: Tween(begin: 0.8, end: 1.2)
-                            .animate(_hintController),
-                        child: Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 24,
-                          color: effectiveColor,
+                  child: LayoutBuilder(
+                    builder: (final context, final constraints) {
+                      final w = constraints.maxWidth;
+                      final compact = w < 190;
+                      final stacked = w < 112;
+
+                      final icon = Icon(
+                        committed
+                            ? Icons.check_circle_rounded
+                            : Icons.move_to_inbox_rounded,
+                        size: committed ? 20 : (stacked ? 16 : 18),
+                        color: committed
+                            ? activeColor
+                            : onSurface.withValues(
+                                alpha: engaged ? 0.88 : 0.68,
+                              ),
+                      );
+                      final label = Text(
+                        committed && !compact
+                            ? 'Drop · ${widget.position.displayName}'
+                            : widget.position.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: (stacked
+                                ? theme.textTheme.labelSmall
+                                : theme.textTheme.labelMedium)
+                            ?.copyWith(
+                          fontSize: stacked ? 10.5 : null,
+                          color: committed
+                              ? activeColor
+                              : onSurface.withValues(
+                                  alpha: engaged ? 0.94 : 0.76,
+                                ),
+                          fontWeight:
+                              committed ? FontWeight.w700 : FontWeight.w600,
+                          letterSpacing: 0.15,
                         ),
-                      ),
-                    ),
-                  )
-                else
-                  Icon(
-                    widget.icon,
-                    size: 24,
-                    color: widget.hasCandidate ? Colors.white : effectiveColor,
+                      );
+
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOutCubic,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: stacked ? 6 : (compact ? 10 : 14),
+                          vertical: stacked ? 6 : 10,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: widget.borderRadius,
+                          color: Color.alphaBlend(
+                            activeColor.withValues(alpha: bgAlpha),
+                            surface.withValues(alpha: surfaceAlpha),
+                          ),
+                          boxShadow: [
+                            if (committed || engaged)
+                              BoxShadow(
+                                color: activeColor.withValues(
+                                  alpha: committed ? 0.30 : 0.16,
+                                ),
+                                blurRadius: committed ? 20 : 12,
+                                spreadRadius: committed ? 2 : 0,
+                                offset: const Offset(0, 4),
+                              ),
+                          ],
+                        ),
+                        child: Center(
+                          child: stacked
+                              ? Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    icon,
+                                    const SizedBox(height: 2),
+                                    label,
+                                  ],
+                                )
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    icon,
+                                    const SizedBox(width: 6),
+                                    Flexible(child: label),
+                                  ],
+                                ),
+                        ),
+                      );
+                    },
                   ),
-                if (widget.hasCandidate &&
-                    !widget.willAccept &&
-                    widget.label != null) ...[
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      widget.label!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
-  }
-}
-
-/// Internal physics and layout utilities for relocation interactions.
-abstract final class _RelocationPhysics {
-  const _RelocationPhysics._();
-
-  /// Standard margin for drop zones when idle.
-  static const double kBaseMargin = 24.0;
-
-  /// Margin for drop zones when they are snapped to an edge during engagement.
-  static const double kDockedMargin = 0.0;
-
-  /// Standard duration for relocation UI transitions.
-  static const Duration kTransitionDuration = Duration(milliseconds: 300);
-
-  /// Calculates the rotation angle (in radians) for a hint arrow based on
-  /// its [alignment] relative to the screen.
-  static double calculateRotation(final Alignment alignment) {
-    if (alignment.y == -1.0) {
-      if (alignment.x == -1.0) {
-        return -3 * 3.14159 / 4;
-      }
-      if (alignment.x == 0.0) {
-        return -3.14159 / 2;
-      }
-      if (alignment.x == 1.0) {
-        return -3.14159 / 4;
-      }
-    }
-    if (alignment.y == 0.0) {
-      if (alignment.x == -1.0) {
-        return 3.14159;
-      }
-      if (alignment.x == 1.0) {
-        return 0.0;
-      }
-    }
-    if (alignment.y == 1.0) {
-      if (alignment.x == -1.0) {
-        return 3 * 3.14159 / 4;
-      }
-      if (alignment.x == 0.0) {
-        return 3.14159 / 2;
-      }
-      if (alignment.x == 1.0) {
-        return 3.14159 / 4;
-      }
-    }
-    return 0.0;
   }
 }

@@ -333,7 +333,39 @@ String _behaviorSnippet(final Type t, final QueueSetup q, final bool isDrag) {
   final zone = isDrag ? q.dragDismissZone : q.longPressDismissZone;
 
   if (t == Dismiss) {
-    return 'const Dismiss(zones: DismissZone.${zone.name})';
+    if (zone != null) {
+      return 'const Dismiss(zones: DismissZone.${zone.name})';
+    }
+    final egress = isDrag ? q.dragDismissEgress : q.longPressDismissEgress;
+    final threshold =
+        isDrag ? q.dragDismissThreshold : q.longPressDismissThreshold;
+    final velocity = isDrag ? q.dragEscapeVelocity : q.longPressEscapeVelocity;
+
+    final args = <String>[];
+    if (egress != DismissEgressOption.horizontal) {
+      args.add('egress: const DismissEgress.${egress.name}()');
+    }
+    if ((threshold - 0.40).abs() > 0.001) {
+      args.add('dismissThreshold: ${threshold.toStringAsFixed(2)}');
+    }
+    if ((velocity - 600.0).abs() > 0.1) {
+      args.add('escapeVelocity: ${velocity.toStringAsFixed(1)}');
+    }
+    final tilt =
+        isDrag ? q.dragDismissEnableTilt : q.longPressDismissEnableTilt;
+    final underlay =
+        isDrag ? q.dragDismissShowUnderlay : q.longPressDismissShowUnderlay;
+    if (!tilt) {
+      args.add('enableTilt: false');
+    }
+    if (!underlay) {
+      args.add('showUnderlay: false');
+    }
+
+    if (args.isEmpty) {
+      return 'const Dismiss()';
+    }
+    return 'const Dismiss(${args.join(', ')})';
   }
   if (t == Snooze) {
     final secs = isDrag ? q.dragSnoozeSeconds : q.longPressSnoozeSeconds;

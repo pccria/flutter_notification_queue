@@ -159,6 +159,13 @@ When focus is transferred into the notification stack (`Alt + N`):
 | `Shift + Delete` / `Shift + Backspace` | Focused Card | Dismiss entire active bundle/group sharing the resolved group key. |
 | `Escape` | Focused Card | Dismiss currently focused notification and return focus to application. |
 
+### 5.1 Modifier Key Isolation & Focus Sanitization
+
+To ensure notification keyboard listeners do not interfere with application workflows:
+
+- **Modifier Key Isolation**: Card key handlers inspect hardware keyboard modifier states (`Control`, `Meta`, `Alt`, `Shift`). When modifier keys are depressed, card-level activations (such as `Enter` for primary action, or `E` for expand) are ignored, preserving host application shortcuts (e.g. `Ctrl+Enter` to send a form, or `Cmd+E` to toggle an editor).
+- **Post-Drag Focus Sanitization**: Completing or cancelling gesture interactions across all drag behaviors automatically triggers `NotificationWidgetState.unfocus()`. This prevents dragged cards from passively retaining focus and intercepting keyboard events after pointer interactions.
+
 ---
 
 ## 6. Verification & Automated Testing Plan

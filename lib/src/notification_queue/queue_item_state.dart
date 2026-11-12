@@ -17,4 +17,8 @@ class _NotificationItemState {
   /// Regenerated on each instant-swap so the representative's
   /// TweenAnimationBuilder re-triggers its entrance micro-animation.
   Key entranceKey = UniqueKey();
+
+  /// Set on cross-queue slot insertions so the card plays a subtle arrival
+  /// spring inside its already-open slot without animating SizeTransition.
+  bool isExternalDropArrival = false;
 }

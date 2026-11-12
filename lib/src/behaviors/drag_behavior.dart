@@ -67,21 +67,75 @@ final class Relocate<T> extends QueueNotificationBehavior<T> {
   final bool permanent;
 }
 
-/// Dismisses the notification.
+/// Dismisses the notification via directional swipe or ballistic fling
+/// gestures.
 ///
-/// Dismisses the notification when the notification is dragged to the edge of
-/// the screen.
+/// Dismisses the notification when dragged or flicked past the displacement
+/// or escape velocity thresholds along allowed egress pathways configured by
+/// [egress].
 final class Dismiss<T> extends QueueNotificationBehavior<T> {
   const Dismiss({
     super.thresholdInPixels = kDefaultQueueDragBehaviorThreshold,
     super.springPhysics = const SpringPhysicsConfiguration.premium(),
-    this.zones = DismissZone.sideEdges,
+    this.egress = const DismissEgress.horizontal(),
+    this.dismissThreshold = 0.40,
+    this.escapeVelocity = 600.0,
+    this.enableTilt = true,
+    this.showUnderlay = true,
+    this.dismissIcon,
+    this.dismissColor,
+    @Deprecated('Use egress instead. Will be removed in 0.8.0.') this.zones,
   });
 
-  /// The zones where the notification can be dismissed.
+  /// The directional egress policy that determines the trajectories and
+  /// boundaries along which the notification card can be dismissed.
   ///
-  /// Defaults to [DismissZone.sideEdges].
-  final DismissZone zones;
+  /// Defaults to [DismissEgress.horizontal].
+  final DismissEgress egress;
+
+  /// The fraction of the card dimension (width or height) that the user must
+  /// drag past to commit dismissal if release velocity is below
+  /// [escapeVelocity].
+  ///
+  /// Defaults to `0.40` (40% of the card's dimension).
+  final double dismissThreshold;
+
+  /// The minimum ballistic release velocity in logical pixels per second
+  /// that commits dismissal regardless of displacement distance.
+  ///
+  /// Defaults to `600.0` px/s.
+  final double escapeVelocity;
+
+  /// Whether the card tilts dynamically during horizontal dragging.
+  ///
+  /// Defaults to `true`.
+  final bool enableTilt;
+
+  /// Whether an egress underlay channel reveals behind the card in the vacated
+  /// slot as the user drags.
+  ///
+  /// Defaults to `true`.
+  final bool showUnderlay;
+
+  /// An optional custom icon or widget to render inside the egress underlay
+  /// channel. If null, a clean close icon is used.
+  final Widget? dismissIcon;
+
+  /// An optional custom accent color for the egress underlay channel. If null,
+  /// the ambient theme's error color is used.
+  final Color? dismissColor;
+
+  /// The legacy zones where the notification can be dismissed.
+  @Deprecated('Use egress instead. Will be removed in 0.8.0.')
+  final DismissZone? zones;
+
+  /// Resolves the effective egress policy, preserving backward compatibility
+  /// with legacy [zones] if explicitly passed.
+  DismissEgress get effectiveEgress => switch (zones) {
+        DismissZone.sideEdges => const DismissEgress.horizontal(),
+        DismissZone.naturalDirection => const DismissEgress.natural(),
+        null => egress,
+      };
 }
 
 /// Reorders the notification within its current queue.

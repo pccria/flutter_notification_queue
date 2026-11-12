@@ -183,6 +183,7 @@ class _NotificationQueueStackState extends State<_NotificationQueueStack> {
             children: activeQueues.values
                 .map(
                   (final queue) => LayoutId(
+                    key: ValueKey(queue.position),
                     id: queue.position,
                     child: QueueWidget(
                       key: widget.coordinator.getWidgetKey(queue.position),
@@ -218,23 +219,7 @@ class _QueueOverlayLayoutDelegate extends MultiChildLayoutDelegate {
   final Map<QueuePosition, NotificationQueue> activeQueues;
   final FlutterView? flutterView;
 
-  /// Reads the OS-level insets (status bar, notch, home indicator) from
-  /// the FlutterView without touching MediaQuery, so this delegate never
-  /// subscribes to inherited widget changes.
-  EdgeInsets _viewPadding() {
-    final view = flutterView;
-    if (view == null) {
-      return EdgeInsets.zero;
-    }
-    final ratio = view.devicePixelRatio;
-    final vp = view.viewPadding;
-    return EdgeInsets.fromLTRB(
-      vp.left / ratio,
-      vp.top / ratio,
-      vp.right / ratio,
-      vp.bottom / ratio,
-    );
-  }
+  EdgeInsets _viewPadding() => Utils.viewPaddingOf(flutterView);
 
   @override
   void performLayout(final Size size) {
@@ -266,46 +251,13 @@ class _QueueOverlayLayoutDelegate extends MultiChildLayoutDelegate {
       }
 
       final queue = activeQueues[position];
-      final margin =
-          (queue?.margin ?? EdgeInsets.zero).resolve(TextDirection.ltr);
-
-      double x = 0;
-      double y = 0;
-
-      final leftBoundary = padding.left + margin.left;
-      final rightBoundary = size.width - padding.right - margin.right;
-      final topBoundary = padding.top + margin.top;
-      final bottomBoundary = size.height - padding.bottom - margin.bottom;
-
-      switch (position) {
-        case QueuePosition.topLeft:
-          x = leftBoundary;
-          y = topBoundary;
-        case QueuePosition.topCenter:
-          x = (size.width - childSize.width) / 2;
-          y = topBoundary;
-        case QueuePosition.topRight:
-          x = rightBoundary - childSize.width;
-          y = topBoundary;
-        case QueuePosition.centerLeft:
-          x = leftBoundary;
-          y = (size.height - childSize.height) / 2;
-        case QueuePosition.centerRight:
-          x = rightBoundary - childSize.width;
-          y = (size.height - childSize.height) / 2;
-        case QueuePosition.bottomLeft:
-          x = leftBoundary;
-          y = bottomBoundary - childSize.height;
-        case QueuePosition.bottomCenter:
-          x = (size.width - childSize.width) / 2;
-          y = bottomBoundary - childSize.height;
-        case QueuePosition.bottomRight:
-          x = rightBoundary - childSize.width;
-          y = bottomBoundary - childSize.height;
-      }
-
-      nominalRects[position] =
-          Rect.fromLTWH(x, y, childSize.width, childSize.height);
+      nominalRects[position] = Utils.nominalAlignedRect(
+        alignment: position.alignment,
+        screenSize: size,
+        childSize: childSize,
+        viewPadding: padding,
+        margin: queue?.margin ?? EdgeInsets.zero,
+      );
     }
 
     final List<QueuePosition> sortedPositions = List.from(activePositions)
@@ -362,6 +314,17 @@ class _QueueOverlayLayoutDelegate extends MultiChildLayoutDelegate {
         }
         iterations++;
       }
+
+      final minY = padding.top;
+      final maxY = (size.height - padding.bottom - nominal.height)
+          .clamp(minY, double.infinity);
+      currentY = currentY.clamp(minY, maxY);
+      currentRect = Rect.fromLTWH(
+        currentX,
+        currentY,
+        nominal.width,
+        nominal.height,
+      );
 
       finalOffsets[position] = Offset(currentX, currentY);
       placedRects.add(currentRect);

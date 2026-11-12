@@ -270,4 +270,143 @@ void main() {
       );
     });
   });
+
+  group('Intent Gesture Plugins (Pin, Snooze, CustomAction) tests', () {
+    testWidgets(
+      'PinGesturePlugin drag end pins notification and disables auto-dismiss',
+      (final tester) async {
+        final pinController = NotificationController(
+          channels: {
+            const NotificationChannel(
+              name: 'pin_channel',
+              position: QueuePosition.topRight,
+              defaultDismissDuration: Duration(seconds: 2),
+            ),
+          },
+          queues: {
+            const NotificationQueue(
+              position: QueuePosition.topRight,
+              dragBehavior: Pin(),
+            ),
+          },
+        );
+        addTearDown(pinController.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: pinController,
+              child: child!,
+            ),
+            home: const Scaffold(body: SizedBox.expand()),
+          ),
+        );
+
+        final n = NotificationWidget(
+          id: 'drag_pin_card',
+          message: 'Drag to Pin',
+          channelName: 'pin_channel',
+          coordinator: pinController.coordinator,
+        )..show();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+
+        expect(find.text('Drag to Pin'), findsOneWidget);
+        expect(n.isPinned, isFalse);
+
+        // Start dragging towards the right edge
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.text('Drag to Pin')),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Break touch slop
+        await gesture.moveBy(const Offset(20, 0));
+        await tester.pump();
+
+        // Drag to left edge (LeftEdgeDropZone hit)
+        await gesture.moveTo(const Offset(10, 50));
+        await tester.pump();
+
+        // Release at right edge
+        await gesture.up();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Card should now be pinned
+        expect(n.isPinned, isTrue);
+
+        // Advance beyond dismiss duration
+        await tester.pump(const Duration(seconds: 3));
+        await tester.pump();
+
+        // Pinned card should still be visible because timer was NOT restarted
+        expect(find.text('Drag to Pin'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'PinGesturePlugin cancelled drag preserves auto-dismiss countdown',
+      (final tester) async {
+        final pinController = NotificationController(
+          channels: {
+            const NotificationChannel(
+              name: 'pin_cancel_channel',
+              position: QueuePosition.topRight,
+              defaultDismissDuration: Duration(milliseconds: 500),
+            ),
+          },
+          queues: {
+            const NotificationQueue(
+              position: QueuePosition.topRight,
+              dragBehavior: Pin(),
+            ),
+          },
+        );
+        addTearDown(pinController.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: pinController,
+              child: child!,
+            ),
+            home: const Scaffold(body: SizedBox.expand()),
+          ),
+        );
+
+        final n = NotificationWidget(
+          id: 'drag_cancel_card',
+          message: 'Drag to Cancel',
+          channelName: 'pin_cancel_channel',
+          coordinator: pinController.coordinator,
+        )..show();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+
+        expect(find.text('Drag to Cancel'), findsOneWidget);
+
+        // Start drag and release without hitting zone (snap back)
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.text('Drag to Cancel')),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture.moveBy(const Offset(-10, 0));
+        await tester.pump();
+        await gesture.up();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Card is not pinned
+        expect(n.isPinned, isFalse);
+
+        // Wait for dismiss timer to expire
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pumpAndSettle();
+
+        // Card dismisses
+        expect(find.text('Drag to Cancel'), findsNothing);
+      },
+    );
+  });
 }

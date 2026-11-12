@@ -144,6 +144,89 @@ void main() {
   });
 
   group('CodeGenerator - Drag & LongPress Behaviors', () {
+    test('emits Dismiss with all DismissEgressOption variants', () {
+      for (final egress in DismissEgressOption.values) {
+        final setup = StudioSetup(
+          queues: {
+            QueuePosition.topCenter: QueueSetup(
+              dragDismissEgress: egress,
+            ),
+          },
+          channels: const {},
+        );
+        final code = generateCode(
+          setup: setup,
+          draft: const NotificationDraft(),
+          scope: CodeSnippetScope.queuesOnly,
+        );
+
+        if (egress == DismissEgressOption.horizontal) {
+          expect(code, contains('dragBehavior: const Dismiss(),'));
+        } else {
+          expect(
+            code,
+            contains(
+              'dragBehavior: const Dismiss(egress: '
+              'const DismissEgress.${egress.name}()),',
+            ),
+          );
+        }
+      }
+    });
+
+    test('emits Dismiss with custom threshold and escape velocity', () {
+      const setup = StudioSetup(
+        queues: {
+          QueuePosition.topCenter: QueueSetup(
+            dragDismissEgress: DismissEgressOption.natural,
+            dragDismissThreshold: 0.55,
+            dragEscapeVelocity: 850.0,
+          ),
+        },
+        channels: {},
+      );
+      final code = generateCode(
+        setup: setup,
+        draft: const NotificationDraft(),
+        scope: CodeSnippetScope.queuesOnly,
+      );
+
+      expect(
+        code,
+        contains(
+          'dragBehavior: const Dismiss(egress: '
+          'const DismissEgress.natural(), '
+          'dismissThreshold: 0.55, '
+          'escapeVelocity: 850.0),',
+        ),
+      );
+    });
+
+    test('emits Dismiss with disabled tilt and underlay', () {
+      const setup = StudioSetup(
+        queues: {
+          QueuePosition.topCenter: QueueSetup(
+            dragDismissEnableTilt: false,
+            dragDismissShowUnderlay: false,
+          ),
+        },
+        channels: {},
+      );
+      final code = generateCode(
+        setup: setup,
+        draft: const NotificationDraft(),
+        scope: CodeSnippetScope.queuesOnly,
+      );
+
+      expect(
+        code,
+        contains(
+          'dragBehavior: const Dismiss(enableTilt: false, '
+          'showUnderlay: false),',
+        ),
+      );
+    });
+
     test('emits Dismiss with all DismissZone variants', () {
       for (final zone in DismissZone.values) {
         final setup = StudioSetup(

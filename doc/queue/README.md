@@ -46,11 +46,57 @@ NotificationQueue(
 
 Queue behavior governs how users interact with notification cards in the stack:
 
-- **`Dismiss()`**: Standard directional swipe to dismiss.
-- **`Reorder()`**: Drag up/down to reorder notifications within the stack.
-- **`Relocate()`**: Drag notification cards across queue positions.
-- **`ReorderAndRelocate()`**: Hybrid spatial drag supporting both in-queue reordering and cross-queue relocation.
+- **`Dismiss()`**: Directional swipe to dismiss with customizable egress trajectories, physical tilt, and reveal underlays.
+- **`Reorder()`**: Drag up/down to reorder notifications within the stack featuring gravity-well hysteresis.
+- **`Relocate()`**: Drag notification cards across queue positions with live drop previews.
+- **`ReorderAndRelocate()`**: Hybrid spatial drag supporting both in-queue reordering and cross-queue relocation past an escape threshold.
 - **`Disabled()`**: Non-interactive notification cards.
+
+---
+
+### Dismiss & Directional Egress
+
+The `Dismiss` behavior employs a **card-centric egress paradigm**. Rather than pulling cards toward arbitrary screen edges, swipe gestures operate relative to the card's resting slot and orientation within its queue anchor:
+
+```dart
+NotificationQueue(
+  position: QueuePosition.topRight,
+  dragBehavior: const Dismiss(
+    egress: DismissEgress.horizontal(),
+    dismissThreshold: 0.35,      // Commit after 35% displacement
+    escapeVelocity: 550.0,       // Commit on flick >= 550 dp/s
+    enableTilt: true,            // Dynamic angular tilt during drag
+    showUnderlay: true,          // In-slot reveal underlay
+    dismissColor: Color(0xFFEF4444),
+    dismissIcon: Icons.delete_outline,
+  ),
+);
+```
+
+#### Egress Strategies (`DismissEgress`)
+
+The sealed `DismissEgress` hierarchy defines allowable dismissal vector directions:
+
+| Strategy | Description | Anchor-Specific Dynamics |
+|---|---|---|
+| `DismissEgress.horizontal({allowLeft, allowRight})` | Horizontal swipe off screen. | Can constrain to single side via `allowLeft: false` or `allowRight: false`. Defaults to bilateral swipe. |
+| `DismissEgress.natural()` | Screen-outward exit direction based on queue position. | Right queues swipe right; left queues swipe left; horizontally centered queues permit bilateral swipe. |
+| `DismissEgress.outward()` | Outward exit toward the closest screen boundary. | Top corners swipe top/lateral; bottom corners swipe bottom/lateral; center queues swipe toward nearest boundary. |
+| `DismissEgress.cross()` | Inward exit across the viewport toward the center. | Right queues swipe left; left queues swipe right. |
+| `DismissEgress.any()` | Omni-directional 2D swipe dismissal. | Freeform 360° translation vector commits in any direction. |
+
+#### Dual-Threshold Commitment Mechanics
+1. **Displacement Fraction (`dismissThreshold`)**: Card commits to dismissal when dragged past a fraction of its width (default `0.40`, or 40%).
+2. **Ballistic Escape Velocity (`escapeVelocity`)**: Rapid flick gestures committing $\ge 600.0\text{ dp/s}$ in an allowable egress direction trigger immediate dismissal regardless of distance traveled.
+
+#### Sensory Feedback & Exit Flight
+- **Dynamic Angular Tilt (`enableTilt: true`)**: Applies subtle, organic card rotation proportional to horizontal displacement, producing a tactile physical feel.
+- **In-Slot Reveal Underlay (`showUnderlay: true`)**: As the card displaces, the underlying slot reveals a tinted backdrop with `dismissIcon` and progress scaling.
+- **Inertial Momentum Flight**: Upon release past threshold, the card detaches into an overlay flight portal (`EgressFlightOverlay`), coasting off-screen at its release velocity while the queue stack immediately collapses behind it.
+- **Auto-Dismiss Timer Resilience**: Holding or dragging a notification card safely pauses its countdown timer. If the drag is cancelled (snapped back), the timer smoothly resumes from its exact remaining duration without dropping or resetting.
+
+> [!NOTE]
+> **Deprecation Notice**: The legacy screen-edge target parameter `Dismiss(zones: ...)` and `DismissZone` enum are deprecated in `v0.7.x` and will be removed in `v0.8.0`. Use `Dismiss(egress: ...)` instead.
 
 ---
 

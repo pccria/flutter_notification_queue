@@ -21,9 +21,10 @@ NFQ Studio allows developers and UI designers to configure spatial queues, desig
 * **Stage Quick Actions**: Instantly clear stage items using `"DISMISS NEWEST"` or `"DISMISS ALL"`.
 
 ### 3. Configurator & Code Generation
-* **Channel & Queue Editor**: Customize archetypes, border radii, elevations, glassmorphic opacities, and safe-area margins.
+* **Channel & Queue Editor**: Customize archetypes, border radii, elevations, glassmorphic opacities, safe-area margins, and gesture interactions.
+* **Modern Egress Controls**: Live selection of `DismissEgressOption` (`Horizontal`, `Natural`, `Outward`, `Cross`, `Any`), dynamic card tilt (`Enable Tilt`), and in-slot reveal backdrop (`Show Underlay`).
 * **Payload Builder**: Adjust titles, messages, priority tiers (`low`, `normal`, `high`, `critical`), permanent flags, dismiss timers, accent tints, and action buttons.
-* **Production Code Generator**: Emits clean, copy-pasteable Dart code matching your current live setup.
+* **Production Code Generator**: Emits clean, copy-pasteable Dart code matching your current live setup, complete with modern `DismissEgress` configurations.
 
 ### 4. Global Keyboard Shortcuts
 The Studio responds globally to hardware keyboard shortcuts—even when text input fields are focused:

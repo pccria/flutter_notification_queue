@@ -24,11 +24,16 @@ Understanding the lifecycle of a notification from payload intent to teardown is
 - The card sits in the spatial stack.
 - Users can interact with the notification (swipe dismiss, drag to reorder/relocate, expand deck, tap actions).
 - **Auto-Dismiss Timer**: If `defaultDismissDuration` or notification-specific duration is specified, an internal countdown timer runs.
-- **Timer Stasis**: Lifting or dragging cards, or expanding bundled groups (`pauseTimersWhenExpanded: true`), puts timers into stasis until released or collapsed.
+- **Timer Stasis & Drag Resilience**:
+  - **Touch & Drag Stasis**: Initiating a swipe or drag interaction immediately suspends the auto-dismiss timer countdown (`pauseDismissTimer()`), freezing remaining duration.
+  - **Cancel & Snap-Back Recovery**: If the drag is released before threshold without committing, the card snaps back to its slot and the timer cleanly resumes (`resumeDismissTimer()`) from its exact remaining duration.
+  - **Bundled Deck Stasis**: Lifting the representative card reveals the peek card beneath in visual stasis (`opacity = 0.55`) with its timer frozen. Expanding a bundle (`pauseTimersWhenExpanded: true`) halts timers across all bundled cards.
 
 ### 5. Dismissal & Teardown (`NotificationDismissed`)
 - **Trigger**: Timer completion, manual swipe, card tap, group purge, or programmatic `controller.dismiss(...)`.
-- **Exit Animation**: The notification plays its exit transition animation.
+- **Exit Modes**:
+  - **In-Place Reverse Animation**: For programmatic dismissals, timeout completions, and tap-to-dismiss actions, the card executes its configured reverse transition (`Slide`, `Scale`, `Fade`).
+  - **Ballistic Inertial Exit Flight (`EgressFlightOverlay`)**: For committed user swipe dismissals, the card smoothly detaches into an overlay flight portal, continuing its coasting trajectory off-screen at its exact finger release velocity. The source slot in the queue stack collapses immediately beneath it.
 - **Teardown**: Notification state is removed from the active queue list and disposed.
 - Emits `NotificationDismissed` event containing the exact `DismissReason` (`timeout`, `userSwipe`, `userTap`, `programmatic`, `evicted`).
 - **Portal Cleanup**: When all queues become empty, `QueueCoordinator` detaches the `OverlayPortalController` to release system resources.

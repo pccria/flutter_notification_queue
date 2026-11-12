@@ -1,8 +1,8 @@
 # FNQ Unified Development Roadmap & Tracking Board
 
-> **Current Version**: 0.5.2  
-> **Strategic Focus**: Code Quality, Performance, Resource Safety & Architecture Hardening towards v1.0.  
-> **Baseline Quality**: `flutter analyze --fatal-warnings` — 0 issues | `flutter test` — 257/257 passing.
+> **Current Version**: 0.7.0 (with 0.7.1 in active development)  
+> **Strategic Focus**: Directional Egress Modernization, Cross-Queue Relocation, and Architecture Hardening towards v0.8.0 / v1.0.  
+> **Baseline Quality**: `flutter analyze --fatal-warnings` — 0 issues | `flutter test` — 403/403 passing | `example test` — 55/55 passing.
 
 ---
 
@@ -10,18 +10,20 @@
 
 ```mermaid
 graph LR
-    A["v0.5.0<br/>Stability Foundation<br/>(✅ Completed)"] --> B["v0.5.1<br/>Account Migration<br/>(✅ Completed)"]
-    B --> C["v0.5.2<br/>Grouping UX & Perf<br/>(✅ Completed)"]
-    C --> D["v0.6.0<br/>Architecture & Modularity<br/>(🟡 Next Up)"]
-    D --> E["v0.6.x<br/>Platform & CI Hardening<br/>(🔵 Scheduled)"]
-    E --> F["v1.0.0<br/>Production Ready GA<br/>(🎯 Target)"]
+    A["v0.5.2<br/>Grouping UX & Perf<br/>(✅ Completed)"] --> B["v0.6.0<br/>Monolith Decomposition<br/>(✅ Completed)"]
+    B --> C["v0.6.1<br/>A11y & Context Menu<br/>(✅ Completed)"]
+    C --> D["v0.7.0<br/>Relocation & Egress<br/>(✅ Completed)"]
+    D --> E["v0.7.1<br/>Egress Visuals & Inertia<br/>(✅ Completed)"]
+    E --> F["v0.8.0<br/>Deprecation Removal<br/>(🔵 Scheduled)"]
+    F --> G["v1.0.0<br/>Production Ready GA<br/>(🎯 Target)"]
 
     style A fill:#2ecc71,color:#fff
     style B fill:#2ecc71,color:#fff
     style C fill:#2ecc71,color:#fff
-    style D fill:#f39c12,color:#fff
-    style E fill:#3498db,color:#fff
-    style F fill:#e74c3c,color:#fff
+    style D fill:#2ecc71,color:#fff
+    style E fill:#2ecc71,color:#fff
+    style F fill:#3498db,color:#fff
+    style G fill:#e74c3c,color:#fff
 ```
 
 | Release | Focus / Theme | Status | Key Deliverables |
@@ -29,8 +31,11 @@ graph LR
 | **v0.5.0** | **Stability Foundation** | ✅ Completed | Snooze timer cleanup, idempotent disposal, error handler chaining, single source-of-truth pinning, golden test tolerance. |
 | **v0.5.1** | **Account Migration** | ✅ Completed | Repository, homepage, documentation, and tooling links migrated to `pccria`. |
 | **v0.5.2** | **Grouping UX & Performance** | ✅ Completed | `GroupCountBehavior` hierarchy, peek card timer stasis, drag auto-dismiss suspension, atomic bundle dismiss, `CurvedAnimation` leak fixes, relocation safety. |
-| **v0.6.0** | **Architecture & Encapsulation** | ✅ Completed | Decompose `notification.dart` monolith, extract theme & interaction modules, DRY coordinator resolution mixin, configuration immutability. |
-| **v0.6.x** | **Platform & CI Hardening** | 📅 Scheduled | Accessibility / FocusNode traversal, desktop right-click context menu, CI golden matrix, documentation audits. |
+| **v0.6.0** | **Monolith Decomposition** | ✅ Completed | Decompose 26-file `notification.dart` monolith, extract theme & interaction modules, DRY coordinator resolution mixin, configuration immutability. |
+| **v0.6.1** | **Platform & A11y Polish** | ✅ Completed | Semantic accessibility options, desktop context menu engine, focus traversal, modifier key isolation, golden test matrix. |
+| **v0.7.0** | **Relocation & Egress Foundation** | ✅ Completed | Cross-queue slot relocation with live previews, sealed `DismissEgress` hierarchy (`horizontal`, `natural`, `outward`, `cross`, `any`), `DismissZone` deprecation. |
+| **v0.7.1** | **Egress Visuals & Inertial Flight** | ✅ Completed | In-slot reveal underlay (`EgressUnderlay`), card tilt feedback, inertial momentum flight portal (`EgressFlightOverlay`), drag timer stasis & resume. |
+| **v0.8.0** | **Deprecation Removal & Purity** | 📅 Scheduled | Complete removal of deprecated `DismissZone` and `Dismiss.zones`, deletion of legacy drop target machinery (~1,200 LOC dead code cleanup). |
 | **v1.0.0** | **Production GA** | 🎯 Target | Public API freeze, 100% test coverage on critical paths, full multi-window support, zero memory leaks. |
 
 ---
@@ -100,7 +105,36 @@ Complexity Tiers:
 
 ---
 
-### Track 4: Advanced Features & Platform Perfection (F-Series)
+### Track 5: Release 0.7.0 / 0.7.1 — Egress Modernization & Spatial Relocation (Completed ✅)
+
+| ID | Task Description | Priority | Complexity | Status | Target Files |
+|---|---|---|---|---|---|
+| **E-01** | Sealed `DismissEgress` hierarchy (`horizontal`, `natural`, `outward`, `cross`, `any`) | 🔴 P0 | 🟡 Medium | ✅ Completed | `lib/src/notification/interaction/behaviors/drag_behavior.dart` |
+| **E-02** | Dual-threshold commitment (displacement fraction `dismissThreshold` + `escapeVelocity`) | 🔴 P0 | 🟡 Medium | ✅ Completed | `lib/src/notification/interaction/widgets/draggable_transitions.dart` |
+| **E-03** | In-slot reveal underlay (`EgressUnderlay`) and tactile card tilt feedback | 🟡 P1 | 🟡 Medium | ✅ Completed | `lib/src/notification/interaction/widgets/egress_underlay.dart` |
+| **E-04** | Inertial exit flight portal (`EgressFlightOverlay`) with release velocity conservation | 🟡 P1 | 🟡 Medium | ✅ Completed | `lib/src/notification/interaction/widgets/egress_flight_overlay.dart` |
+| **E-05** | Auto-dismiss timer preservation across drag start/cancel (`pauseDismissTimer` / `resumeDismissTimer`) | 🔴 P0 | 🟢 Low | ✅ Completed | `lib/src/notification/notification_widget_state.dart` |
+| **E-06** | Cross-queue slot relocation engine with live destination insertion previews | 🔴 P0 | 🔴 High | ✅ Completed | `lib/src/notification/interaction/plugins/relocate_gesture_plugin.dart`, `queue_coordinator.dart` |
+| **E-07** | Keyboard modifier key isolation (`Ctrl`, `Cmd`, `Alt`, `Shift`) and post-drag card `unfocus()` | 🟢 P2 | 🟢 Low | ✅ Completed | `lib/src/notification/notification.dart` |
+| **E-08** | Schedule `DismissZone` and `Dismiss.zones` deprecation for removal in `v0.8.0` | 🟡 P1 | 🟢 Low | ✅ Completed | `lib/src/notification/interaction/behaviors/` |
+| **E-09** | Harmonize `Relocate` with whole-queue container semantics (preserving destination queue sorting) | 🟡 P1 | 🟡 Medium | ✅ Completed | `lib/src/notification/interaction/plugins/relocate.dart` |
+| **E-10** | Multi-stage visual feedback pipeline for whole-queue relocation (halo border & reception pill) | 🟡 P1 | 🟡 Medium | ✅ Completed | `lib/src/notification_queue/queue_external_drop.dart`, `queue_widget.dart` |
+| **E-11** | Hardened `Pin`, `Snooze`, and `CustomAction` plugins with post-drag unfocus and timer stasis | 🟢 P2 | 🟢 Low | ✅ Completed | `lib/src/notification/interaction/plugins/` |
+
+---
+
+### Track 6: Release 0.8.0 — Deprecation Removal & Architecture Purity (Scheduled 🔵)
+
+| ID | Task Description | Priority | Complexity | Status | Target Files |
+|---|---|---|---|---|---|
+| **R-01** | Remove deprecated `enum DismissZone` and `Dismiss.zones` constructor parameter | 🔴 P0 | 🟢 Low | 📅 Scheduled | `lib/src/notification/interaction/behaviors/drag_behavior.dart` |
+| **R-02** | Delete legacy screen-edge target machinery (`DismissalTargets` ~916 LOC, `DismissFeedbackOverlay`) | 🟡 P1 | 🟡 Medium | 📅 Scheduled | `lib/src/notification/interaction/overlays/`, `lib/src/notification/interaction/widgets/` |
+| **R-03** | Remove internal bridge `Dismiss.effectiveEgress` and convert `DismissGesturePlugin` to pure egress | 🟡 P1 | 🟢 Low | 📅 Scheduled | `lib/src/notification/interaction/behaviors/`, `plugins/dismiss_gesture_plugin.dart` |
+| **R-04** | Complete doc references and delete legacy migration shims | 🟢 P2 | 🟢 Low | 📅 Scheduled | `doc/` |
+
+---
+
+### Track 7: Advanced Features & Platform Perfection (F-Series)
 
 | ID | Feature / Job Name | Phase | Priority | Complexity | Status | Target Files |
 |---|---|---|---|---|---|---|
@@ -166,6 +200,10 @@ Complexity Tiers:
 
 | Release | Date | Highlights | Key Files Modified |
 |---|---|---|---|
+| **v0.7.1** | 2026-11-14 | **Egress Visuals, Flight & Timer Safety**: In-slot reveal underlay (`EgressUnderlay`), dynamic card tilt, inertial momentum flight portal (`EgressFlightOverlay`), auto-dismiss timer preservation across drag start/cancel, scheduled `DismissZone` deprecation for `v0.8.0`. | `lib/src/notification/interaction/`, `lib/src/notification/notification_widget_state.dart`, `example/` |
+| **v0.7.0** | 2026-11-12 | **Cross-Queue Relocation & Modern Egress**: Cross-queue slot relocation with live destination insertion previews; introduced sealed `DismissEgress` hierarchy (`horizontal`, `natural`, `outward`, `cross`, `any`); dual-threshold displacement/velocity mechanics; deprecated legacy `DismissZone`. | `lib/src/notification/interaction/`, `lib/src/core/queue_coordinator.dart`, `example/` |
+| **v0.6.1** | 2026-11-10 | **Platform Hardening & Semantic A11y**: Added `NotificationA11yOptions`, desktop right-click context menu engine, keyboard shortcut modifier isolation (`Ctrl`, `Cmd`, `Alt`, `Shift`), post-drag card `unfocus()`. | `lib/src/notification/`, `lib/src/core/notification_overlay.dart`, `specs/accessibility.md` |
+| **v0.6.0** | 2026-11-08 | **Monolith Decomposition**: Decomposed 26-part `notification.dart` monolith into distinct sub-libraries (`theme/`, `interaction/`, `widgets/`), extracted `CoordinatorResolver` mixin, sealed `NotificationEvent` enhancements. | `lib/src/notification/`, `lib/src/core/` |
 | **v0.5.2** | 2026-11-05 | **Grouping UX & Performance Polish**: Introduced `GroupCountBehavior` hierarchy (`HiddenCount`, `TotalCount`, `NoCount`, `CustomCount`); peek card timer stasis & drag auto-dismiss suspension; expanded bundle timer pause; atomic bundle dismiss & backlog purging; `CurvedAnimation` leak fixes; duplicate GlobalKey collision hardening; coordinator tracking cleanup; reorder 120Hz smooth memoized snapshots. | `lib/src/notification_queue/`, `lib/src/core/queue_coordinator.dart`, `example/` |
 | **v0.5.1** | 2026-10-27 | **Account Migration**: Updated repository, homepage, demo URL, and documentation links for account migration to `pccria`. | `pubspec.yaml`, `README.md`, `doc/` |
 | **v0.5.0** | 2026-10-12 | **Stability Foundation**: Snooze timer lifecycle tracking & leak prevention; idempotent `dispose()` on `NotificationController` and `QueueCoordinator`; non-destructive `FlutterError.onError` handler chaining; single source-of-truth `isPinnedNotifier` state binding; tolerant golden comparator (0.5% threshold); resolved all source TODOs; added lifecycle & chaining test suite. | `lib/src/core/queue_coordinator.dart`, `lib/src/core/notification_controller.dart`, `lib/src/core/notification_entry.dart`, `test/golden/visual_regression_test.dart`, `test/src/core/` |

@@ -23,12 +23,26 @@ abstract interface class DragGestureContext {
   /// Total screen size available in the current context.
   Size get screenSize;
 
+  /// Safe view padding (status bar, notch, home indicator) for layout math.
+  EdgeInsets get viewPadding;
+
   /// Geometry details captured at pointer down / drag start.
   DragStartData? get dragStartData;
 
   /// Active list of reorder zones created during a reorder transaction.
   List<SlotDropZone>? get activeReorderZones;
   set activeReorderZones(final List<SlotDropZone>? value);
+
+  /// Active geometry snapshots captured at lift-off for cross-queue relocation.
+  Map<QueuePosition, QueueGeometrySnapshot>? get dropSnapshots;
+  set dropSnapshots(
+    final Map<QueuePosition, QueueGeometrySnapshot>? value,
+  );
+
+  /// Nominal screen-space dock rects for candidate queue positions captured at
+  /// lift-off.
+  Map<QueuePosition, Rect>? get candidateDockRects;
+  set candidateDockRects(final Map<QueuePosition, Rect>? value);
 
   /// Index of the currently highlighted zone with hysteresis.
   int? get activeZoneIndex;

@@ -387,6 +387,7 @@ class LiftedFeedback extends StatefulWidget {
     required this.nearestProgress,
     required this.widgetSize,
     required this.springPhysics,
+    this.isRelocatingTarget = false,
     this.fsm,
     super.key,
   });
@@ -396,6 +397,7 @@ class LiftedFeedback extends StatefulWidget {
   final double nearestProgress;
   final Size widgetSize;
   final SpringPhysicsConfiguration springPhysics;
+  final bool isRelocatingTarget;
   final GestureStateMachine? fsm;
 
   @override
@@ -433,6 +435,7 @@ class _LiftedFeedbackState extends State<LiftedFeedback>
     }
     if (oldWidget.passedThreshold != widget.passedThreshold ||
         oldWidget.nearestProgress != widget.nearestProgress ||
+        oldWidget.isRelocatingTarget != widget.isRelocatingTarget ||
         oldWidget.fsm != widget.fsm) {
       _animateToTarget();
     }
@@ -440,11 +443,13 @@ class _LiftedFeedbackState extends State<LiftedFeedback>
 
   void _animateToTarget() {
     final bool engaged = widget.nearestProgress > 0.3;
-    final double baseScale = widget.passedThreshold
-        ? 0.96
-        : engaged
-            ? 1.06
-            : 1.04;
+    final double baseScale = widget.isRelocatingTarget
+        ? 0.94
+        : widget.passedThreshold
+            ? 0.96
+            : engaged
+                ? 1.06
+                : 1.04;
     final double targetScale =
         widget.fsm?.getActiveScale(baseScale) ?? baseScale;
     if (_lastTargetScale == targetScale) {
@@ -471,26 +476,31 @@ class _LiftedFeedbackState extends State<LiftedFeedback>
 
   @override
   Widget build(final BuildContext context) {
-    final bool engaged = widget.nearestProgress > 0.3;
-    final double opacity = widget.passedThreshold ? 0.5 : 1.0;
+    final bool committed = widget.passedThreshold || widget.isRelocatingTarget;
+    final bool engaged = widget.nearestProgress > 0.3 || committed;
+    final double opacity = widget.isRelocatingTarget
+        ? 0.94
+        : widget.passedThreshold
+            ? 0.5
+            : 1.0;
 
-    final Color glowColor = widget.passedThreshold
+    final Color glowColor = committed
         ? Colors.green
         : engaged
             ? Colors.blue
             : Colors.transparent;
 
-    final double glowSpread = widget.passedThreshold
+    final double glowSpread = committed
         ? 4.0
         : engaged
             ? 2.0
             : 0.0;
 
     final Color shadowColor = Colors.black.withValues(alpha: 0.25);
-    final double shadowBlur = widget.passedThreshold ? 4.0 : 20.0;
-    final double shadowSpread = widget.passedThreshold ? 0.0 : 4.0;
+    final double shadowBlur = committed ? 8.0 : 20.0;
+    final double shadowSpread = committed ? 0.0 : 4.0;
     final Offset shadowOffset =
-        widget.passedThreshold ? const Offset(0, 2) : const Offset(0, 8);
+        committed ? const Offset(0, 2) : const Offset(0, 8);
 
     return AnimatedBuilder(
       animation: _controller,
@@ -525,11 +535,13 @@ class _LiftedFeedbackState extends State<LiftedFeedback>
               borderRadius: BorderRadius.circular(14),
               child: ColorFiltered(
                 colorFilter: ColorFilter.matrix(
-                  widget.passedThreshold
-                      ? _kDesatMatrix
-                      : engaged
-                          ? _kSlightDesatMatrix
-                          : _kIdentityMatrix,
+                  widget.isRelocatingTarget
+                      ? _kIdentityMatrix
+                      : widget.passedThreshold
+                          ? _kDesatMatrix
+                          : engaged
+                              ? _kSlightDesatMatrix
+                              : _kIdentityMatrix,
                 ),
                 child: widget.child,
               ),

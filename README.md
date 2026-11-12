@@ -225,7 +225,13 @@ AppNotification(
 
 FNQ provides sophisticated pointer and touch gesture handling configured at the queue level via `dragBehavior` and `longPressDragBehavior`:
 
-* **`Dismiss`**: Swipe to dismiss. Supports `DismissZone.sideEdges` or `DismissZone.naturalDirection`.
+* **`Dismiss`**: Card-centric directional swipe dismissal. Configurable via `DismissEgress` strategies:
+  * `DismissEgress.horizontal()`: Swipe left or right off the screen (default).
+  * `DismissEgress.natural()`: Anchor-aware swipe in the natural direction away from screen center (e.g., right for right queues, left for left queues).
+  * `DismissEgress.outward()`: Swipes outward towards nearest screen boundary.
+  * `DismissEgress.cross()`: Swipes across the screen towards the interior.
+  * `DismissEgress.any()`: Unconstrained omni-directional swipe dismissal.
+  * *Sensory & Physics*: Features dual-threshold commitment (`dismissThreshold` displacement fraction + ballistic `escapeVelocity`), dynamic angular tilt (`enableTilt: true`), in-slot reveal underlay (`showUnderlay: true`), and inertial momentum exit flight. Holding or dragging a card automatically pauses its auto-dismiss timer; cancelling resumes the countdown seamlessly.
 * **`Reorder`**: Live-shifting drag reordering within the stack featuring **Gravity-Well Hysteresis** to eliminate pointer wobble and **Selection Reticles** for drop slot feedback.
 * **`Relocate`**: Drag a notification card to move it into another queue position.
 * **`ReorderAndRelocate`**: Reorder within the current stack, or drag past an escape threshold to relocate to a destination queue.
@@ -234,12 +240,21 @@ FNQ provides sophisticated pointer and touch gesture handling configured at the 
 ```dart
 NotificationQueue(
   position: QueuePosition.topRight,
-  dragBehavior: const Dismiss(),
+  dragBehavior: const Dismiss(
+    egress: DismissEgress.horizontal(),
+    dismissThreshold: 0.35,
+    escapeVelocity: 550.0,
+    enableTilt: true,
+    showUnderlay: true,
+  ),
   longPressDragBehavior: ReorderAndRelocate.to(
     positions: {QueuePosition.bottomRight},
   ),
 )
 ```
+
+> [!NOTE]
+> **Deprecation Notice**: The legacy screen-edge target parameter `Dismiss(zones: ...)` and `DismissZone` enum are deprecated in `v0.7.x` and will be removed in `v0.8.0`. Use `Dismiss(egress: ...)` with `DismissEgress` strategies instead. See the [v0.7 Migration Guide](doc/migration_v0_7.md).
 
 > [!TIP]
 > **Relocation Auto-Registration**: When target positions are defined in `Relocate.to({...})` or `ReorderAndRelocate.to(positions: {...})`, FNQ automatically registers sibling target queues, clones source queue styling, and configures self-inclusion so cards can return home.

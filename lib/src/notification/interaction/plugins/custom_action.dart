@@ -10,7 +10,7 @@ class CustomActionGesturePlugin extends NotificationGesturePlugin {
   void onDragStart(final DragGestureContext ctx) {
     final position = ctx.notification.queue.position;
     ctx.notification.effectiveCoordinator.bringToFront(position);
-    ctx.notification.key.currentState?.ditchDismissTimer();
+    ctx.notification.key.currentState?.pauseDismissTimer();
     ctx.overlayPortalController.show();
   }
 
@@ -50,7 +50,10 @@ class CustomActionGesturePlugin extends NotificationGesturePlugin {
         behavior.actionName,
       );
     }
-    ctx.notification.key.currentState?.initDismissTimer();
+    ctx.notification.key.currentState?.unfocus();
+    if (!isHit && !ctx.notification.isPinned) {
+      ctx.notification.key.currentState?.initDismissTimer();
+    }
     ctx.overlayPortalController.hide();
   }
 

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 
 import '../../../enums/enums.dart';
+import '../../../utils/utils.dart';
 import '../drag_start_data.dart';
 import '../gesture_state_machine.dart';
 import '../zones/zones.dart';

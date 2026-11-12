@@ -1,6 +1,7 @@
 part of 'enums.dart';
 
-/// Defines the screen zones where the notification can be dismissed.
+/// Defines the legacy screen zones where the notification can be dismissed.
+@Deprecated('Use DismissEgress instead. Will be removed in 0.8.0.')
 enum DismissZone {
   /// The notification can be dismissed by dragging it to the left or right
   /// edges of the screen.

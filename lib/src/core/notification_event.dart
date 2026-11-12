@@ -139,6 +139,7 @@ final class NotificationRelocated extends NotificationEvent {
     required this.notification,
     required this.from,
     required this.to,
+    this.toIndex,
   });
 
   /// The notification after relocation (its [NotificationWidget.queue] now
@@ -152,9 +153,13 @@ final class NotificationRelocated extends NotificationEvent {
   /// The queue position the notification was moved *to*.
   final QueuePosition to;
 
+  /// The optional 0-based target slot index in the destination queue [to].
+  final int? toIndex;
+
   @override
   String toString() => 'NotificationRelocated(id: ${notification.id}, '
-      'from: ${from.name}, to: ${to.name})';
+      'from: ${from.name}, to: ${to.name}'
+      '${toIndex != null ? ', toIndex: $toIndex' : ''})';
 }
 
 /// Emitted when a [NotificationWidget] is reordered within its queue.

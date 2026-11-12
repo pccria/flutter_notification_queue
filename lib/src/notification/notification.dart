@@ -24,7 +24,6 @@ export 'interaction/overlays/overlays.dart';
 export 'interaction/plugins/plugins.dart';
 export 'interaction/widgets/widgets.dart';
 export 'interaction/zones/zones.dart';
-export 'plugins.dart';
 export 'theme/theme.dart';
 
 part 'app_notification.dart';
@@ -477,9 +476,8 @@ class NotificationWidget extends StatefulWidget
     final bool? permanent,
   }) {
     final effectivePermanent = permanent ?? this.permanent;
-    final effectiveDuration = effectivePermanent
-        ? null
-        : (dismissDuration ?? this.dismissDuration);
+    final effectiveDuration =
+        effectivePermanent ? null : (dismissDuration ?? this.dismissDuration);
 
     return NotificationWidget._(
       key: key,
@@ -580,6 +578,8 @@ class NotificationWidgetState extends State<NotificationWidget>
   bool _isContextMenuOpen = false;
   bool _hasWebHoverDisable = false;
   bool _hasWebMenuDisable = false;
+  bool _hasBuiltOnce = false;
+  bool _isDisposed = false;
   QueueCoordinator? _cachedCoordinator;
   OverlayEntry? _contextMenuEntry;
   VoidCallback? _dismissContextMenu;
@@ -596,6 +596,13 @@ class NotificationWidgetState extends State<NotificationWidget>
 
   /// Requests keyboard focus onto this notification card.
   void requestFocus() => _focusNode.requestFocus();
+
+  /// Unfocuses keyboard focus from this notification card.
+  void unfocus() {
+    if (_focusNode.hasFocus) {
+      _focusNode.unfocus();
+    }
+  }
 
   void _handleFocusChanged() {
     if (mounted) {
@@ -753,6 +760,7 @@ class NotificationWidgetState extends State<NotificationWidget>
 
   @override
   void dispose() {
+    _isDisposed = true;
     _dismissContextMenu?.call();
     _dismissContextMenu = null;
     _contextMenuEntry?.remove();
@@ -790,7 +798,8 @@ class NotificationWidgetState extends State<NotificationWidget>
       return;
     }
     if (resolvedDismissDuration != null) {
-      if (_dismissProgressController == null) {
+      final wasNull = _dismissProgressController == null;
+      if (wasNull) {
         _dismissProgressController = AnimationController(
           vsync: this,
           duration: resolvedDismissDuration,
@@ -807,13 +816,20 @@ class NotificationWidgetState extends State<NotificationWidget>
       }
       _dismissProgressController!.reset();
       _dismissProgressController!.forward();
+      if (wasNull && _hasBuiltOnce && mounted && !_isDisposed) {
+        setState(() {});
+      }
     }
   }
 
   void ditchDismissTimer() {
+    final wasNotNull = _dismissProgressController != null;
     _dismissProgressController?.stop(canceled: false);
     _dismissProgressController?.dispose();
     _dismissProgressController = null;
+    if (wasNotNull && _hasBuiltOnce && mounted && !_isDisposed) {
+      setState(() {});
+    }
   }
 
   /// Pauses the auto-dismiss timer (e.g. while being dragged or hovered).
@@ -865,10 +881,16 @@ class NotificationWidgetState extends State<NotificationWidget>
 
     final a11y = coordinator.configuration.a11yOptions;
 
-    // Shift + Delete or Shift + Backspace dismisses the active bundle/group.
     final isShift = HardwareKeyboard.instance.isShiftPressed;
+    final isControl = HardwareKeyboard.instance.isControlPressed;
+    final isMeta = HardwareKeyboard.instance.isMetaPressed;
+    final isAlt = HardwareKeyboard.instance.isAltPressed;
+    final hasModifier = isControl || isMeta || isAlt;
+
+    // Shift + Delete or Shift + Backspace dismisses the active bundle/group.
     if (a11y.enableKeyboardDismiss &&
         isShift &&
+        !hasModifier &&
         (event.logicalKey == a11y.dismissKey ||
             event.logicalKey == LogicalKeyboardKey.backspace)) {
       coordinator.dismissGroup(
@@ -878,7 +900,7 @@ class NotificationWidgetState extends State<NotificationWidget>
       return KeyEventResult.handled;
     }
 
-    if (a11y.enableKeyboardDismiss) {
+    if (a11y.enableKeyboardDismiss && !hasModifier && !isShift) {
       if (event.logicalKey == a11y.dismissKey ||
           event.logicalKey == LogicalKeyboardKey.backspace) {
         dismiss(reason: DismissReason.programmatic);
@@ -890,19 +912,25 @@ class NotificationWidgetState extends State<NotificationWidget>
         dismiss(reason: DismissReason.programmatic);
         return KeyEventResult.handled;
       }
-    } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+    } else if (!hasModifier &&
+        !isShift &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
       _focusNode.unfocus();
       return KeyEventResult.handled;
     }
 
     // Toggle card expansion (E).
-    if (event.logicalKey == LogicalKeyboardKey.keyE) {
+    if (!hasModifier &&
+        !isShift &&
+        event.logicalKey == LogicalKeyboardKey.keyE) {
       _toggleExpanded();
       return KeyEventResult.handled;
     }
 
     // Toggle pinned state (P).
-    if (event.logicalKey == LogicalKeyboardKey.keyP) {
+    if (!hasModifier &&
+        !isShift &&
+        event.logicalKey == LogicalKeyboardKey.keyP) {
       if (widget.isPinned) {
         coordinator.unpinById(widget.id);
       } else {
@@ -912,7 +940,9 @@ class NotificationWidgetState extends State<NotificationWidget>
     }
 
     // Snooze notification (S).
-    if (event.logicalKey == LogicalKeyboardKey.keyS) {
+    if (!hasModifier &&
+        !isShift &&
+        event.logicalKey == LogicalKeyboardKey.keyS) {
       final snoozeDuration = widget.dismissDuration ??
           widget.channel.defaultDismissDuration ??
           const Duration(seconds: 10);
@@ -922,6 +952,7 @@ class NotificationWidgetState extends State<NotificationWidget>
 
     // Context menu shortcut (Shift + F10 or ContextMenu key).
     if (a11y.enableContextMenu &&
+        !hasModifier &&
         (event.logicalKey == LogicalKeyboardKey.contextMenu ||
             (isShift && event.logicalKey == LogicalKeyboardKey.f10))) {
       final renderBox = context.findRenderObject() as RenderBox?;
@@ -935,7 +966,12 @@ class NotificationWidgetState extends State<NotificationWidget>
     // Enter triggers the primary action if available, or card tap behavior.
     // Space is intentionally not handled here so it activates focused inner
     // elements (buttons, icons) when cycling through them via Tab.
+    // Modifier combos (Ctrl+Enter, Cmd+Enter, Shift+Enter, Alt+Enter) are
+    // app-level actions (e.g. Fire Draft) and MUST NOT be intercepted as
+    // card taps!
     if (node.hasPrimaryFocus &&
+        !hasModifier &&
+        !isShift &&
         (event.logicalKey == LogicalKeyboardKey.enter ||
             event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
       if (widget.action != null) {
@@ -1142,8 +1178,7 @@ class NotificationWidgetState extends State<NotificationWidget>
     _dismissContextMenu = dismissOverlayMenu;
     coordinator.registerContextMenuDismiss(dismissOverlayMenu);
     isRouteAdded = true;
-    GestureBinding.instance.pointerRouter
-        .addGlobalRoute(onGlobalPointerEvent);
+    GestureBinding.instance.pointerRouter.addGlobalRoute(onGlobalPointerEvent);
 
     entry = OverlayEntry(
       builder: (final _) => Theme(
@@ -1184,8 +1219,7 @@ class NotificationWidgetState extends State<NotificationWidget>
                             child: IntrinsicWidth(
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.stretch,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: items.map((final item) {
                                   if (item is PopupMenuItem) {
                                     return InkWell(
@@ -1312,6 +1346,7 @@ class NotificationWidgetState extends State<NotificationWidget>
   // the queue-level item AnimationController. Applying it again here would
   // create a double-transition and an extra active ticker that hangs tests.
   Widget build(final BuildContext context) {
+    _hasBuiltOnce = true;
     final title = widget.title;
     final message = widget.message;
     final semanticLabel = title != null && title.isNotEmpty
@@ -1405,9 +1440,7 @@ class NotificationWidgetState extends State<NotificationWidget>
                   _dismissProgressController?.stop(canceled: false);
                 },
                 onPointerUp: (final _) {
-                  if (!_isMouseHovering &&
-                      !isExpanded &&
-                      !_isContextMenuOpen) {
+                  if (!_isMouseHovering && !isExpanded && !_isContextMenuOpen) {
                     _dismissProgressController?.forward();
                   }
                 },
@@ -1673,8 +1706,7 @@ class NotificationWidgetState extends State<NotificationWidget>
         dimension: 24,
         child: ValueListenableBuilder(
           valueListenable: _showCloseButton,
-          builder: (final context, final opacity, final child) =>
-              ExcludeFocus(
+          builder: (final context, final opacity, final child) => ExcludeFocus(
             excluding: opacity == 0.0,
             child: IgnorePointer(
               ignoring: opacity == 0.0,

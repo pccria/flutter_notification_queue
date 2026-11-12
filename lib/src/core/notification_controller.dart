@@ -39,14 +39,20 @@ abstract class NotificationScopeState {
     final DismissReason reason = DismissReason.programmatic,
   });
 
-  /// Moves [notification] to [newPosition].
+  /// Moves [notification] to [newPosition], optionally targeting [targetIndex].
   void relocate(
     final AppNotification notification,
-    final QueuePosition newPosition,
-  );
+    final QueuePosition newPosition, {
+    final int? targetIndex,
+  });
 
-  /// Moves the notification with [id] to [newPosition].
-  void relocateById(final String id, final QueuePosition newPosition);
+  /// Moves the notification with [id] to [newPosition], optionally targeting
+  /// [targetIndex].
+  void relocateById(
+    final String id,
+    final QueuePosition newPosition, {
+    final int? targetIndex,
+  });
 
   /// Changes the display order of [notification] within its queue to
   /// [targetIndex].
@@ -143,8 +149,7 @@ class NotificationController {
     final Set<NotificationChannel>? channels,
     final bool strictChannelLookup = false,
     final int maxHistoryEntries = 0,
-    final NotificationA11yOptions a11yOptions =
-        const NotificationA11yOptions(),
+    final NotificationA11yOptions a11yOptions = const NotificationA11yOptions(),
     final NotificationIdGenerator? idGenerator,
     final LogLevel? logLevel,
     final List<Handler>? logHandlers,
@@ -165,7 +170,7 @@ class NotificationController {
   }
 
   /// The current version of the flutter_notification_queue package.
-  static const String version = '0.6.1';
+  static const String version = '0.7.0';
 
   /// The configuration manager for this controller instance.
   @internal
@@ -460,23 +465,33 @@ class NotificationController {
     _attachedState?.dismissGroup(groupKey, reason: reason);
   }
 
-  /// Moves [notification] to [newPosition].
+  /// Moves [notification] to [newPosition], optionally targeting [targetIndex].
   ///
   /// No-ops silently if [notification] is no longer active.
   void relocate(
     final AppNotification notification,
-    final QueuePosition newPosition,
-  ) {
+    final QueuePosition newPosition, {
+    final int? targetIndex,
+  }) {
     if (notification.id != null) {
-      relocateById(notification.id!, newPosition);
+      relocateById(notification.id!, newPosition, targetIndex: targetIndex);
     } else {
-      _attachedState?.relocate(notification, newPosition);
+      _attachedState?.relocate(
+        notification,
+        newPosition,
+        targetIndex: targetIndex,
+      );
     }
   }
 
-  /// Moves the notification with [id] to [newPosition].
-  void relocateById(final String id, final QueuePosition newPosition) {
-    _attachedState?.relocateById(id, newPosition);
+  /// Moves the notification with [id] to [newPosition], optionally targeting
+  /// [targetIndex].
+  void relocateById(
+    final String id,
+    final QueuePosition newPosition, {
+    final int? targetIndex,
+  }) {
+    _attachedState?.relocateById(id, newPosition, targetIndex: targetIndex);
   }
 
   /// Changes the display order of [notification] within its queue to

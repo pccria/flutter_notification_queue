@@ -15,6 +15,7 @@ import '../utils/utils.dart';
 import 'queue_grouping_behavior.dart';
 
 part 'styles.dart';
+part 'queue_external_drop.dart';
 part 'queue_group_widget.dart';
 part 'queue_item_state.dart';
 part 'queue_widget.dart';

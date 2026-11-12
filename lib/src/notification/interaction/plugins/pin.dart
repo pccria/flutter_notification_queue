@@ -10,7 +10,7 @@ class PinGesturePlugin extends NotificationGesturePlugin {
   void onDragStart(final DragGestureContext ctx) {
     final position = ctx.notification.queue.position;
     ctx.notification.effectiveCoordinator.bringToFront(position);
-    ctx.notification.key.currentState?.ditchDismissTimer();
+    ctx.notification.key.currentState?.pauseDismissTimer();
     ctx.overlayPortalController.show();
   }
 
@@ -37,16 +37,21 @@ class PinGesturePlugin extends NotificationGesturePlugin {
         behavior.thresholdInPixels.toDouble(),
       ),
     );
+    bool nowPinned = ctx.notification.isPinned;
     if (isHit) {
       HapticFeedback.mediumImpact();
-      final isCurrentlyPinned = ctx.notification.isPinned;
-      if (isCurrentlyPinned) {
+      if (nowPinned) {
         ctx.notification.effectiveCoordinator.unpinWidget(ctx.notification);
+        nowPinned = false;
       } else {
         ctx.notification.effectiveCoordinator.pinWidget(ctx.notification);
+        nowPinned = true;
       }
     }
-    ctx.notification.key.currentState?.initDismissTimer();
+    ctx.notification.key.currentState?.unfocus();
+    if (!nowPinned) {
+      ctx.notification.key.currentState?.initDismissTimer();
+    }
     ctx.overlayPortalController.hide();
   }
 

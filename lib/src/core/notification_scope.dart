@@ -175,8 +175,7 @@ class _NotificationScopeState extends State<NotificationScope> {
         if (a11y.focusShortcut != null)
           a11y.focusShortcut!: _handleFocusShortcut,
         if (a11y.globalEscapeDismiss) ...{
-          const SingleActivator(LogicalKeyboardKey.escape):
-              _handleGlobalEscape,
+          const SingleActivator(LogicalKeyboardKey.escape): _handleGlobalEscape,
           const SingleActivator(LogicalKeyboardKey.escape, shift: true):
               _handleGlobalShiftEscape,
         },

@@ -32,6 +32,42 @@ enum GroupCountType {
   final String description;
 }
 
+/// The directional egress options available for dismiss gestures in NFQ Studio.
+enum DismissEgressOption {
+  horizontal(
+    'Horizontal (Left / Right)',
+    'Universal mobile & desktop swipe left or right.',
+  ),
+  natural(
+    'Natural (Relative to Queue)',
+    'Contextual egress: Up for top queues, Down for bottom queues.',
+  ),
+  outward(
+    'Outward (Toward Display Edge)',
+    'Only allows swiping outward toward the closest display bezel.',
+  ),
+  cross(
+    'Cross (Vertical Egress + Horizontal)',
+    'Android heads-up HUD style: swiping up/down or sideways dismisses.',
+  ),
+  any(
+    'Any Direction (Omnidirectional)',
+    'Fling or drag in any direction away from the card origin.',
+  );
+
+  const DismissEgressOption(this.label, this.description);
+  final String label;
+  final String description;
+
+  DismissEgress toEgress() => switch (this) {
+        horizontal => const DismissEgress.horizontal(),
+        natural => const DismissEgress.natural(),
+        outward => const DismissEgress.outward(),
+        cross => const DismissEgress.cross(),
+        any => const DismissEgress.any(),
+      };
+}
+
 /// The immutable setup for a single [NotificationQueue].
 ///
 /// Does **not** include `position` — that's the map key in `StudioSetup`.
@@ -50,10 +86,20 @@ class QueueSetup extends Equatable {
     this.verticalMargin = 8.0,
     this.horizontalMargin = 36.0,
     this.dragBehaviorType = Dismiss,
-    this.dragDismissZone = DismissZone.sideEdges,
+    this.dragDismissEgress = DismissEgressOption.horizontal,
+    this.dragDismissThreshold = 0.40,
+    this.dragEscapeVelocity = 600.0,
+    this.dragDismissEnableTilt = true,
+    this.dragDismissShowUnderlay = true,
+    this.dragDismissZone,
     this.dragSnoozeSeconds = 5,
     this.longPressBehaviorType = Disabled,
-    this.longPressDismissZone = DismissZone.sideEdges,
+    this.longPressDismissEgress = DismissEgressOption.horizontal,
+    this.longPressDismissThreshold = 0.40,
+    this.longPressEscapeVelocity = 600.0,
+    this.longPressDismissEnableTilt = true,
+    this.longPressDismissShowUnderlay = true,
+    this.longPressDismissZone,
     this.longPressSnoozeSeconds = 5,
     this.relocateTargets = const {},
     this.relocatePermanent = false,
@@ -89,10 +135,20 @@ class QueueSetup extends Equatable {
 
   // ── Gestures ──
   final Type dragBehaviorType;
-  final DismissZone dragDismissZone;
+  final DismissEgressOption dragDismissEgress;
+  final double dragDismissThreshold;
+  final double dragEscapeVelocity;
+  final bool dragDismissEnableTilt;
+  final bool dragDismissShowUnderlay;
+  final DismissZone? dragDismissZone;
   final int dragSnoozeSeconds;
   final Type longPressBehaviorType;
-  final DismissZone longPressDismissZone;
+  final DismissEgressOption longPressDismissEgress;
+  final double longPressDismissThreshold;
+  final double longPressEscapeVelocity;
+  final bool longPressDismissEnableTilt;
+  final bool longPressDismissShowUnderlay;
+  final DismissZone? longPressDismissZone;
   final int longPressSnoozeSeconds;
   final Set<QueuePosition> relocateTargets;
   final bool relocatePermanent;
@@ -134,10 +190,22 @@ class QueueSetup extends Equatable {
     final double? verticalMargin,
     final double? horizontalMargin,
     final Type? dragBehaviorType,
+    final DismissEgressOption? dragDismissEgress,
+    final double? dragDismissThreshold,
+    final double? dragEscapeVelocity,
+    final bool? dragDismissEnableTilt,
+    final bool? dragDismissShowUnderlay,
     final DismissZone? dragDismissZone,
+    final bool clearDragDismissZone = false,
     final int? dragSnoozeSeconds,
     final Type? longPressBehaviorType,
+    final DismissEgressOption? longPressDismissEgress,
+    final double? longPressDismissThreshold,
+    final double? longPressEscapeVelocity,
+    final bool? longPressDismissEnableTilt,
+    final bool? longPressDismissShowUnderlay,
     final DismissZone? longPressDismissZone,
+    final bool clearLongPressDismissZone = false,
     final int? longPressSnoozeSeconds,
     final Set<QueuePosition>? relocateTargets,
     final bool? relocatePermanent,
@@ -167,11 +235,32 @@ class QueueSetup extends Equatable {
         verticalMargin: verticalMargin ?? this.verticalMargin,
         horizontalMargin: horizontalMargin ?? this.horizontalMargin,
         dragBehaviorType: dragBehaviorType ?? this.dragBehaviorType,
-        dragDismissZone: dragDismissZone ?? this.dragDismissZone,
+        dragDismissEgress: dragDismissEgress ?? this.dragDismissEgress,
+        dragDismissThreshold: dragDismissThreshold ?? this.dragDismissThreshold,
+        dragEscapeVelocity: dragEscapeVelocity ?? this.dragEscapeVelocity,
+        dragDismissEnableTilt:
+            dragDismissEnableTilt ?? this.dragDismissEnableTilt,
+        dragDismissShowUnderlay:
+            dragDismissShowUnderlay ?? this.dragDismissShowUnderlay,
+        dragDismissZone: clearDragDismissZone
+            ? null
+            : (dragDismissZone ?? this.dragDismissZone),
         dragSnoozeSeconds: dragSnoozeSeconds ?? this.dragSnoozeSeconds,
         longPressBehaviorType:
             longPressBehaviorType ?? this.longPressBehaviorType,
-        longPressDismissZone: longPressDismissZone ?? this.longPressDismissZone,
+        longPressDismissEgress:
+            longPressDismissEgress ?? this.longPressDismissEgress,
+        longPressDismissThreshold:
+            longPressDismissThreshold ?? this.longPressDismissThreshold,
+        longPressEscapeVelocity:
+            longPressEscapeVelocity ?? this.longPressEscapeVelocity,
+        longPressDismissEnableTilt:
+            longPressDismissEnableTilt ?? this.longPressDismissEnableTilt,
+        longPressDismissShowUnderlay:
+            longPressDismissShowUnderlay ?? this.longPressDismissShowUnderlay,
+        longPressDismissZone: clearLongPressDismissZone
+            ? null
+            : (longPressDismissZone ?? this.longPressDismissZone),
         longPressSnoozeSeconds:
             longPressSnoozeSeconds ?? this.longPressSnoozeSeconds,
         relocateTargets: relocateTargets ?? this.relocateTargets,
@@ -239,7 +328,16 @@ class QueueSetup extends Equatable {
   /// Builds the [DragBehavior] from [dragBehaviorType].
   DragBehavior toDragBehavior(final QueuePosition position) {
     if (dragBehaviorType == Dismiss) {
-      return Dismiss(zones: dragDismissZone);
+      if (dragDismissZone != null) {
+        return Dismiss(zones: dragDismissZone);
+      }
+      return Dismiss(
+        egress: dragDismissEgress.toEgress(),
+        dismissThreshold: dragDismissThreshold,
+        escapeVelocity: dragEscapeVelocity,
+        enableTilt: dragDismissEnableTilt,
+        showUnderlay: dragDismissShowUnderlay,
+      );
     }
     if (dragBehaviorType == Snooze) {
       return Snooze(duration: Duration(seconds: dragSnoozeSeconds));
@@ -269,7 +367,16 @@ class QueueSetup extends Equatable {
   /// Builds the [LongPressDragBehavior] from [longPressBehaviorType].
   LongPressDragBehavior toLongPressBehavior(final QueuePosition position) {
     if (longPressBehaviorType == Dismiss) {
-      return Dismiss(zones: longPressDismissZone);
+      if (longPressDismissZone != null) {
+        return Dismiss(zones: longPressDismissZone);
+      }
+      return Dismiss(
+        egress: longPressDismissEgress.toEgress(),
+        dismissThreshold: longPressDismissThreshold,
+        escapeVelocity: longPressEscapeVelocity,
+        enableTilt: longPressDismissEnableTilt,
+        showUnderlay: longPressDismissShowUnderlay,
+      );
     }
     if (longPressBehaviorType == Snooze) {
       return Snooze(duration: Duration(seconds: longPressSnoozeSeconds));
@@ -375,9 +482,19 @@ class QueueSetup extends Equatable {
         verticalMargin,
         horizontalMargin,
         dragBehaviorType,
+        dragDismissEgress,
+        dragDismissThreshold,
+        dragEscapeVelocity,
+        dragDismissEnableTilt,
+        dragDismissShowUnderlay,
         dragDismissZone,
         dragSnoozeSeconds,
         longPressBehaviorType,
+        longPressDismissEgress,
+        longPressDismissThreshold,
+        longPressEscapeVelocity,
+        longPressDismissEnableTilt,
+        longPressDismissShowUnderlay,
         longPressDismissZone,
         longPressSnoozeSeconds,
         relocateTargets,

@@ -16,7 +16,7 @@ class ReorderGesturePlugin extends NotificationGesturePlugin {
     final currentIndex = queueState?.indexOf(ctx.notification) ?? 0;
 
     ctx.notification.effectiveCoordinator.bringToFront(position);
-    ctx.notification.key.currentState?.ditchDismissTimer();
+    ctx.notification.key.currentState?.pauseDismissTimer();
     queueState?.startDragReorder(ctx.notification.id, currentIndex);
     ctx
       ..activeZoneIndex = null
@@ -68,6 +68,7 @@ class ReorderGesturePlugin extends NotificationGesturePlugin {
     ctx
       ..activeReorderZones = null
       ..activeZoneIndex = null;
+    ctx.notification.key.currentState?.unfocus();
     ctx.notification.key.currentState?.initDismissTimer();
     ctx.overlayPortalController.hide();
   }

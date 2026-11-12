@@ -134,6 +134,38 @@ class QueueCoordinator implements NotificationScopeState {
   final _activeQueuesNotifier =
       ValueNotifier<Map<QueuePosition, NotificationQueue>>({});
 
+  /// Tracks the active drag-and-drop source and hovered target queue so
+  /// overlapping stacks can dynamically adjust z-order and dimming.
+  final _interactionFocusNotifier =
+      ValueNotifier<({QueuePosition source, QueuePosition? target})?>(null);
+
+  ValueListenable<({QueuePosition source, QueuePosition? target})?>
+      get interactionFocus => _interactionFocusNotifier;
+
+  /// Updates the active interaction focus, bringing the hovered mounted queue
+  /// above siblings in z-order.
+  void setInteractionFocus({
+    required final QueuePosition source,
+    final QueuePosition? target,
+  }) {
+    if (_isDisposed) {
+      return;
+    }
+    final next = (source: source, target: target);
+    if (_interactionFocusNotifier.value == next) {
+      return;
+    }
+    _interactionFocusNotifier.value = next;
+    bringToFront(target ?? source);
+  }
+
+  /// Clears active drag interaction focus.
+  void clearInteractionFocus() {
+    if (!_isDisposed && _interactionFocusNotifier.value != null) {
+      _interactionFocusNotifier.value = null;
+    }
+  }
+
   /// Active snooze timers that need to be cancelled if the coordinator
   /// detaches or disposes.
   final _snoozeTimers = <Timer>{};
@@ -166,6 +198,7 @@ class QueueCoordinator implements NotificationScopeState {
     if (!_isDisposed) {
       try {
         _activeQueuesNotifier.value = {};
+        _interactionFocusNotifier.value = null;
       } on Object catch (e) {
         _logger.debug('Error resetting active queues notifier on detach: $e');
       }
@@ -188,6 +221,7 @@ class QueueCoordinator implements NotificationScopeState {
     _historyLogger.dispose();
     try {
       _activeQueuesNotifier.dispose();
+      _interactionFocusNotifier.dispose();
     } on Object catch (e) {
       _logger.debug('Error disposing active queues notifier: $e');
     }
@@ -261,6 +295,7 @@ class QueueCoordinator implements NotificationScopeState {
     if (isMounted) {
       // Widget is alive, delegate directly.
       key!.currentState!.enqueue(entry);
+      bringToFront(targetPosition);
     } else {
       // Widget is not alive. Schedule startup.
       _initializationQueue
@@ -497,35 +532,56 @@ class QueueCoordinator implements NotificationScopeState {
     }
   }
 
-  // ── Relocate ─────────────────────────────────────────────────────────────
+  // ── Relocate & Move ──────────────────────────────────────────────────────
 
-  /// Moves the notification with [id] to [newPosition].
+  /// Moves the notification with [id] to [newPosition], optionally inserting
+  /// at [targetIndex].
   @override
-  void relocateById(final String id, final QueuePosition newPosition) {
+  void relocateById(
+    final String id,
+    final QueuePosition newPosition, {
+    final int? targetIndex,
+  }) {
     final activeWidget = _resolveActiveWidget(id);
     if (activeWidget != null) {
-      relocateWidget(activeWidget, newPosition);
+      moveWidget(
+        activeWidget,
+        toPosition: newPosition,
+        targetIndex: targetIndex,
+      );
     }
   }
 
-  /// Moves the notification described by [notification] to [newPosition].
+  /// Moves the notification described by [notification] to [newPosition],
+  /// optionally inserting at [targetIndex].
   @override
   void relocate(
     final AppNotification notification,
-    final QueuePosition newPosition,
-  ) {
+    final QueuePosition newPosition, {
+    final int? targetIndex,
+  }) {
     final id = notification.id;
     if (id != null) {
-      relocateById(id, newPosition);
+      relocateById(id, newPosition, targetIndex: targetIndex);
     }
   }
 
-  /// Moves [notification] (by widget reference) to [newPosition].
+  /// Atomically moves [notification] to [toPosition], optionally inserting at
+  /// [targetIndex].
   ///
-  /// Used internally by gesture plugins.
-  NotificationWidget? relocateWidget(
-    final NotificationWidget notification,
-    final QueuePosition newPosition, {
+  /// If [fromPosition == toPosition]:
+  ///   Executes in-place reordering within the same queue if [targetIndex] is
+  ///   provided.
+  /// If [fromPosition != toPosition]:
+  ///   Synchronously transfers the card from the source queue into
+  ///   [toPosition] at [targetIndex] (or enqueues if null), and emits
+  ///   [NotificationRelocated].
+  /// If [permanent] is true, migrates remaining siblings to [toPosition].
+  NotificationWidget? moveWidget(
+    final NotificationWidget notification, {
+    required final QueuePosition toPosition,
+    final int? targetIndex,
+    final bool permanent = false,
     final bool migrateSiblings = true,
   }) {
     final notificationQueue = notification.queue;
@@ -544,20 +600,30 @@ class QueueCoordinator implements NotificationScopeState {
       }
     }
 
-    // Determine if relocation is permanent for this queue
-    bool isPermanent = false;
-    for (final behavior in [
-      notificationQueue.longPressDragBehavior,
-      notificationQueue.dragBehavior,
-    ]) {
-      if (behavior is Relocate && (behavior as Relocate).permanent) {
-        isPermanent = true;
-        break;
+    // ── Same-Queue Move (In-Place Reorder) ───────────────────────────────────
+    if (fromPosition == toPosition) {
+      if (targetIndex != null) {
+        reorderWidget(notification, targetIndex);
       }
-      if (behavior is ReorderAndRelocate &&
-          (behavior as ReorderAndRelocate).permanent) {
-        isPermanent = true;
-        break;
+      return notification;
+    }
+
+    // ── Cross-Queue Relocation ──────────────────────────────────────────────
+    bool isPermanent = permanent;
+    if (!isPermanent) {
+      for (final behavior in [
+        notificationQueue.longPressDragBehavior,
+        notificationQueue.dragBehavior,
+      ]) {
+        if (behavior is Relocate && (behavior as Relocate).permanent) {
+          isPermanent = true;
+          break;
+        }
+        if (behavior is ReorderAndRelocate &&
+            (behavior as ReorderAndRelocate).permanent) {
+          isPermanent = true;
+          break;
+        }
       }
     }
 
@@ -611,30 +677,52 @@ class QueueCoordinator implements NotificationScopeState {
 
     // 2. Add to target if removed
     if (removed) {
-      final targetQueue = newPosition.generateQueueFrom(notification.queue);
+      final targetQueue = toPosition.generateQueueFrom(notification.queue);
       final migrated = notification.copyToQueue(targetQueue);
       newNotification = migrated;
-      _positionById[notification.id] = newPosition;
+      _positionById[notification.id] = toPosition;
 
-      // Register dragged notification callback first
-      WidgetsBinding.instance.addPostFrameCallback((final _) {
-        queue(migrated);
-      });
+      final targetKey = _widgetStateKeys[toPosition];
+      final targetState = targetKey?.currentState;
+
+      if (targetState != null) {
+        if (targetIndex != null) {
+          targetState.insertAt(
+            migrated,
+            targetIndex: targetIndex,
+            isExternalDrop: true,
+          );
+        } else {
+          targetState.enqueue(
+            NotificationEntry(blueprint: migrated, queue: targetQueue),
+          );
+        }
+      } else {
+        _initializationQueue
+            .putIfAbsent(toPosition, () => [])
+            .add(NotificationEntry(blueprint: migrated, queue: targetQueue));
+        _mountQueue(targetQueue);
+      }
 
       final config = configuration;
       if (isPermanent && migrateSiblings) {
-        config.relocateQueuePosition(fromPosition, newPosition);
+        config.relocateQueuePosition(fromPosition, toPosition);
         _eventController.add(
           QueuePositionRelocated(
             from: fromPosition,
-            to: newPosition,
+            to: toPosition,
             permanent: true,
           ),
         );
 
         // Migrate all remaining active notifications in this queue
         for (final sibling in activeToMigrate) {
-          relocateWidget(sibling, newPosition, migrateSiblings: false);
+          moveWidget(
+            sibling,
+            toPosition: toPosition,
+            permanent: false,
+            migrateSiblings: false,
+          );
         }
 
         // Migrate all pending notifications to the new queue
@@ -645,7 +733,7 @@ class QueueCoordinator implements NotificationScopeState {
               NotificationRelocated(
                 notification: targetPending,
                 from: fromPosition,
-                to: newPosition,
+                to: toPosition,
               ),
             );
             queue(targetPending);
@@ -657,13 +745,30 @@ class QueueCoordinator implements NotificationScopeState {
         NotificationRelocated(
           notification: newNotification,
           from: fromPosition,
-          to: newPosition,
+          to: toPosition,
+          toIndex: targetIndex,
         ),
       );
     }
 
     return newNotification;
   }
+
+  /// Moves [notification] (by widget reference) to [newPosition].
+  ///
+  /// Used internally by gesture plugins.
+  NotificationWidget? relocateWidget(
+    final NotificationWidget notification,
+    final QueuePosition newPosition, {
+    final bool permanent = false,
+    final bool migrateSiblings = true,
+  }) =>
+      moveWidget(
+        notification,
+        toPosition: newPosition,
+        permanent: permanent,
+        migrateSiblings: migrateSiblings,
+      );
 
   // ── Reorder ──────────────────────────────────────────────────────────────
 
@@ -964,10 +1069,12 @@ class QueueCoordinator implements NotificationScopeState {
   }
 
   void bringToFront(final QueuePosition position) {
-    if (!_activeQueuesNotifier.value.containsKey(position)) {
+    final current = _activeQueuesNotifier.value;
+    if (!current.containsKey(position) ||
+        (current.isNotEmpty && current.keys.last == position)) {
       return;
     }
-    final currentMap = Map.of(_activeQueuesNotifier.value);
+    final currentMap = Map.of(current);
     final queue = currentMap.remove(position)!;
     currentMap[position] = queue;
     _activeQueuesNotifier.value = currentMap;
@@ -991,9 +1098,8 @@ class QueueCoordinator implements NotificationScopeState {
     }
     final title = notification.title;
     final message = notification.message;
-    final announcement = title != null && title.isNotEmpty
-        ? '$title: $message'
-        : message;
+    final announcement =
+        title != null && title.isNotEmpty ? '$title: $message' : message;
     final assertiveness = priority == NotificationPriority.critical
         ? Assertiveness.assertive
         : Assertiveness.polite;

@@ -19,4 +19,7 @@ import '../plugins/plugins.dart';
 import '../zones/zones.dart';
 
 part 'draggable_transitions.dart';
+part 'egress_feedback_overlay.dart';
+part 'egress_flight_overlay.dart';
+part 'egress_underlay.dart';
 part 'feedback_overlays.dart';

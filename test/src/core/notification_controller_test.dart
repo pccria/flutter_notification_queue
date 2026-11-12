@@ -80,13 +80,18 @@ class _FakeNotificationScopeState implements NotificationScopeState {
   @override
   void relocate(
     final AppNotification notification,
-    final QueuePosition newPosition,
-  ) {
+    final QueuePosition newPosition, {
+    final int? targetIndex,
+  }) {
     relocated.add((notification, newPosition));
   }
 
   @override
-  void relocateById(final String id, final QueuePosition newPosition) {
+  void relocateById(
+    final String id,
+    final QueuePosition newPosition, {
+    final int? targetIndex,
+  }) {
     relocatedIds.add((id, newPosition));
   }
 

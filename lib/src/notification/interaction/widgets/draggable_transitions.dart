@@ -20,14 +20,20 @@ class DraggableTransitionsState extends State<DraggableTransitions>
         CoordinatorResolver<DraggableTransitions>
     implements DragGestureContext {
   Size get _screenSize => Utils.screenSize(context);
+  EdgeInsets get _viewPadding => Utils.viewPaddingOf(View.maybeOf(context));
 
   List<SlotDropZone>? _activeReorderZones;
+  Map<QueuePosition, QueueGeometrySnapshot>? _dropSnapshots;
+  Map<QueuePosition, Rect>? _candidateDockRects;
 
   @override
   NotificationWidget get notification => widget.notification;
 
   @override
   Size get screenSize => _screenSize;
+
+  @override
+  EdgeInsets get viewPadding => _viewPadding;
 
   @override
   DragStartData? get dragStartData => _dragStartData;
@@ -38,6 +44,23 @@ class DraggableTransitionsState extends State<DraggableTransitions>
   @override
   set activeReorderZones(final List<SlotDropZone>? value) =>
       _activeReorderZones = value;
+
+  @override
+  Map<QueuePosition, QueueGeometrySnapshot>? get dropSnapshots =>
+      _dropSnapshots;
+
+  @override
+  set dropSnapshots(
+    final Map<QueuePosition, QueueGeometrySnapshot>? value,
+  ) =>
+      _dropSnapshots = value;
+
+  @override
+  Map<QueuePosition, Rect>? get candidateDockRects => _candidateDockRects;
+
+  @override
+  set candidateDockRects(final Map<QueuePosition, Rect>? value) =>
+      _candidateDockRects = value;
 
   @override
   int? get activeZoneIndex => _activeZoneIndex;
@@ -165,20 +188,27 @@ class DraggableTransitionsState extends State<DraggableTransitions>
     return queueState?.indexOf(widget.notification) ?? 0;
   }
 
-  Widget _buildCardChild() => AnimatedBuilder(
-        animation: _snapBackController,
-        builder: (final context, final child) {
-          final offset =
-              _fsm.value is GestureSettling && _snapBackAnimation != null
-                  ? _snapBackAnimation!.value
-                  : Offset.zero;
+  _FlightData? _flightData;
 
-          return Transform.translate(
-            offset: offset,
-            child: widget.notification,
-          );
-        },
-      );
+  Widget _buildCardChild() {
+    if (_flightData != null) {
+      return const SizedBox.shrink();
+    }
+    return AnimatedBuilder(
+      animation: _snapBackController,
+      builder: (final context, final child) {
+        final offset =
+            _fsm.value is GestureSettling && _snapBackAnimation != null
+                ? _snapBackAnimation!.value
+                : Offset.zero;
+
+        return Transform.translate(
+          offset: offset,
+          child: widget.notification,
+        );
+      },
+    );
+  }
 
   void _startSnapBack(
     final Offset releaseOffset,
@@ -282,17 +312,66 @@ class DraggableTransitionsState extends State<DraggableTransitions>
     }
 
     void onDragUpdate(final DragUpdateDetails details) {
-      _updateFsm(behavior, details);
+      if (behavior is! ReorderAndRelocate && behavior is! Relocate) {
+        _updateFsm(behavior, details);
+      }
       plugin.onDragUpdate(this, details);
     }
 
     void onDragEnd(final DraggableDetails details) {
+      final isDismiss = behavior is Dismiss;
+      final isEgressDismiss = isDismiss && behavior.zones == null;
+
+      final pointer = _fsm.pointerPosition ?? details.offset;
+      final startPos = _dragStartData?.pointerPosition ?? pointer;
+      final relativeOffset = pointer - startPos;
+      final cardSize = _dragStartData?.widgetSize ??
+          widget.notification.key.currentContext?.size ??
+          Size.zero;
+
+      final isCommit = isEgressDismiss &&
+          behavior.effectiveEgress.isCommit(
+            offset: relativeOffset,
+            velocity: details.velocity,
+            cardSize: cardSize,
+            position: widget.notification.queue.position,
+            distanceFraction: behavior.dismissThreshold,
+            escapeVelocity: behavior.escapeVelocity,
+          );
+
+      if (isCommit && !widget.notification.isPinned) {
+        HapticFeedback.mediumImpact();
+        widget.notification.key.currentState?.unfocus();
+
+        setState(() {
+          _flightData = _FlightData(
+            startOffset: details.offset,
+            velocity: details.velocity,
+            cardSize: cardSize,
+            behavior: behavior,
+          );
+        });
+        _flightPortalController.show();
+
+        // Smoothly collapse the queue slot in the queue stack
+        widget.notification.key.currentState?.animationController.reverse();
+
+        final position = widget.notification.queue.position;
+        coordinator
+            .getWidgetKey(position)
+            .currentState
+            ?.setActiveDragGroup(null);
+        widget.notification.key.currentState?.ditchDismissTimer();
+        _fsm.reset();
+        return;
+      }
+
+      plugin.onDragEnd(this, details);
       _fsm.settle(
         originOffset: details.offset,
         targetOffset: _dragStartData?.widgetPosition ?? Offset.zero,
         velocity: details.velocity,
       );
-      plugin.onDragEnd(this, details);
 
       final currentQueuePosition = widget.notification.queue.position;
       final isExiting =
@@ -357,7 +436,16 @@ class DraggableTransitionsState extends State<DraggableTransitions>
         ? ReorderPlaceholder(
             child: _buildDummyGhost(_dragStartData?.widgetSize ?? Size.zero),
           )
-        : const SizedBox.shrink();
+        : (behavior is Dismiss &&
+                behavior.zones == null &&
+                behavior.showUnderlay
+            ? EgressUnderlay(
+                gestureState: _fsm,
+                behavior: behavior,
+                position: widget.notification.queue.position,
+                cardSize: _dragStartData?.widgetSize,
+              )
+            : const SizedBox.shrink());
 
     if (isLongPress) {
       return LongPressDraggable<Object>(
@@ -401,8 +489,28 @@ class DraggableTransitionsState extends State<DraggableTransitions>
     QueuePosition? hoveredQueuePosition;
     bool? passedThreshold;
 
-    if (behavior is Dismiss ||
-        behavior is Snooze ||
+    if (behavior is Dismiss) {
+      final startPos = _dragStartData?.pointerPosition ?? pointer;
+      final relativeOffset = pointer - startPos;
+      final cardSize = _dragStartData?.widgetSize ??
+          widget.notification.key.currentContext?.size ??
+          Size.zero;
+      final egress = behavior.effectiveEgress;
+      progress = egress.calculateProgress(
+        offset: relativeOffset,
+        cardSize: cardSize,
+        position: position,
+        distanceFraction: behavior.dismissThreshold,
+      );
+      final isEgressCommit = progress >= 1.0;
+      final isLegacyHit = behavior.zones != null &&
+          _passedThreshold(
+            pointer,
+            behavior.thresholdInPixels,
+            _getZones(behavior, position),
+          );
+      passedThreshold = isEgressCommit || isLegacyHit;
+    } else if (behavior is Snooze ||
         behavior is Pin ||
         behavior is CustomAction) {
       final zones = _getZones(behavior, position);
@@ -451,7 +559,10 @@ class DraggableTransitionsState extends State<DraggableTransitions>
     final QueuePosition position,
   ) {
     if (behavior is Dismiss) {
-      return edgesFromDismissZone(behavior.zones, position);
+      return edgesFromDismissZone(
+        behavior.zones ?? DismissZone.sideEdges,
+        position,
+      );
     } else if (behavior is Snooze) {
       return edgesFromDismissZone(DismissZone.sideEdges, position);
     } else if (behavior is Pin) {
@@ -504,20 +615,53 @@ class DraggableTransitionsState extends State<DraggableTransitions>
 
   final OverlayPortalController _overlayPortalController =
       OverlayPortalController();
+  final OverlayPortalController _flightPortalController =
+      OverlayPortalController();
+
+  Widget _buildFlightOverlay(final BuildContext context) {
+    final data = _flightData;
+    if (data == null) {
+      return const SizedBox.shrink();
+    }
+    return EgressFlightOverlay(
+      startOffset: data.startOffset,
+      velocity: data.velocity,
+      cardSize: data.cardSize,
+      position: widget.notification.queue.position,
+      behavior: data.behavior,
+      onComplete: () {
+        if (mounted) {
+          _flightPortalController.hide();
+          setState(() {
+            _flightData = null;
+          });
+        }
+        coordinator.dismissWidget(
+          widget.notification,
+          reason: DismissReason.userSwipe,
+        );
+      },
+      child: widget.notification,
+    );
+  }
 
   @override
-  Widget build(final BuildContext context) => Listener(
-        onPointerDown: (final event) {
-          final renderBox = context.findRenderObject() as RenderBox?;
-          if (renderBox != null) {
-            _dragStartData = DragStartData(
-              widgetPosition: renderBox.localToGlobal(Offset.zero),
-              pointerPosition: event.position,
-              widgetSize: renderBox.size,
-            );
-          }
-        },
-        child: longPressWidget(),
+  Widget build(final BuildContext context) => OverlayPortal(
+        controller: _flightPortalController,
+        overlayChildBuilder: _buildFlightOverlay,
+        child: Listener(
+          onPointerDown: (final event) {
+            final renderBox = context.findRenderObject() as RenderBox?;
+            if (renderBox != null) {
+              _dragStartData = DragStartData(
+                widgetPosition: renderBox.localToGlobal(Offset.zero),
+                pointerPosition: event.position,
+                widgetSize: renderBox.size,
+              );
+            }
+          },
+          child: longPressWidget(),
+        ),
       );
 
   DragStartData? _dragStartData;
@@ -568,13 +712,31 @@ class DraggableTransitionsState extends State<DraggableTransitions>
           _buildDraggable(behavior: behavior, isLongPress: false),
       };
 
-  Widget _buildDummyGhost(final Size size) => Container(
-        width: size.width > 0 ? size.width : null,
-        height: size.height > 0 ? size.height : null,
-        decoration: BoxDecoration(
-          color: widget.notification.backgroundColor ??
-              const Color(0xFF2B2C50), // Fallback to a typical dark card color
-          borderRadius: BorderRadius.circular(14),
-        ),
-      );
+  Widget _buildDummyGhost(final Size size) {
+    final theme = widget.notification.key.currentState?.theme;
+    return Container(
+      width: size.width > 0 ? size.width : null,
+      height: size.height > 0 ? size.height : null,
+      decoration: BoxDecoration(
+        color: widget.notification.backgroundColor ??
+            theme?.backgroundColor ??
+            const Color(0xFF2B2C50),
+        borderRadius: theme?.borderRadius ?? BorderRadius.circular(14),
+      ),
+    );
+  }
+}
+
+class _FlightData {
+  const _FlightData({
+    required this.startOffset,
+    required this.velocity,
+    required this.cardSize,
+    required this.behavior,
+  });
+
+  final Offset startOffset;
+  final Velocity velocity;
+  final Size cardSize;
+  final Dismiss behavior;
 }

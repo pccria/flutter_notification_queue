@@ -15,8 +15,8 @@ mixin CoordinatorResolver<T extends StatefulWidget> on State<T> {
     final QueueCoordinator? explicitCoordinator,
     final String? callerName,
   }) {
-    final coordinator = explicitCoordinator ??
-        NotificationScope.maybeCoordinatorOf(context);
+    final coordinator =
+        explicitCoordinator ?? NotificationScope.maybeCoordinatorOf(context);
     if (coordinator == null) {
       final name = callerName ?? widget.runtimeType.toString();
       throw StateError(

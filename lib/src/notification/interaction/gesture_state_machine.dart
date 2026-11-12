@@ -7,6 +7,7 @@ import 'package:flutter/gestures.dart';
 import 'package:logd/logd.dart';
 
 import '../../enums/enums.dart';
+import 'zones/zones.dart';
 
 /// The reactive states of a notification drag-gesture transaction.
 @immutable
@@ -19,6 +20,7 @@ sealed class GestureState {
         GestureLifted(:final pointerPosition) => pointerPosition,
         GestureReordering(:final pointerPosition) => pointerPosition,
         GestureRelocating(:final pointerPosition) => pointerPosition,
+        GestureRearranging(:final pointerPosition) => pointerPosition,
         GestureDismissing(:final pointerPosition) => pointerPosition,
         GestureSettling() => null,
       };
@@ -120,6 +122,7 @@ final class GestureRelocating extends GestureState {
     required this.cardRect,
     required this.containerRect,
     required this.hoveredQueuePosition,
+    this.progress = 0.0,
   });
 
   @override
@@ -127,6 +130,7 @@ final class GestureRelocating extends GestureState {
   final Rect cardRect;
   final Rect containerRect;
   final QueuePosition? hoveredQueuePosition;
+  final double progress;
 
   @override
   bool operator ==(final Object other) =>
@@ -136,7 +140,8 @@ final class GestureRelocating extends GestureState {
           pointerPosition == other.pointerPosition &&
           cardRect == other.cardRect &&
           containerRect == other.containerRect &&
-          hoveredQueuePosition == other.hoveredQueuePosition;
+          hoveredQueuePosition == other.hoveredQueuePosition &&
+          (progress - other.progress).abs() < 0.001;
 
   @override
   int get hashCode => Object.hash(
@@ -149,7 +154,67 @@ final class GestureRelocating extends GestureState {
   @override
   String toString() => 'GestureRelocating(pointerPosition: $pointerPosition, '
       'cardRect: $cardRect, containerRect: $containerRect, '
-      'hoveredQueuePosition: $hoveredQueuePosition)';
+      'hoveredQueuePosition: $hoveredQueuePosition, '
+      'progress: ${progress.toStringAsFixed(2)})';
+}
+
+/// Actively rearranging the notification card across queues and slots.
+///
+/// Unifies in-queue slot reordering, cross-queue slot relocation, and coarse
+/// target hover into a single, strongly-typed state carrying a [DropTarget].
+final class GestureRearranging extends GestureState {
+  const GestureRearranging({
+    required this.pointerPosition,
+    required this.cardRect,
+    required this.containerRect,
+    required this.target,
+  });
+
+  @override
+  final Offset pointerPosition;
+  final Rect cardRect;
+  final Rect containerRect;
+  final DropTarget target;
+
+  /// Whether the active drop target is within the home queue.
+  bool isHome(final QueuePosition homePosition) =>
+      target is SlotTarget && (target as SlotTarget).position == homePosition;
+
+  /// Whether the active drop target is within a remote queue.
+  bool isRemote(final QueuePosition homePosition) =>
+      (target is SlotTarget &&
+          (target as SlotTarget).position != homePosition) ||
+      (target is QueueTarget &&
+          (target as QueueTarget).position != homePosition);
+
+  /// Target slot index if targeting a specific slot, or null if whole-queue/none.
+  int? get targetSlotIndex => switch (target) {
+        SlotTarget(:final gapIndex) => gapIndex,
+        _ => null,
+      };
+
+  @override
+  bool operator ==(final Object other) =>
+      identical(this, other) ||
+      other is GestureRearranging &&
+          runtimeType == other.runtimeType &&
+          pointerPosition == other.pointerPosition &&
+          cardRect == other.cardRect &&
+          containerRect == other.containerRect &&
+          target == other.target;
+
+  @override
+  int get hashCode => Object.hash(
+        pointerPosition,
+        cardRect,
+        containerRect,
+        target,
+      );
+
+  @override
+  String toString() => 'GestureRearranging(pointerPosition: $pointerPosition, '
+      'cardRect: $cardRect, containerRect: $containerRect, '
+      'target: $target)';
 }
 
 /// Actively dismissing or performing directional swipe action on the card.
@@ -158,12 +223,20 @@ final class GestureDismissing extends GestureState {
     required this.pointerPosition,
     required this.cardRect,
     required this.passedThreshold,
+    this.progress = 0.0,
+    this.relativeDisplacement = Offset.zero,
   });
 
   @override
   final Offset pointerPosition;
   final Rect cardRect;
   final bool passedThreshold;
+
+  /// Normalized dismissal progress where 1.0 represents the commit threshold.
+  final double progress;
+
+  /// Relative drag displacement vector from pointer start.
+  final Offset relativeDisplacement;
 
   @override
   bool operator ==(final Object other) =>
@@ -172,14 +245,24 @@ final class GestureDismissing extends GestureState {
           runtimeType == other.runtimeType &&
           pointerPosition == other.pointerPosition &&
           cardRect == other.cardRect &&
-          passedThreshold == other.passedThreshold;
+          passedThreshold == other.passedThreshold &&
+          (progress - other.progress).abs() < 0.001 &&
+          relativeDisplacement == other.relativeDisplacement;
 
   @override
-  int get hashCode => Object.hash(pointerPosition, cardRect, passedThreshold);
+  int get hashCode => Object.hash(
+        pointerPosition,
+        cardRect,
+        passedThreshold,
+        progress,
+        relativeDisplacement,
+      );
 
   @override
   String toString() => 'GestureDismissing(pointerPosition: $pointerPosition, '
-      'cardRect: $cardRect, passedThreshold: $passedThreshold)';
+      'cardRect: $cardRect, passedThreshold: $passedThreshold, '
+      'progress: ${progress.toStringAsFixed(2)}, '
+      'relativeDisplacement: $relativeDisplacement)';
 }
 
 /// The pointer has been released. The card is settling into its final
@@ -238,6 +321,10 @@ class GestureStateMachine extends ValueNotifier<GestureState> {
   /// Threshold in pixels to escape the source queue and enter Relocation.
   final double escapeThreshold;
 
+  /// The initial global offset coordinates of the pointer at lift-off.
+  Offset? _pointerStart;
+  Offset? get pointerStart => _pointerStart;
+
   /// The current tracking global offset coordinates of the pointer.
   Offset? _pointerPosition;
   Offset? get pointerPosition => _pointerPosition;
@@ -256,6 +343,7 @@ class GestureStateMachine extends ValueNotifier<GestureState> {
   void reset() {
     _cardRect = Rect.zero;
     _containerRect = Rect.zero;
+    _pointerStart = null;
     _pointerPosition = null;
     _activeBehavior = initialBehavior;
     value = const GestureIdle();
@@ -271,6 +359,7 @@ class GestureStateMachine extends ValueNotifier<GestureState> {
     _activeBehavior = behavior ?? initialBehavior;
     _cardRect = cardRect;
     _containerRect = containerRect;
+    _pointerStart = pointerStart;
     _pointerPosition = pointerStart;
     value = GestureLifted(
       pointerPosition: pointerStart,
@@ -292,6 +381,7 @@ class GestureStateMachine extends ValueNotifier<GestureState> {
     final double? progress,
     final QueuePosition? hoveredQueuePosition,
     final bool? passedThreshold,
+    final DropTarget? target,
   }) {
     if (value is GestureIdle || value is GestureSettling) {
       return;
@@ -308,10 +398,20 @@ class GestureStateMachine extends ValueNotifier<GestureState> {
       final currentPassedThreshold = passedThreshold ??
           (value is GestureDismissing &&
               (value as GestureDismissing).passedThreshold);
+      final currentProgress = progress ??
+          (value is GestureDismissing
+              ? (value as GestureDismissing).progress
+              : 0.0);
+      final currentDisplacement =
+          _pointerPosition != null && _pointerStart != null
+              ? _pointerPosition! - _pointerStart!
+              : Offset.zero;
       value = GestureDismissing(
         pointerPosition: globalPosition,
         cardRect: _cardRect,
         passedThreshold: currentPassedThreshold,
+        progress: currentProgress,
+        relativeDisplacement: currentDisplacement,
       );
     } else if (behavior is Relocate) {
       value = GestureRelocating(
@@ -319,6 +419,7 @@ class GestureStateMachine extends ValueNotifier<GestureState> {
         cardRect: _cardRect,
         containerRect: _containerRect,
         hoveredQueuePosition: hoveredQueuePosition,
+        progress: progress ?? (hoveredQueuePosition != null ? 1.0 : 0.0),
       );
     } else if (behavior is Reorder) {
       value = GestureReordering(
@@ -329,34 +430,44 @@ class GestureStateMachine extends ValueNotifier<GestureState> {
         progress: progress ?? 0.0,
       );
     } else if (behavior is ReorderAndRelocate) {
-      final activeEscape = identical(behavior, initialBehavior)
-          ? escapeThreshold
-          : behavior.escapeThresholdInPixels;
-      // Escape boundary logic: check if pointer has escaped container boundary
-      final isInside =
-          _containerRect.inflate(activeEscape).contains(globalPosition);
-
-      if (isInside) {
-        if (value is! GestureReordering) {
-          _logger.debug('FSM transitioned to Reordering (inside container)');
-        }
-        value = GestureReordering(
+      if (target != null) {
+        value = GestureRearranging(
           pointerPosition: globalPosition,
           cardRect: _cardRect,
           containerRect: _containerRect,
-          targetSlotIndex: targetSlotIndex,
-          progress: progress ?? 0.0,
+          target: target,
         );
       } else {
-        if (value is! GestureRelocating) {
-          _logger.debug('FSM transitioned to Relocating (escaped container)');
+        final activeEscape = identical(behavior, initialBehavior)
+            ? escapeThreshold
+            : behavior.escapeThresholdInPixels;
+        // Escape boundary logic: check if pointer has escaped container
+        // boundary
+        final isInside =
+            _containerRect.inflate(activeEscape).contains(globalPosition);
+
+        if (isInside) {
+          if (value is! GestureReordering) {
+            _logger.debug('FSM transitioned to Reordering (inside container)');
+          }
+          value = GestureReordering(
+            pointerPosition: globalPosition,
+            cardRect: _cardRect,
+            containerRect: _containerRect,
+            targetSlotIndex: targetSlotIndex,
+            progress: progress ?? 0.0,
+          );
+        } else {
+          if (value is! GestureRelocating) {
+            _logger.debug('FSM transitioned to Relocating (escaped container)');
+          }
+          value = GestureRelocating(
+            pointerPosition: globalPosition,
+            cardRect: _cardRect,
+            containerRect: _containerRect,
+            hoveredQueuePosition: hoveredQueuePosition,
+          );
         }
-        value = GestureRelocating(
-          pointerPosition: globalPosition,
-          cardRect: _cardRect,
-          containerRect: _containerRect,
-          hoveredQueuePosition: hoveredQueuePosition,
-        );
       }
     }
   }
@@ -388,6 +499,7 @@ class GestureStateMachine extends ValueNotifier<GestureState> {
         GestureLifted() => 1.02,
         GestureReordering() => maxScale,
         GestureRelocating() => maxScale,
+        GestureRearranging() => maxScale,
         GestureDismissing(:final passedThreshold) =>
           passedThreshold ? 0.85 : maxScale,
         GestureSettling() => 1.0,

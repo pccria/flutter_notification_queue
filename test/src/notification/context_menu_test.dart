@@ -637,8 +637,7 @@ void main() {
         // This triggers MouseRegion.onExit
         final gesture =
             await tester.createGesture(kind: PointerDeviceKind.mouse);
-        final cardCenter =
-            tester.getCenter(find.text('Mouse exit timer test'));
+        final cardCenter = tester.getCenter(find.text('Mouse exit timer test'));
         await gesture.addPointer(location: cardCenter);
         await gesture.moveTo(const Offset(10, 10));
         await tester.pump();

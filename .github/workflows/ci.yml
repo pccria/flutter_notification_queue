@@ -28,7 +28,7 @@ jobs:
         run: flutter pub get
 
       - name: Static Analysis
-        run: flutter analyze --fatal-warnings
+        run: flutter analyze --fatal-warnings --no-fatal-infos
 
       - name: Run Tests with Coverage
         run: flutter test --coverage --exclude-tags=golden

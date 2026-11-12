@@ -49,10 +49,31 @@ Declarative configuration objects for spatial layout and stacking behavior.
 |---|---|
 | `position` | `QueuePosition` target (`topRight`, `topLeft`, `bottomCenter`, etc.). |
 | `style` | Stacking visual chassis (`FilledQueueStyle`, `OutlinedQueueStyle`, `FlatQueueStyle`). |
-| `dragBehavior` | Gesture interaction strategy (`Dismiss`, `Reorder`, `Relocate`, `ReorderAndRelocate`). |
+| `dragBehavior` | Gesture interaction strategy (`Dismiss`, `Reorder`, `Relocate`, `ReorderAndRelocate`, `Disabled`). |
+| `longPressDragBehavior` | Secondary gesture strategy triggered on card long-press. |
 | `groupingBehavior` | Grouping deck rules (`QueueGroupingBehavior`, `GroupCountBehavior`). |
 | `permanentRelocation` | Permanent redirection target (`QueuePosition?`) rerouting all traffic. |
 | `maxStackSize` | Maximum concurrent notifications allowed in queue stack. |
+
+#### 4.1 Queue Drag Behaviors (`QueueNotificationBehavior`)
+
+| Behavior | Constructor Signature | Description |
+|---|---|---|
+| `Dismiss` | `Dismiss({egress, dismissThreshold, escapeVelocity, enableTilt, showUnderlay, dismissColor, dismissIcon})` | Directional swipe-to-dismiss with card-centric egress paths, dual thresholds, tilt, and underlays. |
+| `Reorder` | `Reorder({thresholdInPixels, springPhysics})` | In-queue live stack reordering with gravity-well hysteresis. |
+| `Relocate` | `Relocate.to(positions: Set<QueuePosition>, {permanent, springPhysics})` | Cross-queue spatial drag relocation with insertion previews. |
+| `ReorderAndRelocate` | `ReorderAndRelocate.to(positions: Set<QueuePosition>, {permanent, escapeThresholdInPixels, springPhysics})` | Hybrid interaction: reorders locally or relocates across queues when dragged past escape threshold. |
+| `Disabled` | `Disabled()` | Disables all pointer/drag interaction gestures. |
+
+#### 4.2 Dismiss Egress Strategies (`DismissEgress`)
+
+| Strategy | Signature | Behavior |
+|---|---|---|
+| `horizontal` | `DismissEgress.horizontal({allowLeft = true, allowRight = true})` | Horizontal exit vector (left or right). Default egress policy. |
+| `natural` | `DismissEgress.natural()` | Screen-outward exit direction determined by queue anchor position. |
+| `outward` | `DismissEgress.outward()` | Outward exit toward closest screen boundary (horizontal or vertical). |
+| `cross` | `DismissEgress.cross()` | Inward exit across screen toward the viewport center. |
+| `any` | `DismissEgress.any()` | Omni-directional 360° exit in any gesture vector. |
 
 ### 5. NotificationChannel
 Semantic category definitions for notifications.
