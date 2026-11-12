@@ -11,10 +11,6 @@ class RelocateGesturePlugin extends NotificationGesturePlugin {
     final position = ctx.notification.queue.position;
     ctx.notification.effectiveCoordinator.bringToFront(position);
     ctx.notification.key.currentState?.ditchDismissTimer();
-    ctx.dragOffsetPairNotifier.value = OffsetPair(
-      local: Offset.zero,
-      global: ctx.dragStartData?.pointerPosition ?? Offset.zero,
-    );
     ctx.overlayPortalController.show();
   }
 
@@ -23,10 +19,7 @@ class RelocateGesturePlugin extends NotificationGesturePlugin {
     final DragGestureContext ctx,
     final DragUpdateDetails details,
   ) {
-    ctx.dragOffsetPairNotifier.value = OffsetPair(
-      local: details.delta,
-      global: details.globalPosition,
-    );
+    // Relocation tracking handled by host FSM
   }
 
   @override
@@ -34,29 +27,26 @@ class RelocateGesturePlugin extends NotificationGesturePlugin {
     final DragGestureContext ctx,
     final DraggableDetails details,
   ) {
-    final pointer = ctx.dragOffsetPairNotifier.value?.global;
+    final pointer = ctx.fsm.pointerPosition ?? details.offset;
     final position = ctx.notification.queue.position;
     bool relocated = false;
-    if (pointer != null) {
-      final zones = ctx.getZones(behavior, position);
-      final hitZone = zones
-          .cast<PositionDropZone>()
-          .where(
-            (final z) => z.isHit(
-              pointer,
-              ctx.screenSize,
-              behavior.thresholdInPixels.toDouble(),
-            ),
-          )
-          .firstOrNull;
-      if (hitZone != null) {
-        HapticFeedback.mediumImpact();
-        ctx.notification.effectiveCoordinator
-            .relocateWidget(ctx.notification, hitZone.position);
-        relocated = true;
-      }
+    final zones = ctx.getZones(behavior, position);
+    final hitZone = zones
+        .cast<PositionDropZone>()
+        .where(
+          (final z) => z.isHit(
+            pointer,
+            ctx.screenSize,
+            behavior.thresholdInPixels.toDouble(),
+          ),
+        )
+        .firstOrNull;
+    if (hitZone != null) {
+      HapticFeedback.mediumImpact();
+      ctx.notification.effectiveCoordinator
+          .relocateWidget(ctx.notification, hitZone.position);
+      relocated = true;
     }
-    ctx.dragOffsetPairNotifier.value = null;
     if (!relocated) {
       ctx.notification.key.currentState?.initDismissTimer();
     }
@@ -64,18 +54,15 @@ class RelocateGesturePlugin extends NotificationGesturePlugin {
   }
 
   @override
-  Widget buildFeedback(
-    final DragGestureContext ctx,
-    final OffsetPair? offsetPair,
-  ) {
-    final pointer = offsetPair?.global;
+  Widget buildFeedback(final DragGestureContext ctx) {
+    final pointer = ctx.fsm.pointerPosition;
     final position = ctx.notification.queue.position;
     final zones = ctx.getZones(behavior, position);
-    final passedThreshold = ctx.passedThreshold(
-      pointer,
-      behavior.thresholdInPixels,
-      zones,
-    );
+    final passedThreshold = switch (ctx.fsm.value) {
+      GestureRelocating(:final hoveredQueuePosition) =>
+        hoveredQueuePosition != null,
+      _ => ctx.passedThreshold(pointer, behavior.thresholdInPixels, zones),
+    };
 
     return OverlayPortal(
       controller: ctx.overlayPortalController,
@@ -84,7 +71,7 @@ class RelocateGesturePlugin extends NotificationGesturePlugin {
           targets: behavior.positions,
           currentPosition: position,
           screenSize: constraints.biggest,
-          pointerPositionNotifier: ctx.dragOffsetPairNotifier,
+          gestureState: ctx.gestureState,
           threshold: behavior.thresholdInPixels.toDouble(),
         ),
       ),

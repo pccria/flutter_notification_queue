@@ -21,10 +21,6 @@ class ReorderGesturePlugin extends NotificationGesturePlugin {
     ctx
       ..activeZoneIndex = null
       ..activeReorderZones = zonesFromSlots(itemCount, currentIndex)
-      ..dragOffsetPairNotifier.value = OffsetPair(
-        local: Offset.zero,
-        global: ctx.dragStartData?.pointerPosition ?? Offset.zero,
-      )
       ..overlayPortalController.show();
   }
 
@@ -33,19 +29,11 @@ class ReorderGesturePlugin extends NotificationGesturePlugin {
     final DragGestureContext ctx,
     final DragUpdateDetails details,
   ) {
-    ctx.dragOffsetPairNotifier.value = OffsetPair(
-      local: details.delta,
-      global: details.globalPosition,
-    );
-    final pointer = details.globalPosition;
-    final zones = ctx.activeReorderZones ?? [];
-    final nearestIndex = ctx.nearestZoneIndexWithHysteresis(pointer, zones);
-    if (nearestIndex != null) {
-      final targetIdx = zones[nearestIndex].targetIndex;
+    if (ctx.fsm.value case GestureReordering(:final targetSlotIndex?)) {
       final position = ctx.notification.queue.position;
       final queueKey =
           ctx.notification.effectiveCoordinator.getWidgetKey(position);
-      queueKey.currentState?.updateDragTarget(targetIdx);
+      queueKey.currentState?.updateDragTarget(targetSlotIndex);
     }
   }
 
@@ -60,39 +48,33 @@ class ReorderGesturePlugin extends NotificationGesturePlugin {
     final queueState = queueKey.currentState;
     queueState?.endDragReorder();
 
-    final pointer = ctx.dragOffsetPairNotifier.value?.global;
-    if (pointer != null) {
-      final zones = ctx.activeReorderZones ?? [];
-      final passedThreshold = ctx.passedThreshold(
-        pointer,
-        behavior.thresholdInPixels,
-        zones,
-      );
-      if (passedThreshold) {
-        final nearestZoneIdx =
-            ctx.nearestZoneIndexWithHysteresis(pointer, zones);
-        if (nearestZoneIdx != null) {
-          HapticFeedback.mediumImpact();
-          ctx.notification.effectiveCoordinator.reorderWidget(
-            ctx.notification,
-            zones[nearestZoneIdx].targetIndex,
-          );
-        }
+    final pointer = ctx.fsm.pointerPosition ?? details.offset;
+    final zones = ctx.activeReorderZones ?? [];
+    final passedThreshold = ctx.passedThreshold(
+      pointer,
+      behavior.thresholdInPixels,
+      zones,
+    );
+    if (passedThreshold) {
+      final nearestZoneIdx = ctx.nearestZoneIndexWithHysteresis(pointer, zones);
+      if (nearestZoneIdx != null) {
+        HapticFeedback.mediumImpact();
+        ctx.notification.effectiveCoordinator.reorderWidget(
+          ctx.notification,
+          zones[nearestZoneIdx].targetIndex,
+        );
       }
     }
-    ctx.activeReorderZones = null;
-    ctx.dragOffsetPairNotifier.value = null;
-    ctx.activeZoneIndex = null;
+    ctx
+      ..activeReorderZones = null
+      ..activeZoneIndex = null;
     ctx.notification.key.currentState?.initDismissTimer();
     ctx.overlayPortalController.hide();
   }
 
   @override
-  Widget buildFeedback(
-    final DragGestureContext ctx,
-    final OffsetPair? offsetPair,
-  ) {
-    final pointer = offsetPair?.global;
+  Widget buildFeedback(final DragGestureContext ctx) {
+    final pointer = ctx.fsm.pointerPosition;
     final position = ctx.notification.queue.position;
     final queueKey =
         ctx.notification.effectiveCoordinator.getWidgetKey(position);
@@ -105,8 +87,14 @@ class ReorderGesturePlugin extends NotificationGesturePlugin {
       behavior.thresholdInPixels,
       zones,
     );
-    final nearestProgress = ctx.nearestZoneProgress(pointer, zones);
-    final nearestIndex = ctx.nearestZoneIndexWithHysteresis(pointer, zones);
+    final (nearestProgress, int? targetSlot) = switch (ctx.fsm.value) {
+      GestureReordering(:final progress, :final targetSlotIndex) => (
+          progress,
+          targetSlotIndex,
+        ),
+      _ => (0.0, null),
+    };
+    final nearestIndex = _resolveSlotIndex(zones, targetSlot);
 
     return OverlayPortal(
       controller: ctx.overlayPortalController,
@@ -117,7 +105,7 @@ class ReorderGesturePlugin extends NotificationGesturePlugin {
           itemKeys: queueState?.itemGlobalKeys ?? [],
           passedThreshold: passedThreshold,
           nearestIndex: nearestIndex,
-          pointerPositionNotifier: ctx.dragOffsetPairNotifier,
+          gestureState: ctx.gestureState,
           ghostChild: ctx.buildDummyGhost(
             ctx.dragStartData?.widgetSize ?? Size.zero,
           ),
@@ -128,6 +116,7 @@ class ReorderGesturePlugin extends NotificationGesturePlugin {
         nearestProgress: nearestProgress,
         widgetSize: ctx.dragStartData?.widgetSize ?? Size.zero,
         springPhysics: behavior.springPhysics,
+        fsm: ctx.fsm,
         child: ctx.notification,
       ),
     );

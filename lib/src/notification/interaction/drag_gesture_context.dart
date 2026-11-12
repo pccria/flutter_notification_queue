@@ -1,11 +1,12 @@
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../enums/enums.dart';
-import '../../models/offset_pair.dart';
 import '../notification.dart' show NotificationWidget;
 import 'drag_start_data.dart';
+import 'gesture_state_machine.dart';
 import 'zones/zones.dart';
 
 export 'drag_start_data.dart';
@@ -36,8 +37,11 @@ abstract interface class DragGestureContext {
   /// Controller for managing active overlay portal visibility.
   OverlayPortalController get overlayPortalController;
 
-  /// Notifier delivering offset updates during drag.
-  ValueNotifier<OffsetPair?> get dragOffsetPairNotifier;
+  /// The gesture finite state machine governing this interaction.
+  GestureStateMachine get fsm;
+
+  /// Live gesture state listenable.
+  ValueListenable<GestureState> get gestureState;
 
   /// Derives drop zones for the given behavior and queue position.
   List<DropZone> getZones(

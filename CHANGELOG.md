@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.6.1] - 2026-11-12
+
+### Interaction Engine & Gesture FSM Maturation
+- **Sealed Gesture State Machine (`FSM-01`)**:
+  - Replaced the anemic `enum GestureState` with a modern Dart 3 sealed class
+    hierarchy (`GestureIdle`, `GestureLifted`, `GestureReordering`,
+    `GestureRelocating`, `GestureDismissing`, `GestureSettling`), encapsulating
+    strictly non-nullable, state-specific coordinates and metadata.
+  - Eliminated "split-brain" dual-state architecture: elevated
+    `GestureStateMachine` to the single source of truth for all drag gestures.
+  - Folded `_isSnapBackAnimating` directly into `GestureSettling`.
+  - Unified spatial geometry: container boundary escape calculations for
+    `ReorderAndRelocate` are now evaluated exclusively within the FSM using the
+    queue container `RenderBox` (`containerRect`), removing redundant rect math
+    from `ReorderRelocateGesturePlugin`.
+  - Wired `fsm.getActiveScale()` to visual feedback transformations in
+    `feedback_overlays.dart` (`LiftedFeedback` and `DismissFeedbackOverlay`) and
+    `intent_targets.dart` (`IntentFeedbackOverlay`), driving scale transitions
+    directly through reactive FSM state changes.
+  - Eliminated `_dragOffsetPairNotifier` from `DraggableTransitionsState`,
+    `DragGestureContext`, gesture plugins, and target overlays (`DismissalTargets`,
+    `IntentTargets`, `RelocationTargets`, `ReorderTargets`) in favor of
+    observing `fsm` / `gestureState` directly.
+- **Bug Fixes & Motion Polish**:
+  - Fixed reorder animation deadlock in `QueueWidgetState.updateDragTarget` where
+    dragging a notification out of the queue container and returning it back to the
+    stack failed to resume live card shifting due to origin loss.
+  - Stabilized `LiftedFeedback` pipeline across `ReorderAndRelocate` boundary crossings,
+    maintaining continuous card elevation without unmounting and re-springing.
+  - Initialized `AnimationController` scale targets to `1.0` in `LiftedFeedback` and
+    `DismissFeedbackOverlay`, preventing sudden scale pops to `0.5` upon remounting.
+
 ## [0.6.0] - 2026-11-08
 
 ### Architecture & Sub-Library Decomposition (Track 3 Phase 2)

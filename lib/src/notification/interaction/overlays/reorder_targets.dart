@@ -7,8 +7,7 @@ part of 'overlays.dart';
 /// Full-screen overlay rendered during a reorder drag.
 ///
 /// Owns the three-stage slot indicator logic and the anchor computation
-/// lifecycle. Rebuilds whenever the pointer moves via
-/// [pointerPositionNotifier].
+/// lifecycle. Rebuilds whenever [gestureState] changes.
 class ReorderTargets extends StatefulWidget {
   const ReorderTargets({
     required this.draggedIndex,
@@ -16,7 +15,7 @@ class ReorderTargets extends StatefulWidget {
     required this.itemKeys,
     required this.passedThreshold,
     required this.nearestIndex,
-    required this.pointerPositionNotifier,
+    required this.gestureState,
     required this.ghostChild,
     super.key,
   });
@@ -37,8 +36,9 @@ class ReorderTargets extends StatefulWidget {
   /// The unified nearest drop zone index.
   final int? nearestIndex;
 
-  /// Tracks the pointer's global position and local delta during drag events.
-  final ValueNotifier<OffsetPair?> pointerPositionNotifier;
+  /// Tracks the active gesture state and pointer coordinates during drag
+  /// events.
+  final ValueListenable<GestureState> gestureState;
 
   /// Ghost notification widget shown inside the committed indicator.
   final Widget ghostChild;
@@ -83,10 +83,10 @@ class _ReorderTargetsState extends State<ReorderTargets> {
       }
     });
 
-    return ValueListenableBuilder(
-      valueListenable: widget.pointerPositionNotifier,
-      builder: (final context, final offsetPair, final child) {
-        final pointer = offsetPair?.global;
+    return ValueListenableBuilder<GestureState>(
+      valueListenable: widget.gestureState,
+      builder: (final context, final state, final child) {
+        final pointer = state.pointerPosition;
 
         return Stack(
           fit: StackFit.expand,

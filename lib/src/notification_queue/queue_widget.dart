@@ -132,8 +132,7 @@ class QueueWidgetState extends State<QueueWidget>
     final currentIndex =
         visible.indexWhere((final i) => i.widget.id == currentId);
     if (currentIndex != -1) {
-      final prevIndex =
-          (currentIndex - 1 + visible.length) % visible.length;
+      final prevIndex = (currentIndex - 1 + visible.length) % visible.length;
       visible[prevIndex].widget.key.currentState?.requestFocus();
     }
   }
@@ -193,14 +192,24 @@ class QueueWidgetState extends State<QueueWidget>
   final ValueNotifier<({int origin, int target})?> _reorderDragState =
       ValueNotifier(null);
 
+  @visibleForTesting
+  ValueListenable<({int origin, int target})?> get reorderDragState =>
+      _reorderDragState;
+  int? _activeReorderOrigin;
+
   void startDragReorder(final String itemId, final int originIndex) {
+    _activeReorderOrigin = originIndex;
     _reorderDragState.value = (origin: originIndex, target: originIndex);
   }
 
   void updateDragTarget(final int targetIndex) {
+    final origin = _activeReorderOrigin;
+    if (origin == null) {
+      return;
+    }
     final current = _reorderDragState.value;
-    if (current != null && current.target != targetIndex) {
-      _reorderDragState.value = (origin: current.origin, target: targetIndex);
+    if (current == null || current.target != targetIndex) {
+      _reorderDragState.value = (origin: origin, target: targetIndex);
     }
   }
 
@@ -209,6 +218,7 @@ class QueueWidgetState extends State<QueueWidget>
   }
 
   void endDragReorder() {
+    _activeReorderOrigin = null;
     _reorderDragState.value = null;
   }
 

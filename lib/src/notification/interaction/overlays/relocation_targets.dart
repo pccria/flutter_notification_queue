@@ -3,7 +3,7 @@ part of 'overlays.dart';
 /// A purely visual widget that renders the relocation drop-zone buttons.
 ///
 /// Drop resolution is handled by `DraggableTransitionsState` in `onDragEnd`.
-/// Hover state is driven by [pointerPositionNotifier] proximity rather than
+/// Hover state is driven by [gestureState] proximity rather than
 /// [DragTarget] candidateData, keeping the visual system independent of the
 /// Draggable type.
 class RelocationTargets extends StatelessWidget {
@@ -11,7 +11,7 @@ class RelocationTargets extends StatelessWidget {
     required this.currentPosition,
     required this.targets,
     required this.screenSize,
-    required this.pointerPositionNotifier,
+    required this.gestureState,
     required this.threshold,
     super.key,
   });
@@ -25,18 +25,18 @@ class RelocationTargets extends StatelessWidget {
   /// The dimensions of the screen.
   final Size screenSize;
 
-  /// Live pointer position for computing per-target proximity hover.
-  final ValueNotifier<OffsetPair?> pointerPositionNotifier;
+  /// Live gesture state listenable for computing per-target proximity hover.
+  final ValueListenable<GestureState> gestureState;
 
   /// The engagement threshold in pixels (same as behavior.thresholdInPixels).
   final double threshold;
 
   @override
   Widget build(final BuildContext context) =>
-      ValueListenableBuilder<OffsetPair?>(
-        valueListenable: pointerPositionNotifier,
-        builder: (final context, final offsetPair, final child) {
-          final pointer = offsetPair?.global;
+      ValueListenableBuilder<GestureState>(
+        valueListenable: gestureState,
+        builder: (final context, final state, final child) {
+          final pointer = state.pointerPosition;
           return Stack(
             fit: StackFit.passthrough,
             children: [

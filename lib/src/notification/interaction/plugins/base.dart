@@ -22,8 +22,16 @@ abstract class NotificationGesturePlugin {
 
   /// Generates the visual feedback and reactive overlays wrapping the dragged
   /// card.
-  Widget buildFeedback(
-    final DragGestureContext ctx,
-    final OffsetPair? offsetPair,
-  );
+  Widget buildFeedback(final DragGestureContext ctx);
+}
+
+int? _resolveSlotIndex(
+  final List<SlotDropZone> zones,
+  final int? targetSlot,
+) {
+  if (targetSlot == null) {
+    return null;
+  }
+  final index = zones.indexWhere((final z) => z.targetIndex == targetSlot);
+  return index >= 0 ? index : null;
 }

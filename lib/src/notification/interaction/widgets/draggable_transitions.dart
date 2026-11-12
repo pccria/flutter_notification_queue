@@ -21,9 +21,6 @@ class DraggableTransitionsState extends State<DraggableTransitions>
     implements DragGestureContext {
   Size get _screenSize => Utils.screenSize(context);
 
-  final ValueNotifier<OffsetPair?> _dragOffsetPairNotifier =
-      ValueNotifier(null);
-
   List<SlotDropZone>? _activeReorderZones;
 
   @override
@@ -53,8 +50,10 @@ class DraggableTransitionsState extends State<DraggableTransitions>
       _overlayPortalController;
 
   @override
-  ValueNotifier<OffsetPair?> get dragOffsetPairNotifier =>
-      _dragOffsetPairNotifier;
+  GestureStateMachine get fsm => _fsm;
+
+  @override
+  ValueListenable<GestureState> get gestureState => _fsm;
 
   @override
   List<DropZone> getZones(
@@ -92,7 +91,6 @@ class DraggableTransitionsState extends State<DraggableTransitions>
 
   late final AnimationController _snapBackController;
   Animation<Offset>? _snapBackAnimation;
-  bool _isSnapBackAnimating = false;
 
   static final _logger = Logger.get('fnq.Notification.Draggables');
 
@@ -147,7 +145,6 @@ class DraggableTransitionsState extends State<DraggableTransitions>
       ])
       ..sink();
 
-    _dragOffsetPairNotifier.dispose();
     _fsm.dispose();
     if (_snapBackController.isAnimating) {
       _snapBackController.stop();
@@ -171,9 +168,10 @@ class DraggableTransitionsState extends State<DraggableTransitions>
   Widget _buildCardChild() => AnimatedBuilder(
         animation: _snapBackController,
         builder: (final context, final child) {
-          final offset = _isSnapBackAnimating && _snapBackAnimation != null
-              ? _snapBackAnimation!.value
-              : Offset.zero;
+          final offset =
+              _fsm.value is GestureSettling && _snapBackAnimation != null
+                  ? _snapBackAnimation!.value
+                  : Offset.zero;
 
           return Transform.translate(
             offset: offset,
@@ -189,9 +187,11 @@ class DraggableTransitionsState extends State<DraggableTransitions>
     final originalPosition = _dragStartData?.widgetPosition ?? Offset.zero;
     final finalRelativeOffset = releaseOffset - originalPosition;
 
-    setState(() {
-      _isSnapBackAnimating = true;
-    });
+    _fsm.settle(
+      originOffset: releaseOffset,
+      targetOffset: originalPosition,
+      velocity: releaseVelocity,
+    );
 
     final dragBehavior = widget.notification.dragBehavior ??
         widget.notification.queue.dragBehavior;
@@ -224,10 +224,7 @@ class DraggableTransitionsState extends State<DraggableTransitions>
 
     _snapBackController.animateWith(simulation).then((final _) {
       if (mounted) {
-        setState(() {
-          _isSnapBackAnimating = false;
-          _fsm.reset();
-        });
+        _fsm.reset();
         widget.notification.key.currentState?.resumeDismissTimer();
       }
     });
@@ -242,29 +239,39 @@ class DraggableTransitionsState extends State<DraggableTransitions>
     int? originalIndex;
 
     void onDragStarted() {
-      if (_isSnapBackAnimating) {
+      if (_fsm.value is GestureSettling) {
         _snapBackController.stop();
-        _isSnapBackAnimating = false;
+        _fsm.reset();
       }
 
       originalIndex = stateIndexOfThisItem();
 
       final renderBox = context.findRenderObject() as RenderBox?;
-      final rect = renderBox != null
+      final cardRect = renderBox != null
           ? (renderBox.localToGlobal(Offset.zero) & renderBox.size)
           : Rect.zero;
 
+      final position = widget.notification.queue.position;
+      final queueKey = coordinator.getWidgetKey(position);
+      final queueState = queueKey.currentState;
+      final listBox = queueState?.listRenderBox;
+      final containerRect = listBox != null
+          ? (listBox.localToGlobal(Offset.zero) & listBox.size)
+          : cardRect;
+
+      final pointerStart = _dragStartData?.pointerPosition ?? Offset.zero;
+
       _fsm.lift(
-        pointerStart: _dragStartData?.pointerPosition ?? Offset.zero,
-        widgetRect: rect,
+        pointerStart: pointerStart,
+        cardRect: cardRect,
+        containerRect: containerRect,
+        behavior: behavior,
       );
 
       if (widget.hapticFeedbackOnStart) {
         HapticFeedback.lightImpact();
       }
 
-      final position = widget.notification.queue.position;
-      final queueKey = coordinator.getWidgetKey(position);
       queueKey.currentState?.setActiveDragGroup(
         widget.notification.resolvedGroupKey,
       );
@@ -275,15 +282,16 @@ class DraggableTransitionsState extends State<DraggableTransitions>
     }
 
     void onDragUpdate(final DragUpdateDetails details) {
-      _fsm.update(
-        delta: details.delta,
-        globalPosition: details.globalPosition,
-      );
+      _updateFsm(behavior, details);
       plugin.onDragUpdate(this, details);
     }
 
     void onDragEnd(final DraggableDetails details) {
-      _fsm.settle();
+      _fsm.settle(
+        originOffset: details.offset,
+        targetOffset: _dragStartData?.widgetPosition ?? Offset.zero,
+        velocity: details.velocity,
+      );
       plugin.onDragEnd(this, details);
 
       final currentQueuePosition = widget.notification.queue.position;
@@ -318,7 +326,7 @@ class DraggableTransitionsState extends State<DraggableTransitions>
         final position = widget.notification.queue.position;
         final queueKey = coordinator.getWidgetKey(position);
         queueKey.currentState?.setActiveDragGroup(null);
-        if (!_isSnapBackAnimating) {
+        if (_fsm.value is! GestureSettling) {
           widget.notification.key.currentState?.resumeDismissTimer();
         }
       } else {
@@ -327,46 +335,13 @@ class DraggableTransitionsState extends State<DraggableTransitions>
       }
     }
 
-    final feedback = ValueListenableBuilder(
-      valueListenable: _dragOffsetPairNotifier,
-      builder: (final context, final offsetPair, final child) =>
-          plugin.buildFeedback(this, offsetPair),
+    final feedback = ValueListenableBuilder<GestureState>(
+      valueListenable: _fsm,
+      builder: (final context, final state, final child) =>
+          plugin.buildFeedback(this),
     );
 
     final position = widget.notification.queue.position;
-
-    if (isLongPress) {
-      final Object data = switch (behavior) {
-        Relocate() => position,
-        Dismiss() => position.alignment,
-        Reorder() => stateIndexOfThisItem(),
-        ReorderAndRelocate() => stateIndexOfThisItem(),
-        Snooze() => position.alignment,
-        Pin() => position.alignment,
-        CustomAction() => position.alignment,
-        _ => position,
-      };
-
-      return LongPressDraggable<Object>(
-        data: data,
-        axis: null,
-        onDragStarted: onDragStarted,
-        onDragUpdate: onDragUpdate,
-        onDragEnd: onDragEnd,
-        maxSimultaneousDrags: 1,
-        hapticFeedbackOnStart: widget.hapticFeedbackOnStart,
-        hitTestBehavior: HitTestBehavior.deferToChild,
-        childWhenDragging: behavior is Reorder || behavior is ReorderAndRelocate
-            ? ReorderPlaceholder(
-                child:
-                    _buildDummyGhost(_dragStartData?.widgetSize ?? Size.zero),
-              )
-            : const SizedBox.shrink(),
-        feedback: feedback,
-        child: draggable(),
-      );
-    }
-
     final Object data = switch (behavior) {
       Relocate() => position,
       Dismiss() => position.alignment,
@@ -377,6 +352,28 @@ class DraggableTransitionsState extends State<DraggableTransitions>
       CustomAction() => position.alignment,
       _ => position,
     };
+    final childWhenDragging = behavior is Reorder ||
+            behavior is ReorderAndRelocate
+        ? ReorderPlaceholder(
+            child: _buildDummyGhost(_dragStartData?.widgetSize ?? Size.zero),
+          )
+        : const SizedBox.shrink();
+
+    if (isLongPress) {
+      return LongPressDraggable<Object>(
+        data: data,
+        axis: null,
+        onDragStarted: onDragStarted,
+        onDragUpdate: onDragUpdate,
+        onDragEnd: onDragEnd,
+        maxSimultaneousDrags: 1,
+        hapticFeedbackOnStart: widget.hapticFeedbackOnStart,
+        hitTestBehavior: HitTestBehavior.deferToChild,
+        childWhenDragging: childWhenDragging,
+        feedback: feedback,
+        child: draggable(),
+      );
+    }
 
     return Draggable<Object>(
       data: data,
@@ -386,13 +383,65 @@ class DraggableTransitionsState extends State<DraggableTransitions>
       onDragEnd: onDragEnd,
       maxSimultaneousDrags: 1,
       hitTestBehavior: HitTestBehavior.deferToChild,
-      childWhenDragging: behavior is Reorder || behavior is ReorderAndRelocate
-          ? ReorderPlaceholder(
-              child: _buildDummyGhost(_dragStartData?.widgetSize ?? Size.zero),
-            )
-          : const SizedBox.shrink(),
+      childWhenDragging: childWhenDragging,
       feedback: feedback,
       child: _buildCardChild(),
+    );
+  }
+
+  void _updateFsm(
+    final QueueNotificationBehavior behavior,
+    final DragUpdateDetails details,
+  ) {
+    final position = widget.notification.queue.position;
+    final pointer = details.globalPosition;
+
+    int? targetSlotIndex;
+    double? progress;
+    QueuePosition? hoveredQueuePosition;
+    bool? passedThreshold;
+
+    if (behavior is Dismiss ||
+        behavior is Snooze ||
+        behavior is Pin ||
+        behavior is CustomAction) {
+      final zones = _getZones(behavior, position);
+      passedThreshold = _passedThreshold(
+        pointer,
+        behavior.thresholdInPixels,
+        zones,
+      );
+    } else if (behavior is Relocate || behavior is ReorderAndRelocate) {
+      final relocateZones =
+          _getZones(behavior, position).cast<PositionDropZone>();
+      hoveredQueuePosition = relocateZones
+          .where(
+            (final z) => z.isHit(
+              pointer,
+              _screenSize,
+              behavior.thresholdInPixels.toDouble(),
+            ),
+          )
+          .firstOrNull
+          ?.position;
+    }
+
+    if (behavior is Reorder || behavior is ReorderAndRelocate) {
+      final reorderZones = _activeReorderZones ?? [];
+      final nearestIndex =
+          _nearestZoneIndexWithHysteresis(pointer, reorderZones);
+      targetSlotIndex =
+          nearestIndex != null ? reorderZones[nearestIndex].targetIndex : null;
+      progress = _nearestZoneProgress(pointer, reorderZones);
+    }
+
+    _fsm.update(
+      delta: details.delta,
+      globalPosition: pointer,
+      targetSlotIndex: targetSlotIndex,
+      progress: progress,
+      hoveredQueuePosition: hoveredQueuePosition,
+      passedThreshold: passedThreshold,
     );
   }
 

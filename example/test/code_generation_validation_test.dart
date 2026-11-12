@@ -16,12 +16,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('CodeGenerator - Scopes & Version Headers', () {
-    test('fullSetup includes v0.6.0 header, controller, and scope instructions',
+    test(
+        'fullSetup includes version header, controller, and scope instructions',
         () {
       final setup = StudioSetup.withDefaults();
       const draft = NotificationDraft(
         title: 'Release Notification',
-        message: 'v0.6.0 ready for release',
+        message: 'Ready for release',
         channelName: 'info',
       );
 
@@ -31,7 +32,12 @@ void main() {
         scope: CodeSnippetScope.fullSetup,
       );
 
-      expect(code, contains('// NFQ Studio — Generated Code (v0.6.0)'));
+      expect(
+        code,
+        contains(
+          '// NFQ Studio — Generated Code (v${NotificationController.version})',
+        ),
+      );
       expect(code, contains('final controller = NotificationController('));
       expect(code, contains('queues: {'));
       expect(code, contains('channels: {'));
@@ -659,113 +665,113 @@ void main() {
     test(
       'all generated snippets pass dart analyze with 0 errors',
       () async {
-      const setup = StudioSetup(
-        queues: {
-          QueuePosition.topCenter: QueueSetup(
-            dragBehaviorType: Relocate,
-            relocateTargets: {QueuePosition.bottomCenter},
-            relocatePermanent: true,
-            tapBehaviorType: TapToExpand,
-            groupingEnabled: true,
-            groupingThreshold: 3,
-            groupingCountType: GroupCountType.totalCount,
-            groupingCountMaxCount: 50,
-            groupingCountIncludePending: false,
-          ),
-        },
-        channels: {
-          'alerts': ChannelSetup(
-            name: 'alerts',
-            description: 'Critical system alerts',
-            color: Color(0xFFE11D48),
-            position: QueuePosition.topCenter,
-            dismissSeconds: 10,
-            iconPreset: ChannelIconPreset.warning,
-          ),
-        },
-        maxHistoryEntries: 200,
-      );
-
-      const draft = NotificationDraft(
-        title: 'System Alert',
-        message: 'Cluster memory usage exceeds threshold',
-        channelName: 'alerts',
-        priority: NotificationPriority.critical,
-        permanent: true,
-        actionStyle: NotificationActionStyle.button,
-        actionLabel: 'ACKNOWLEDGE',
-        accentColorOverride: Color(0xFFBE123C),
-        dismissSeconds: 15,
-        positionOverride: QueuePosition.topCenter,
-      );
-
-      final fullCode = generateCode(
-        setup: setup,
-        draft: draft,
-        scope: CodeSnippetScope.fullSetup,
-      );
-
-      final channelsCode = generateCode(
-        setup: setup,
-        draft: draft,
-        scope: CodeSnippetScope.channelsOnly,
-      );
-
-      final queuesCode = generateCode(
-        setup: setup,
-        draft: draft,
-        scope: CodeSnippetScope.queuesOnly,
-      );
-
-      // Construct a valid standalone Dart file incorporating snippets.
-      const pkgImport =
-          'package:flutter_notification_queue/flutter_notification_queue.dart';
-      final testDartFile = StringBuffer()
-        ..writeln(
-          '// ignore_for_file: unused_local_variable, '
-          'prefer_const_constructors, cascade_invocations, '
-          'lines_longer_than_80_chars',
-        )
-        ..writeln("import 'package:flutter/material.dart';")
-        ..writeln("import '$pkgImport';")
-        ..writeln()
-        ..writeln('void generatedCodeTestHarness() {')
-        ..writeln('  // --- 1. Full Setup Snippet ---')
-        ..writeln(fullCode)
-        ..writeln('  // --- 2. Channels Only Snippet ---')
-        ..writeln(channelsCode)
-        ..writeln('  // --- 3. Queues Only Snippet ---')
-        ..writeln(queuesCode)
-        ..writeln('}')
-        ..writeln();
-
-      final tempFile = File('test/temp_codegen_harness.dart');
-      await tempFile.writeAsString(testDartFile.toString());
-
-      const snapDart = '/home/ono/snap/flutter/common/flutter/bin/dart';
-      final dartExe = File(snapDart).existsSync()
-          ? snapDart
-          : Platform.resolvedExecutable;
-
-      try {
-        final result = await Process.run(
-          dartExe,
-          ['analyze', tempFile.path],
+        const setup = StudioSetup(
+          queues: {
+            QueuePosition.topCenter: QueueSetup(
+              dragBehaviorType: Relocate,
+              relocateTargets: {QueuePosition.bottomCenter},
+              relocatePermanent: true,
+              tapBehaviorType: TapToExpand,
+              groupingEnabled: true,
+              groupingThreshold: 3,
+              groupingCountType: GroupCountType.totalCount,
+              groupingCountMaxCount: 50,
+              groupingCountIncludePending: false,
+            ),
+          },
+          channels: {
+            'alerts': ChannelSetup(
+              name: 'alerts',
+              description: 'Critical system alerts',
+              color: Color(0xFFE11D48),
+              position: QueuePosition.topCenter,
+              dismissSeconds: 10,
+              iconPreset: ChannelIconPreset.warning,
+            ),
+          },
+          maxHistoryEntries: 200,
         );
 
-        expect(
-          result.exitCode,
-          equals(0),
-          reason: 'dart analyze failed on generated code:\n'
-              '${result.stdout}\n${result.stderr}',
+        const draft = NotificationDraft(
+          title: 'System Alert',
+          message: 'Cluster memory usage exceeds threshold',
+          channelName: 'alerts',
+          priority: NotificationPriority.critical,
+          permanent: true,
+          actionStyle: NotificationActionStyle.button,
+          actionLabel: 'ACKNOWLEDGE',
+          accentColorOverride: Color(0xFFBE123C),
+          dismissSeconds: 15,
+          positionOverride: QueuePosition.topCenter,
         );
-      } finally {
-        if (tempFile.existsSync()) {
-          await tempFile.delete();
+
+        final fullCode = generateCode(
+          setup: setup,
+          draft: draft,
+          scope: CodeSnippetScope.fullSetup,
+        );
+
+        final channelsCode = generateCode(
+          setup: setup,
+          draft: draft,
+          scope: CodeSnippetScope.channelsOnly,
+        );
+
+        final queuesCode = generateCode(
+          setup: setup,
+          draft: draft,
+          scope: CodeSnippetScope.queuesOnly,
+        );
+
+        // Construct a valid standalone Dart file incorporating snippets.
+        const pkgImport =
+            'package:flutter_notification_queue/flutter_notification_queue.dart';
+        final testDartFile = StringBuffer()
+          ..writeln(
+            '// ignore_for_file: unused_local_variable, '
+            'prefer_const_constructors, cascade_invocations, '
+            'lines_longer_than_80_chars',
+          )
+          ..writeln("import 'package:flutter/material.dart';")
+          ..writeln("import '$pkgImport';")
+          ..writeln()
+          ..writeln('void generatedCodeTestHarness() {')
+          ..writeln('  // --- 1. Full Setup Snippet ---')
+          ..writeln(fullCode)
+          ..writeln('  // --- 2. Channels Only Snippet ---')
+          ..writeln(channelsCode)
+          ..writeln('  // --- 3. Queues Only Snippet ---')
+          ..writeln(queuesCode)
+          ..writeln('}')
+          ..writeln();
+
+        final tempFile = File('test/temp_codegen_harness.dart');
+        await tempFile.writeAsString(testDartFile.toString());
+
+        const snapDart = '/home/ono/snap/flutter/common/flutter/bin/dart';
+        final dartExe = File(snapDart).existsSync()
+            ? snapDart
+            : Platform.resolvedExecutable;
+
+        try {
+          final result = await Process.run(
+            dartExe,
+            ['analyze', tempFile.path],
+          );
+
+          expect(
+            result.exitCode,
+            equals(0),
+            reason: 'dart analyze failed on generated code:\n'
+                '${result.stdout}\n${result.stderr}',
+          );
+        } finally {
+          if (tempFile.existsSync()) {
+            await tempFile.delete();
+          }
         }
-      }
-    },
-    timeout: const Timeout(Duration(minutes: 2)),
-  );
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
   });
 }

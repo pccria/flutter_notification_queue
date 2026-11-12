@@ -5,8 +5,8 @@ import 'package:flutter/services.dart';
 
 import '../../../core/core.dart';
 import '../../../enums/enums.dart';
-import '../../../models/offset_pair.dart';
 import '../drag_gesture_context.dart';
+import '../gesture_state_machine.dart';
 import '../overlays/overlays.dart';
 import '../widgets/widgets.dart';
 import '../zones/zones.dart';

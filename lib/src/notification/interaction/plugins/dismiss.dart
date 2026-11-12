@@ -11,10 +11,6 @@ class DismissGesturePlugin extends NotificationGesturePlugin {
     final position = ctx.notification.queue.position;
     ctx.notification.effectiveCoordinator.bringToFront(position);
     ctx.notification.key.currentState?.ditchDismissTimer();
-    ctx.dragOffsetPairNotifier.value = OffsetPair(
-      local: Offset.zero,
-      global: ctx.dragStartData?.pointerPosition ?? Offset.zero,
-    );
     ctx.overlayPortalController.show();
   }
 
@@ -23,10 +19,7 @@ class DismissGesturePlugin extends NotificationGesturePlugin {
     final DragGestureContext ctx,
     final DragUpdateDetails details,
   ) {
-    ctx.dragOffsetPairNotifier.value = OffsetPair(
-      local: details.delta,
-      global: details.globalPosition,
-    );
+    // Dismiss tracking handled by host FSM
   }
 
   @override
@@ -34,45 +27,38 @@ class DismissGesturePlugin extends NotificationGesturePlugin {
     final DragGestureContext ctx,
     final DraggableDetails details,
   ) {
-    final pointer = ctx.dragOffsetPairNotifier.value?.global;
+    final pointer = ctx.fsm.pointerPosition ?? details.offset;
     final position = ctx.notification.queue.position;
-    if (pointer != null) {
-      final zones = ctx.getZones(behavior, position);
-      final isHit = zones.any(
-        (final z) => z.isHit(
-          pointer,
-          ctx.screenSize,
-          behavior.thresholdInPixels.toDouble(),
-        ),
-      );
-      if (isHit) {
-        if (ctx.notification.isPinned) {
-          HapticFeedback.lightImpact();
-        } else {
-          HapticFeedback.mediumImpact();
-          ctx.notification.key.currentState
-              ?.dismiss(reason: DismissReason.userSwipe);
-        }
+    final zones = ctx.getZones(behavior, position);
+    final isHit = zones.any(
+      (final z) => z.isHit(
+        pointer,
+        ctx.screenSize,
+        behavior.thresholdInPixels.toDouble(),
+      ),
+    );
+    if (isHit) {
+      if (ctx.notification.isPinned) {
+        HapticFeedback.lightImpact();
+      } else {
+        HapticFeedback.mediumImpact();
+        ctx.notification.key.currentState
+            ?.dismiss(reason: DismissReason.userSwipe);
       }
     }
-    ctx.dragOffsetPairNotifier.value = null;
     ctx.notification.key.currentState?.initDismissTimer();
     ctx.overlayPortalController.hide();
   }
 
   @override
-  Widget buildFeedback(
-    final DragGestureContext ctx,
-    final OffsetPair? offsetPair,
-  ) {
-    final pointer = offsetPair?.global;
+  Widget buildFeedback(final DragGestureContext ctx) {
+    final pointer = ctx.fsm.pointerPosition;
     final position = ctx.notification.queue.position;
     final zones = ctx.getZones(behavior, position);
-    final passedThreshold = ctx.passedThreshold(
-      pointer,
-      behavior.thresholdInPixels,
-      zones,
-    );
+    final passedThreshold = switch (ctx.fsm.value) {
+      GestureDismissing(:final passedThreshold) => passedThreshold,
+      _ => ctx.passedThreshold(pointer, behavior.thresholdInPixels, zones),
+    };
 
     return OverlayPortal(
       controller: ctx.overlayPortalController,
@@ -81,7 +67,7 @@ class DismissGesturePlugin extends NotificationGesturePlugin {
           screenSize: constraints.biggest,
           threshold: behavior.thresholdInPixels.toDouble(),
           zones: zones.cast<EdgeDropZone>(),
-          pointerPositionNotifier: ctx.dragOffsetPairNotifier,
+          gestureState: ctx.gestureState,
         ),
       ),
       child: DismissFeedbackOverlay(
@@ -92,6 +78,7 @@ class DismissGesturePlugin extends NotificationGesturePlugin {
         startData: ctx.dragStartData,
         zones: zones.cast<EdgeDropZone>(),
         springPhysics: behavior.springPhysics,
+        fsm: ctx.fsm,
         child: ctx.notification,
       ),
     );

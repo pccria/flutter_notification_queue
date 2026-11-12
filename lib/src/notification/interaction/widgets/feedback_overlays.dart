@@ -12,6 +12,7 @@ class DismissFeedbackOverlay extends StatefulWidget {
     required this.zones,
     required this.springPhysics,
     required this.child,
+    this.fsm,
     super.key,
   });
 
@@ -23,6 +24,7 @@ class DismissFeedbackOverlay extends StatefulWidget {
   final List<EdgeDropZone> zones;
   final SpringPhysicsConfiguration springPhysics;
   final Widget child;
+  final GestureStateMachine? fsm;
 
   @override
   State<DismissFeedbackOverlay> createState() => _DismissFeedbackOverlayState();
@@ -31,6 +33,7 @@ class DismissFeedbackOverlay extends StatefulWidget {
 class _DismissFeedbackOverlayState extends State<DismissFeedbackOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _sinkingController;
+  double? _lastTargetScale;
 
   @override
   void initState() {
@@ -39,20 +42,36 @@ class _DismissFeedbackOverlayState extends State<DismissFeedbackOverlay>
       vsync: this,
       lowerBound: 0.5,
       upperBound: 1.5,
+      value: 1.0,
     );
+    widget.fsm?.addListener(_onFsmChanged);
+    _animateToTarget();
+  }
+
+  void _onFsmChanged() {
     _animateToTarget();
   }
 
   @override
   void didUpdateWidget(covariant final DismissFeedbackOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.passedThreshold != widget.passedThreshold) {
+    if (oldWidget.fsm != widget.fsm) {
+      oldWidget.fsm?.removeListener(_onFsmChanged);
+      widget.fsm?.addListener(_onFsmChanged);
+    }
+    if (oldWidget.passedThreshold != widget.passedThreshold ||
+        oldWidget.fsm != widget.fsm) {
       _animateToTarget();
     }
   }
 
   void _animateToTarget() {
-    final double targetScale = widget.passedThreshold ? 0.85 : 1.0;
+    final double defaultTarget = widget.passedThreshold ? 0.85 : 1.0;
+    final double targetScale = widget.fsm?.getActiveScale(1.0) ?? defaultTarget;
+    if (_lastTargetScale == targetScale) {
+      return;
+    }
+    _lastTargetScale = targetScale;
 
     final simulation = SpringSimulation(
       widget.springPhysics.toSpringDescription(),
@@ -66,6 +85,7 @@ class _DismissFeedbackOverlayState extends State<DismissFeedbackOverlay>
 
   @override
   void dispose() {
+    widget.fsm?.removeListener(_onFsmChanged);
     _sinkingController.dispose();
     super.dispose();
   }
@@ -367,6 +387,7 @@ class LiftedFeedback extends StatefulWidget {
     required this.nearestProgress,
     required this.widgetSize,
     required this.springPhysics,
+    this.fsm,
     super.key,
   });
 
@@ -375,6 +396,7 @@ class LiftedFeedback extends StatefulWidget {
   final double nearestProgress;
   final Size widgetSize;
   final SpringPhysicsConfiguration springPhysics;
+  final GestureStateMachine? fsm;
 
   @override
   State<LiftedFeedback> createState() => _LiftedFeedbackState();
@@ -383,6 +405,7 @@ class LiftedFeedback extends StatefulWidget {
 class _LiftedFeedbackState extends State<LiftedFeedback>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  double? _lastTargetScale;
 
   @override
   void initState() {
@@ -391,26 +414,43 @@ class _LiftedFeedbackState extends State<LiftedFeedback>
       vsync: this,
       lowerBound: 0.5,
       upperBound: 1.5,
+      value: 1.0,
     );
+    widget.fsm?.addListener(_onFsmChanged);
+    _animateToTarget();
+  }
+
+  void _onFsmChanged() {
     _animateToTarget();
   }
 
   @override
   void didUpdateWidget(covariant final LiftedFeedback oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.fsm != widget.fsm) {
+      oldWidget.fsm?.removeListener(_onFsmChanged);
+      widget.fsm?.addListener(_onFsmChanged);
+    }
     if (oldWidget.passedThreshold != widget.passedThreshold ||
-        oldWidget.nearestProgress != widget.nearestProgress) {
+        oldWidget.nearestProgress != widget.nearestProgress ||
+        oldWidget.fsm != widget.fsm) {
       _animateToTarget();
     }
   }
 
   void _animateToTarget() {
     final bool engaged = widget.nearestProgress > 0.3;
-    final double targetScale = widget.passedThreshold
+    final double baseScale = widget.passedThreshold
         ? 0.96
         : engaged
             ? 1.06
             : 1.04;
+    final double targetScale =
+        widget.fsm?.getActiveScale(baseScale) ?? baseScale;
+    if (_lastTargetScale == targetScale) {
+      return;
+    }
+    _lastTargetScale = targetScale;
 
     final simulation = SpringSimulation(
       widget.springPhysics.toSpringDescription(),
@@ -424,6 +464,7 @@ class _LiftedFeedbackState extends State<LiftedFeedback>
 
   @override
   void dispose() {
+    widget.fsm?.removeListener(_onFsmChanged);
     _controller.dispose();
     super.dispose();
   }

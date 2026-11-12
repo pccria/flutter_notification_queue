@@ -1,6 +1,9 @@
+// ignore_for_file: cascade_invocations
+
 import 'package:flutter/material.dart';
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 import 'package:flutter_notification_queue/src/notification/notification.dart';
+import 'package:flutter_notification_queue/src/notification_queue/notification_queue.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -101,5 +104,79 @@ void main() {
       final activeQueues = controller.coordinator?.activeQueues.value;
       expect(activeQueues?.containsKey(QueuePosition.topRight), isFalse);
     });
+
+    testWidgets(
+      'ReorderAndRelocate: dragging out of container and back restores '
+      'reorder drag state',
+      (final tester) async {
+        final reorderController = NotificationController(
+          channels: {
+            const NotificationChannel(
+              name: 'reorder_chan',
+              position: QueuePosition.topCenter,
+              defaultDismissDuration: null,
+            ),
+          },
+          queues: {
+            NotificationQueue(
+              position: QueuePosition.topCenter,
+              dragBehavior: ReorderAndRelocate.to(
+                positions: {QueuePosition.bottomCenter},
+              ),
+            ),
+          },
+        );
+        addTearDown(reorderController.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: reorderController,
+              child: child!,
+            ),
+            home: const Scaffold(body: SizedBox.expand()),
+          ),
+        );
+
+        NotificationWidget(
+          message: 'Card 1',
+          channelName: 'reorder_chan',
+          coordinator: reorderController.coordinator,
+        ).show();
+        await tester.pumpAndSettle();
+
+        NotificationWidget(
+          message: 'Card 2',
+          channelName: 'reorder_chan',
+          coordinator: reorderController.coordinator,
+        ).show();
+        await tester.pumpAndSettle();
+
+        final queueWidgetState = tester.state<QueueWidgetState>(
+          find.byType(QueueWidget),
+        );
+
+        // Start reorder drag at origin index 0
+        queueWidgetState.startDragReorder('item-1', 0);
+        expect(queueWidgetState.reorderDragState.value?.target, equals(0));
+
+        // Update target inside queue
+        queueWidgetState.updateDragTarget(1);
+        expect(queueWidgetState.reorderDragState.value?.target, equals(1));
+
+        // Drag escaped container (relocating state)
+        queueWidgetState.clearDragTarget();
+        expect(queueWidgetState.reorderDragState.value, isNull);
+
+        // Drag returned inside container (reordering state)
+        queueWidgetState.updateDragTarget(1);
+        expect(queueWidgetState.reorderDragState.value, isNotNull);
+        expect(queueWidgetState.reorderDragState.value?.origin, equals(0));
+        expect(queueWidgetState.reorderDragState.value?.target, equals(1));
+
+        queueWidgetState.endDragReorder();
+        expect(queueWidgetState.reorderDragState.value, isNull);
+      },
+    );
   });
 }

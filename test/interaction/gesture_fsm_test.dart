@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
-import 'package:flutter_notification_queue/src/notification/notification.dart';
+import 'package:flutter_notification_queue/src/notification/interaction/gesture_state_machine.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -74,7 +74,7 @@ void main() {
         initialPosition: QueuePosition.topRight,
       );
 
-      expect(fsm.value, equals(GestureState.idle));
+      expect(fsm.value, equals(const GestureIdle()));
       expect(fsm.pointerPosition, isNull);
       fsm.dispose();
     });
@@ -86,12 +86,28 @@ void main() {
       );
 
       const startPos = Offset(100.0, 150.0);
-      const bounds = Rect.fromLTWH(80.0, 130.0, 300.0, 80.0);
+      const cardBounds = Rect.fromLTWH(80.0, 130.0, 300.0, 80.0);
+      const containerBounds = Rect.fromLTWH(80.0, 130.0, 300.0, 320.0);
 
-      fsm.lift(pointerStart: startPos, widgetRect: bounds);
+      fsm.lift(
+        pointerStart: startPos,
+        cardRect: cardBounds,
+        containerRect: containerBounds,
+      );
 
-      expect(fsm.value, equals(GestureState.lifted));
+      expect(
+        fsm.value,
+        equals(
+          const GestureLifted(
+            pointerPosition: startPos,
+            cardRect: cardBounds,
+            containerRect: containerBounds,
+          ),
+        ),
+      );
       expect(fsm.pointerPosition, equals(startPos));
+      expect(fsm.cardRect, equals(cardBounds));
+      expect(fsm.containerRect, equals(containerBounds));
       fsm.dispose();
     });
 
@@ -104,14 +120,18 @@ void main() {
       fsm
         ..lift(
           pointerStart: const Offset(100.0, 150.0),
-          widgetRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 80.0),
+          cardRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 80.0),
+          containerRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 320.0),
         )
         ..update(
           delta: const Offset(10.0, 0.0),
           globalPosition: const Offset(110.0, 150.0),
         );
 
-      expect(fsm.value, equals(GestureState.reordering));
+      expect(fsm.value, isA<GestureDismissing>());
+      final dismissing = fsm.value as GestureDismissing;
+      expect(dismissing.pointerPosition, equals(const Offset(110.0, 150.0)));
+      expect(dismissing.passedThreshold, isFalse);
       expect(fsm.pointerPosition, equals(const Offset(110.0, 150.0)));
       fsm.dispose();
     });
@@ -125,14 +145,27 @@ void main() {
       fsm
         ..lift(
           pointerStart: const Offset(100.0, 150.0),
-          widgetRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 80.0),
+          cardRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 80.0),
+          containerRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 320.0),
         )
         ..update(
           delta: const Offset(10.0, 20.0),
           globalPosition: const Offset(110.0, 170.0),
+          hoveredQueuePosition: QueuePosition.topLeft,
         );
 
-      expect(fsm.value, equals(GestureState.relocating));
+      expect(fsm.value, isA<GestureRelocating>());
+      final relocating = fsm.value as GestureRelocating;
+      expect(relocating.pointerPosition, equals(const Offset(110.0, 170.0)));
+      expect(relocating.hoveredQueuePosition, equals(QueuePosition.topLeft));
+
+      // Moving out of hover target clears hoveredQueuePosition
+      fsm.update(
+        delta: const Offset(50.0, 50.0),
+        globalPosition: const Offset(160.0, 220.0),
+      );
+      final cleared = fsm.value as GestureRelocating;
+      expect(cleared.hoveredQueuePosition, isNull);
       fsm.dispose();
     });
 
@@ -145,14 +178,21 @@ void main() {
       fsm
         ..lift(
           pointerStart: const Offset(100.0, 150.0),
-          widgetRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 80.0),
+          cardRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 80.0),
+          containerRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 320.0),
         )
         ..update(
           delta: const Offset(0.0, 20.0),
           globalPosition: const Offset(100.0, 170.0),
+          targetSlotIndex: 2,
+          progress: 0.75,
         );
 
-      expect(fsm.value, equals(GestureState.reordering));
+      expect(fsm.value, isA<GestureReordering>());
+      final reordering = fsm.value as GestureReordering;
+      expect(reordering.pointerPosition, equals(const Offset(100.0, 170.0)));
+      expect(reordering.targetSlotIndex, equals(2));
+      expect(reordering.progress, equals(0.75));
       fsm.dispose();
     });
 
@@ -166,12 +206,14 @@ void main() {
         escapeThreshold: 50.0,
       );
 
-      // Widget is at Rect.fromLTWH(100, 100, 200, 50)
-      // Expanded boundary (inflated by 50) is Rect.fromLTWH(50, 50, 300, 150)
+      // Card is at Rect.fromLTWH(100, 100, 200, 50)
+      // Container is at Rect.fromLTWH(100, 100, 200, 200)
+      // Expanded boundary (inflated by 50) is Rect.fromLTWH(50, 50, 300, 300)
       fsm
         ..lift(
           pointerStart: const Offset(200.0, 125.0),
-          widgetRect: const Rect.fromLTWH(100.0, 100.0, 200.0, 50.0),
+          cardRect: const Rect.fromLTWH(100.0, 100.0, 200.0, 50.0),
+          containerRect: const Rect.fromLTWH(100.0, 100.0, 200.0, 200.0),
         )
 
         // Update inside boundary: stays in reordering
@@ -179,21 +221,21 @@ void main() {
           delta: const Offset(10.0, 10.0),
           globalPosition: const Offset(210.0, 135.0),
         );
-      expect(fsm.value, equals(GestureState.reordering));
+      expect(fsm.value, isA<GestureReordering>());
 
-      // Update outside boundary (e.g. globalPosition X = 360, Y = 125)
+      // Update outside boundary (e.g. globalPosition X = 360, Y = 125 > 350)
       fsm.update(
         delta: const Offset(150.0, 0.0),
         globalPosition: const Offset(360.0, 125.0),
       );
-      expect(fsm.value, equals(GestureState.relocating));
+      expect(fsm.value, isA<GestureRelocating>());
 
       // Drift back inside boundary (X = 200, Y = 125)
       fsm.update(
         delta: const Offset(-160.0, 0.0),
         globalPosition: const Offset(200.0, 125.0),
       );
-      expect(fsm.value, equals(GestureState.reordering));
+      expect(fsm.value, isA<GestureReordering>());
 
       fsm.dispose();
     });
@@ -207,13 +249,21 @@ void main() {
       fsm
         ..lift(
           pointerStart: const Offset(100.0, 150.0),
-          widgetRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 80.0),
+          cardRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 80.0),
+          containerRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 320.0),
         )
-        ..settle();
-      expect(fsm.value, equals(GestureState.settling));
+        ..settle(
+          originOffset: const Offset(100.0, 150.0),
+          targetOffset: const Offset(80.0, 130.0),
+          velocity: Velocity.zero,
+        );
+      expect(fsm.value, isA<GestureSettling>());
+      final settlingState = fsm.value as GestureSettling;
+      expect(settlingState.originOffset, equals(const Offset(100.0, 150.0)));
+      expect(settlingState.targetOffset, equals(const Offset(80.0, 130.0)));
 
       fsm.reset();
-      expect(fsm.value, equals(GestureState.idle));
+      expect(fsm.value, equals(const GestureIdle()));
       expect(fsm.pointerPosition, isNull);
       fsm.dispose();
     });
@@ -228,7 +278,8 @@ void main() {
 
       fsm.lift(
         pointerStart: const Offset(100.0, 150.0),
-        widgetRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 80.0),
+        cardRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 80.0),
+        containerRect: const Rect.fromLTWH(80.0, 130.0, 300.0, 320.0),
       );
       expect(fsm.getActiveScale(1.1), equals(1.02));
 
@@ -237,6 +288,25 @@ void main() {
         globalPosition: const Offset(110.0, 150.0),
       );
       expect(fsm.getActiveScale(1.1), equals(1.1));
+
+      // Dismissing with passedThreshold: true sinks card
+      fsm.update(
+        delta: const Offset(50.0, 0.0),
+        globalPosition: const Offset(160.0, 150.0),
+        passedThreshold: true,
+      );
+      expect(fsm.getActiveScale(1.1), equals(0.85));
+
+      // Moving back inside resets passedThreshold to false
+      fsm.update(
+        delta: const Offset(-50.0, 0.0),
+        globalPosition: const Offset(110.0, 150.0),
+        passedThreshold: false,
+      );
+      expect(fsm.getActiveScale(1.1), equals(1.1));
+
+      fsm.settle();
+      expect(fsm.getActiveScale(1.1), equals(1.0));
 
       fsm.dispose();
     });

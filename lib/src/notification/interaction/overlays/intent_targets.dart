@@ -5,7 +5,7 @@ class IntentTargets extends StatelessWidget {
     required this.screenSize,
     required this.threshold,
     required this.zones,
-    required this.pointerPositionNotifier,
+    required this.gestureState,
     required this.icon,
     required this.activeColor,
     required this.label,
@@ -15,7 +15,7 @@ class IntentTargets extends StatelessWidget {
   final double threshold;
   final Size screenSize;
   final List<EdgeDropZone> zones;
-  final ValueNotifier<OffsetPair?> pointerPositionNotifier;
+  final ValueListenable<GestureState> gestureState;
   final IconData icon;
   final Color activeColor;
   final String label;
@@ -30,7 +30,7 @@ class IntentTargets extends StatelessWidget {
                 for (final zone in zones)
                   _EdgeAura(
                     zone: zone,
-                    dragPosition: pointerPositionNotifier,
+                    gestureState: gestureState,
                     screenSize: screenSize,
                     threshold: threshold,
                   ),
@@ -45,7 +45,7 @@ class IntentTargets extends StatelessWidget {
                     zone: zone,
                     screenSize: screenSize,
                     threshold: threshold,
-                    dragPosition: pointerPositionNotifier,
+                    gestureState: gestureState,
                     icon: icon,
                     activeColor: activeColor,
                   ),
@@ -61,7 +61,7 @@ class _PositionedZoneWrapper extends StatelessWidget {
     required this.zone,
     required this.screenSize,
     required this.threshold,
-    required this.dragPosition,
+    required this.gestureState,
     required this.icon,
     required this.activeColor,
   });
@@ -69,7 +69,7 @@ class _PositionedZoneWrapper extends StatelessWidget {
   final EdgeDropZone zone;
   final Size screenSize;
   final double threshold;
-  final ValueNotifier<OffsetPair?> dragPosition;
+  final ValueListenable<GestureState> gestureState;
   final IconData icon;
   final Color activeColor;
 
@@ -91,7 +91,7 @@ class _PositionedZoneWrapper extends StatelessWidget {
         zone: zone,
         screenSize: screenSize,
         threshold: threshold,
-        dragPosition: dragPosition,
+        gestureState: gestureState,
         icon: icon,
         activeColor: activeColor,
       ),
@@ -104,7 +104,7 @@ class _IntentFeedbackZone extends StatelessWidget {
     required this.zone,
     required this.screenSize,
     required this.threshold,
-    required this.dragPosition,
+    required this.gestureState,
     required this.icon,
     required this.activeColor,
   });
@@ -112,16 +112,16 @@ class _IntentFeedbackZone extends StatelessWidget {
   final EdgeDropZone zone;
   final Size screenSize;
   final double threshold;
-  final ValueNotifier<OffsetPair?> dragPosition;
+  final ValueListenable<GestureState> gestureState;
   final IconData icon;
   final Color activeColor;
 
   @override
   Widget build(final BuildContext context) =>
-      ValueListenableBuilder<OffsetPair?>(
-        valueListenable: dragPosition,
-        builder: (final context, final dragPair, final child) {
-          final pointerOffset = dragPair?.global;
+      ValueListenableBuilder<GestureState>(
+        valueListenable: gestureState,
+        builder: (final context, final state, final child) {
+          final pointerOffset = state.pointerPosition;
           double progress = 0.0;
 
           if (pointerOffset != null) {
@@ -395,21 +395,21 @@ class SnoozeTargets extends StatelessWidget {
     required this.screenSize,
     required this.threshold,
     required this.zones,
-    required this.pointerPositionNotifier,
+    required this.gestureState,
     super.key,
   });
 
   final double threshold;
   final Size screenSize;
   final List<EdgeDropZone> zones;
-  final ValueNotifier<OffsetPair?> pointerPositionNotifier;
+  final ValueListenable<GestureState> gestureState;
 
   @override
   Widget build(final BuildContext context) => IntentTargets(
         screenSize: screenSize,
         threshold: threshold,
         zones: zones,
-        pointerPositionNotifier: pointerPositionNotifier,
+        gestureState: gestureState,
         icon: Icons.snooze_rounded,
         activeColor: Colors.orange,
         label: 'SNOOZE',
@@ -421,7 +421,7 @@ class PinTargets extends StatelessWidget {
     required this.screenSize,
     required this.threshold,
     required this.zones,
-    required this.pointerPositionNotifier,
+    required this.gestureState,
     required this.isPinned,
     super.key,
   });
@@ -429,7 +429,7 @@ class PinTargets extends StatelessWidget {
   final double threshold;
   final Size screenSize;
   final List<EdgeDropZone> zones;
-  final ValueNotifier<OffsetPair?> pointerPositionNotifier;
+  final ValueListenable<GestureState> gestureState;
   final bool isPinned;
 
   @override
@@ -437,7 +437,7 @@ class PinTargets extends StatelessWidget {
         screenSize: screenSize,
         threshold: threshold,
         zones: zones,
-        pointerPositionNotifier: pointerPositionNotifier,
+        gestureState: gestureState,
         icon: isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
         activeColor: Colors.blue,
         label: isPinned ? 'UNPIN' : 'PIN',
@@ -449,7 +449,7 @@ class CustomActionTargets extends StatelessWidget {
     required this.screenSize,
     required this.threshold,
     required this.zones,
-    required this.pointerPositionNotifier,
+    required this.gestureState,
     required this.actionName,
     super.key,
   });
@@ -457,7 +457,7 @@ class CustomActionTargets extends StatelessWidget {
   final double threshold;
   final Size screenSize;
   final List<EdgeDropZone> zones;
-  final ValueNotifier<OffsetPair?> pointerPositionNotifier;
+  final ValueListenable<GestureState> gestureState;
   final String actionName;
 
   @override
@@ -465,7 +465,7 @@ class CustomActionTargets extends StatelessWidget {
         screenSize: screenSize,
         threshold: threshold,
         zones: zones,
-        pointerPositionNotifier: pointerPositionNotifier,
+        gestureState: gestureState,
         icon: Icons.bolt_rounded,
         activeColor: Colors.purple,
         label: actionName.toUpperCase(),
@@ -484,6 +484,7 @@ class IntentFeedbackOverlay extends StatefulWidget {
     required this.activeColor,
     required this.labelText,
     required this.child,
+    this.fsm,
     super.key,
   });
 
@@ -497,6 +498,7 @@ class IntentFeedbackOverlay extends StatefulWidget {
   final Color activeColor;
   final String labelText;
   final Widget child;
+  final GestureStateMachine? fsm;
 
   @override
   State<IntentFeedbackOverlay> createState() => _IntentFeedbackOverlayState();
@@ -505,6 +507,7 @@ class IntentFeedbackOverlay extends StatefulWidget {
 class _IntentFeedbackOverlayState extends State<IntentFeedbackOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _sinkingController;
+  double? _lastTargetScale;
 
   @override
   void initState() {
@@ -514,19 +517,34 @@ class _IntentFeedbackOverlayState extends State<IntentFeedbackOverlay>
       lowerBound: 0.5,
       upperBound: 1.5,
     );
+    widget.fsm?.addListener(_onFsmChanged);
+    _animateToTarget();
+  }
+
+  void _onFsmChanged() {
     _animateToTarget();
   }
 
   @override
   void didUpdateWidget(covariant final IntentFeedbackOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.passedThreshold != widget.passedThreshold) {
+    if (oldWidget.fsm != widget.fsm) {
+      oldWidget.fsm?.removeListener(_onFsmChanged);
+      widget.fsm?.addListener(_onFsmChanged);
+    }
+    if (oldWidget.passedThreshold != widget.passedThreshold ||
+        oldWidget.fsm != widget.fsm) {
       _animateToTarget();
     }
   }
 
   void _animateToTarget() {
-    final double targetScale = widget.passedThreshold ? 0.85 : 1.0;
+    final double defaultTarget = widget.passedThreshold ? 0.85 : 1.0;
+    final double targetScale = widget.fsm?.getActiveScale(1.0) ?? defaultTarget;
+    if (_lastTargetScale == targetScale) {
+      return;
+    }
+    _lastTargetScale = targetScale;
 
     final simulation = SpringSimulation(
       widget.springPhysics.toSpringDescription(),
@@ -540,6 +558,7 @@ class _IntentFeedbackOverlayState extends State<IntentFeedbackOverlay>
 
   @override
   void dispose() {
+    widget.fsm?.removeListener(_onFsmChanged);
     _sinkingController.dispose();
     super.dispose();
   }
@@ -739,6 +758,7 @@ class SnoozeFeedbackOverlay extends StatelessWidget {
     required this.zones,
     required this.springPhysics,
     required this.child,
+    this.fsm,
     super.key,
   });
 
@@ -750,6 +770,7 @@ class SnoozeFeedbackOverlay extends StatelessWidget {
   final List<EdgeDropZone> zones;
   final SpringPhysicsConfiguration springPhysics;
   final Widget child;
+  final GestureStateMachine? fsm;
 
   @override
   Widget build(final BuildContext context) => IntentFeedbackOverlay(
@@ -762,6 +783,7 @@ class SnoozeFeedbackOverlay extends StatelessWidget {
         springPhysics: springPhysics,
         activeColor: Colors.orange,
         labelText: 'RELEASE TO SNOOZE',
+        fsm: fsm,
         child: child,
       );
 }
@@ -777,6 +799,7 @@ class PinFeedbackOverlay extends StatelessWidget {
     required this.springPhysics,
     required this.isPinned,
     required this.child,
+    this.fsm,
     super.key,
   });
 
@@ -789,6 +812,7 @@ class PinFeedbackOverlay extends StatelessWidget {
   final SpringPhysicsConfiguration springPhysics;
   final bool isPinned;
   final Widget child;
+  final GestureStateMachine? fsm;
 
   @override
   Widget build(final BuildContext context) => IntentFeedbackOverlay(
@@ -801,6 +825,7 @@ class PinFeedbackOverlay extends StatelessWidget {
         springPhysics: springPhysics,
         activeColor: Colors.blue,
         labelText: isPinned ? 'RELEASE TO UNPIN' : 'RELEASE TO PIN',
+        fsm: fsm,
         child: child,
       );
 }
@@ -816,6 +841,7 @@ class CustomActionFeedbackOverlay extends StatelessWidget {
     required this.springPhysics,
     required this.actionName,
     required this.child,
+    this.fsm,
     super.key,
   });
 
@@ -828,6 +854,7 @@ class CustomActionFeedbackOverlay extends StatelessWidget {
   final SpringPhysicsConfiguration springPhysics;
   final String actionName;
   final Widget child;
+  final GestureStateMachine? fsm;
 
   @override
   Widget build(final BuildContext context) => IntentFeedbackOverlay(
@@ -840,6 +867,7 @@ class CustomActionFeedbackOverlay extends StatelessWidget {
         springPhysics: springPhysics,
         activeColor: Colors.purple,
         labelText: 'RELEASE TO ${actionName.toUpperCase()}',
+        fsm: fsm,
         child: child,
       );
 }

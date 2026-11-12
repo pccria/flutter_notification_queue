@@ -61,7 +61,9 @@ String generateCode({
 
     case CodeSnippetScope.fullSetup:
       buf
-        ..writeln('// NFQ Studio — Generated Code (v0.6.0)\n')
+        ..writeln(
+          '// NFQ Studio — Generated Code (v${NotificationController.version})\n',
+        )
         ..writeln('final controller = NotificationController(')
         ..writeln('  queues: {');
 
@@ -204,11 +206,11 @@ void _writeQueue(
   }
 
   buf.writeln(
-      '      margin: const EdgeInsets.symmetric(\n'
-      '        vertical: ${q.verticalMargin},\n'
-      '        horizontal: ${q.horizontalMargin},\n'
-      '      ),',
-    );
+    '      margin: const EdgeInsets.symmetric(\n'
+    '        vertical: ${q.verticalMargin},\n'
+    '        horizontal: ${q.horizontalMargin},\n'
+    '      ),',
+  );
 
   if (q.groupingEnabled) {
     final countSnippet = switch (q.groupingCountType) {

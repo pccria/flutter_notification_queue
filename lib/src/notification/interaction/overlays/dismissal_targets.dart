@@ -10,7 +10,7 @@ class DismissalTargets extends StatelessWidget {
     required this.screenSize,
     required this.threshold,
     required this.zones,
-    required this.pointerPositionNotifier,
+    required this.gestureState,
     super.key,
   });
 
@@ -23,8 +23,8 @@ class DismissalTargets extends StatelessWidget {
   /// The list of edges where dismissal can occur.
   final List<EdgeDropZone> zones;
 
-  /// A notifier providing the current global pointer position.
-  final ValueNotifier<OffsetPair?> pointerPositionNotifier;
+  /// Reactive stream of gesture state driving target feedback.
+  final ValueListenable<GestureState> gestureState;
 
   @override
   Widget build(final BuildContext context) => Stack(
@@ -37,7 +37,7 @@ class DismissalTargets extends StatelessWidget {
                 for (final zone in zones)
                   _EdgeAura(
                     zone: zone,
-                    dragPosition: pointerPositionNotifier,
+                    gestureState: gestureState,
                     screenSize: screenSize,
                     threshold: threshold,
                   ),
@@ -61,7 +61,7 @@ class DismissalTargets extends StatelessWidget {
                       (final z) =>
                           z is LeftEdgeDropZone || z is RightEdgeDropZone,
                     ),
-                    dragPosition: pointerPositionNotifier,
+                    gestureState: gestureState,
                     threshold: threshold,
                     screenSize: screenSize,
                   )
@@ -69,7 +69,7 @@ class DismissalTargets extends StatelessWidget {
                   for (final zone in zones)
                     _PositionedZone(
                       zone: zone,
-                      dragPosition: pointerPositionNotifier,
+                      gestureState: gestureState,
                       inverseThreshold: 1.0 / threshold,
                       screenSize: screenSize,
                     ),
@@ -87,13 +87,13 @@ class _PositionedZone extends StatelessWidget {
     required this.zone,
     required this.screenSize,
     required this.inverseThreshold,
-    required this.dragPosition,
+    required this.gestureState,
   });
 
   final EdgeDropZone zone;
   final Size screenSize;
   final double inverseThreshold;
-  final ValueNotifier<OffsetPair?> dragPosition;
+  final ValueListenable<GestureState> gestureState;
 
   @override
   Widget build(final BuildContext context) {
@@ -116,7 +116,7 @@ class _PositionedZone extends StatelessWidget {
         zone: zone,
         screenSize: screenSize,
         inverseThreshold: inverseThreshold,
-        dragPosition: dragPosition,
+        gestureState: gestureState,
       ),
     );
   }
@@ -132,20 +132,20 @@ class _InteractionFeedbackZone extends StatelessWidget {
     required this.zone,
     required this.screenSize,
     required this.inverseThreshold,
-    required this.dragPosition,
+    required this.gestureState,
   });
 
   final EdgeDropZone zone;
   final Size screenSize;
   final double inverseThreshold;
-  final ValueNotifier<OffsetPair?> dragPosition;
+  final ValueListenable<GestureState> gestureState;
 
   @override
   Widget build(final BuildContext context) =>
-      ValueListenableBuilder<OffsetPair?>(
-        valueListenable: dragPosition,
-        builder: (final context, final dragPair, final child) {
-          final pointerOffset = dragPair?.global;
+      ValueListenableBuilder<GestureState>(
+        valueListenable: gestureState,
+        builder: (final context, final state, final child) {
+          final pointerOffset = state.pointerPosition;
           double progress = 0.0;
 
           if (pointerOffset != null) {
@@ -431,22 +431,22 @@ class _IdleHandleState extends State<_IdleHandle>
 class _EdgeAura extends StatelessWidget {
   const _EdgeAura({
     required this.zone,
-    required this.dragPosition,
+    required this.gestureState,
     required this.screenSize,
     required this.threshold,
   });
 
   final EdgeDropZone zone;
-  final ValueNotifier<OffsetPair?> dragPosition;
+  final ValueListenable<GestureState> gestureState;
   final Size screenSize;
   final double threshold;
 
   @override
   Widget build(final BuildContext context) =>
-      ValueListenableBuilder<OffsetPair?>(
-        valueListenable: dragPosition,
-        builder: (final context, final dragPair, final child) {
-          final pointerOffset = dragPair?.global;
+      ValueListenableBuilder<GestureState>(
+        valueListenable: gestureState,
+        builder: (final context, final state, final child) {
+          final pointerOffset = state.pointerPosition;
           if (pointerOffset == null) {
             return const SizedBox.shrink();
           }
@@ -730,7 +730,7 @@ class _UnifiedCornerZone extends StatelessWidget {
     required this.cornerType,
     required this.horizontalZone,
     required this.verticalZone,
-    required this.dragPosition,
+    required this.gestureState,
     required this.threshold,
     required this.screenSize,
   });
@@ -738,16 +738,16 @@ class _UnifiedCornerZone extends StatelessWidget {
   final _CornerType cornerType;
   final EdgeDropZone horizontalZone;
   final EdgeDropZone verticalZone;
-  final ValueNotifier<OffsetPair?> dragPosition;
+  final ValueListenable<GestureState> gestureState;
   final double threshold;
   final Size screenSize;
 
   @override
   Widget build(final BuildContext context) =>
-      ValueListenableBuilder<OffsetPair?>(
-        valueListenable: dragPosition,
-        builder: (final context, final dragPair, final child) {
-          final pointerOffset = dragPair?.global;
+      ValueListenableBuilder<GestureState>(
+        valueListenable: gestureState,
+        builder: (final context, final state, final child) {
+          final pointerOffset = state.pointerPosition;
           if (pointerOffset == null) {
             return const SizedBox.shrink();
           }
@@ -797,22 +797,26 @@ class _UnifiedCornerZone extends StatelessWidget {
               threshold * (isHit ? 1.0 : progressV.clamp(0.0, 1.0));
 
           final double? iconLeft = switch (cornerType) {
-            _CornerType.topLeft || _CornerType.bottomLeft =>
+            _CornerType.topLeft ||
+            _CornerType.bottomLeft =>
               max(vThickness / 2 - 10, 8.0),
             _ => null,
           };
           final double? iconRight = switch (cornerType) {
-            _CornerType.topRight || _CornerType.bottomRight =>
+            _CornerType.topRight ||
+            _CornerType.bottomRight =>
               max(vThickness / 2 - 10, 8.0),
             _ => null,
           };
           final double? iconTop = switch (cornerType) {
-            _CornerType.topLeft || _CornerType.topRight =>
+            _CornerType.topLeft ||
+            _CornerType.topRight =>
               max(hThickness / 2 - 10, 8.0),
             _ => null,
           };
           final double? iconBottom = switch (cornerType) {
-            _CornerType.bottomLeft || _CornerType.bottomRight =>
+            _CornerType.bottomLeft ||
+            _CornerType.bottomRight =>
               max(hThickness / 2 - 10, 8.0),
             _ => null,
           };

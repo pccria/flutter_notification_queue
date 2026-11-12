@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 import 'package:flutter_notification_queue/src/notification/notification.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,13 +9,14 @@ void main() {
     testWidgets(
       'renders _UnifiedCornerZone and single idle handle for corner zones',
       (final tester) async {
-        final pointerNotifier = ValueNotifier<OffsetPair?>(
-          const OffsetPair(
-            local: Offset.zero,
-            global: Offset(400, 300), // Center of screen (idle)
+        final stateNotifier = ValueNotifier<GestureState>(
+          const GestureDismissing(
+            pointerPosition: Offset(400, 300), // Center of screen (idle)
+            cardRect: Rect.zero,
+            passedThreshold: false,
           ),
         );
-        addTearDown(pointerNotifier.dispose);
+        addTearDown(stateNotifier.dispose);
 
         await tester.pumpWidget(
           MaterialApp(
@@ -31,7 +31,7 @@ void main() {
                     TopEdgeDropZone(isNatural: true),
                     RightEdgeDropZone(isNatural: true),
                   ],
-                  pointerPositionNotifier: pointerNotifier,
+                  gestureState: stateNotifier,
                 ),
               ),
             ),
@@ -45,9 +45,10 @@ void main() {
         expect(find.byType(ClipPath), findsNothing);
 
         // Move into corner engagement zone (distance < 80)
-        pointerNotifier.value = const OffsetPair(
-          local: Offset.zero,
-          global: Offset(750, 50),
+        stateNotifier.value = const GestureDismissing(
+          pointerPosition: Offset(750, 50),
+          cardRect: Rect.zero,
+          passedThreshold: true,
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
@@ -61,13 +62,14 @@ void main() {
     testWidgets(
       'renders separate _PositionedZones when zones are parallel side edges',
       (final tester) async {
-        final pointerNotifier = ValueNotifier<OffsetPair?>(
-          const OffsetPair(
-            local: Offset.zero,
-            global: Offset(400, 300),
+        final stateNotifier = ValueNotifier<GestureState>(
+          const GestureDismissing(
+            pointerPosition: Offset(400, 300),
+            cardRect: Rect.zero,
+            passedThreshold: false,
           ),
         );
-        addTearDown(pointerNotifier.dispose);
+        addTearDown(stateNotifier.dispose);
 
         await tester.pumpWidget(
           MaterialApp(
@@ -82,7 +84,7 @@ void main() {
                     LeftEdgeDropZone(),
                     RightEdgeDropZone(),
                   ],
-                  pointerPositionNotifier: pointerNotifier,
+                  gestureState: stateNotifier,
                 ),
               ),
             ),
@@ -99,13 +101,14 @@ void main() {
     testWidgets(
       'stretches corner L-bar and activates hit state when dragged into corner',
       (final tester) async {
-        final pointerNotifier = ValueNotifier<OffsetPair?>(
-          const OffsetPair(
-            local: Offset.zero,
-            global: Offset(780, 20), // Inside top-right corner zone (< 80)
+        final stateNotifier = ValueNotifier<GestureState>(
+          const GestureDismissing(
+            pointerPosition: Offset(780, 20), // Inside top-right corner zone
+            cardRect: Rect.zero,
+            passedThreshold: true,
           ),
         );
-        addTearDown(pointerNotifier.dispose);
+        addTearDown(stateNotifier.dispose);
 
         await tester.pumpWidget(
           MaterialApp(
@@ -120,7 +123,7 @@ void main() {
                     TopEdgeDropZone(isNatural: true),
                     RightEdgeDropZone(isNatural: true),
                   ],
-                  pointerPositionNotifier: pointerNotifier,
+                  gestureState: stateNotifier,
                 ),
               ),
             ),
@@ -145,10 +148,11 @@ void main() {
         ];
 
         for (final cornerZones in corners) {
-          final pointerNotifier = ValueNotifier<OffsetPair?>(
-            const OffsetPair(
-              local: Offset.zero,
-              global: Offset(400, 300),
+          final stateNotifier = ValueNotifier<GestureState>(
+            const GestureDismissing(
+              pointerPosition: Offset(400, 300),
+              cardRect: Rect.zero,
+              passedThreshold: false,
             ),
           );
 
@@ -162,7 +166,7 @@ void main() {
                     screenSize: const Size(800, 600),
                     threshold: 80,
                     zones: cornerZones,
-                    pointerPositionNotifier: pointerNotifier,
+                    gestureState: stateNotifier,
                   ),
                 ),
               ),
@@ -173,7 +177,7 @@ void main() {
 
           // Exactly one idle handle / apex icon per corner configuration
           expect(find.byIcon(Icons.close_rounded), findsOneWidget);
-          pointerNotifier.dispose();
+          stateNotifier.dispose();
         }
       },
     );
