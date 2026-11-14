@@ -23,6 +23,10 @@ specifications.
 - [**System Architecture Blueprint**](specs/architecture_blueprint.md):
   Foundational design rationale covering multi-tenancy, state ownership, and
   ecosystem comparisons with `ScaffoldMessenger`.
+- [**Multi-Tenancy & Multi-Window Architecture**](
+  core/multi_window_and_tenancy.md):
+  Authoritative specification of 1:1 multi-tenancy, Flutter windowing models,
+  and the evolutionary roadmap to 1:N multi-view coordination.
 
 ---
 

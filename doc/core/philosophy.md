@@ -62,12 +62,18 @@ FNQ follows the Flutter SDK's `TextEditingController` ↔ `TextField` and
 - **`NotificationScope`**: Single widget-tree injector that mounts the
   `OverlayPortal` and provides `NotificationScope.of(context)` lookup.
 
-### Real-World Multi-Window Desktop Validation
-While `NotificationController` and `NotificationScope` are architecturally
-designed for multi-tenancy, live multi-window desktop behavior is an active
-maturation target. Real-world testing in the Studio example is being used to
-verify coordinate transformations, window lifecycle teardowns, and focus
-management under actual OS conditions.
+### Multi-Tenancy vs. Multi-Window Orchestration
+In v0.7.x, Axiom I guarantees **1:1 multi-tenancy**: multiple independent
+`NotificationController` and `NotificationScope` pairs can exist simultaneously
+without collisions or leaks. This provides the foundation for future **1:N
+multi-view orchestration** (a single controller coordinating across multiple
+`FlutterView`s), targeted for v0.9.x once upstream Flutter desktop multi-view
+settles.
+
+Crucially, **FNQ is an overlay orchestration framework, not an OS window
+manager**. The core package remains 100% zero-dependency, relying strictly on
+standard Flutter `BuildContext` and `OverlayPortal`. For full architectural
+analysis, see [multi_window_and_tenancy.md](multi_window_and_tenancy.md).
 
 ---
 

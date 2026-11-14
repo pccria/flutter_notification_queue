@@ -15,6 +15,8 @@ For complete technical specifications, consult the dedicated guides:
 - [**Temporal Invariance & Stasis**](timer_and_stasis.md): Token pause engine.
 - [**API Reference**](api.md): Complete public API contract.
 - [**Notification Lifecycle**](lifecycle.md): From dispatch to teardown.
+- [**Multi-Tenancy & Multi-Window**](multi_window_and_tenancy.md):
+  1:1 multi-tenancy specifications and 1:N multi-view roadmap.
 
 ---
 

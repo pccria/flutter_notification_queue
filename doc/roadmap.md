@@ -1,8 +1,8 @@
 # FNQ Unified Development Roadmap & Tracking Board
 
-> **Current Version**: 0.7.0 (with 0.7.1 in active development)  
-> **Strategic Focus**: Infrastructure Maturation, Gesture Rationalization, and
-> Multi-Window Reality Testing.  
+> **Current Active Version**: 0.7.x (Active Infrastructure Maturation)  
+> **Strategic Focus**: Multi-Tenancy Hardening, Egress Physics, Invariant
+> Stasis, and Reality Testing.  
 > **Baseline Quality**: `flutter analyze --fatal-warnings` — 0 issues |
 > `flutter test` — 415/415 passing | `example test` — 55/55 passing.
 
@@ -21,22 +21,25 @@
 
 The immediate objective across the `0.7.x` and `0.8.x` cycles is to **mature
 and stress-test core infrastructure** under real-world conditions:
-1. **Multi-Window Reality Testing**: Implement real multi-window desktop support
-   in the Studio example app to validate controller isolation, coordinate
-   transforms, and window teardowns under actual OS desktop environments.
-2. **Gesture Rationalization**: Collapse fragmented spatial plugins (`Reorder`,
-   `Relocate`, `ReorderAndRelocate`) into a single, seamless spatial movement
-   engine, and move `Pin` and `Snooze` into a dedicated card action model.
-3. **Infrastructure Hardening**: High-throughput bursts, 120Hz frame budgets,
+1. **Multi-Tenancy Reality Testing (v0.7.x)**: Validate 1:1 controller
+   isolation, independent stasis tokens, and clean teardowns in the Studio
+   split-viewport stage without third-party dependencies.
+2. **Gesture Rationalization (v0.8.x)**: Collapse fragmented spatial plugins
+   (`Reorder`, `Relocate`, `ReorderAndRelocate`) into a single, seamless
+   spatial movement engine, move `Pin` and `Snooze` into a dedicated card
+   action model, and purge legacy `DismissZone` dead code.
+3. **Native Multi-Window & Multi-View (v0.9.x+)**: Introduce 1:N multi-view
+   coordination once upstream Flutter desktop multi-view settles.
+4. **Infrastructure Hardening**: High-throughput bursts, 120Hz frame budgets,
    and leak-free ticker teardowns.
 
 ```mermaid
 graph LR
     A["v0.5.2<br/>Grouping & Stasis<br/>(✅ Completed)"]
     B["v0.6.x<br/>Monolith & A11y<br/>(✅ Completed)"]
-    C["v0.7.x<br/>Egress & Stasis<br/>(✅ Active)"]
-    D["v0.8.x<br/>Rationalization &<br/>Multi-Window<br/>(🔵 Planned)"]
-    E["v0.9.x+<br/>Stress Testing &<br/>Deep Hardening<br/>(🟡 Exploratory)"]
+    C["v0.7.x<br/>Egress, Stasis &<br/>Multi-Tenancy<br/>(🟡 Active)"]
+    D["v0.8.x<br/>Gesture Unification<br/>& Legacy Purge<br/>(🔵 Planned)"]
+    E["v0.9.x+<br/>Native Multi-Window<br/>(🟣 Exploratory)"]
     F["v1.0.0<br/>Eventual Stability<br/>Horizon<br/>(🎯 Target)"]
 
     A --> B
@@ -47,19 +50,19 @@ graph LR
 
     style A fill:#2ecc71,color:#fff
     style B fill:#2ecc71,color:#fff
-    style C fill:#2ecc71,color:#fff
+    style C fill:#f1c40f,color:#000
     style D fill:#3498db,color:#fff
-    style E fill:#f39c12,color:#fff
-    style F fill:#9b59b6,color:#fff
+    style E fill:#9b59b6,color:#fff
+    style F fill:#34495e,color:#fff
 ```
 
 | Release Tier | Focus / Theme | Status | Strategic Deliverables |
 |---|---|---|---|
 | **v0.5.0–v0.5.2** | **Stability & Grouping** | ✅ Completed | Snooze timer cleanup, error chaining, single source-of-truth pinning, `GroupCountBehavior`, peek card timer stasis. |
 | **v0.6.0–v0.6.1** | **Monolith & Platform** | ✅ Completed | 26-part monolith decomposition, WCAG 2.1 AA accessibility, desktop context menu engine, `NotificationThemeData`. |
-| **v0.7.0–v0.7.1** | **Egress & Invariant Stasis** | ✅ Completed | Continuous directional egress (`DismissEgress`), dual thresholds, flight portal (`EgressFlightOverlay`), token invariant engine (`TimerPauseReason`), queue stasis. |
-| **v0.8.x** | **Rationalization & Multi-Window** | 📅 Planned | Unify spatial movement (`Reorder`/`Relocate` $\to$ 1 engine), card action framework, multi-window Studio reality testing, `DismissZone` dead code purge. |
-| **v0.9.x+** | **Deep Hardening & Benchmarks** | 🟡 Exploratory | 120Hz frame budgets under heavy multi-queue load, multi-engine lifecycle verification, and accessibility audit. |
+| **v0.7.x** | **Egress, Stasis & Multi-Tenancy** | 🟡 Active | Card-centric egress (`DismissEgress`), flight portal (`EgressFlightOverlay`), token invariant engine (`TimerPauseReason`), queue stasis, cross-queue slot relocation, Studio split-viewport multi-tenancy validation. |
+| **v0.8.x** | **Gesture Rationalization & Purge** | 📅 Planned | Unify spatial movement (`Reorder`/`Relocate` $\to$ 1 engine), card action framework, `DismissZone` dead code purge (~1,200 LOC). |
+| **v0.9.x+** | **Native Multi-Window & Multi-View** | 🟣 Exploratory | 1:N multi-view coordination inside `NotificationController`, active-window routing, multi-display DPI invariance, 120Hz stress profiling. |
 | **v1.0.0** | **Eventual Stability Horizon** | 🎯 Target | Long-term API freeze and enterprise production guarantee, declared only after infrastructure is proven in real-world apps. |
 
 ---
@@ -129,7 +132,7 @@ Complexity Tiers:
 
 ---
 
-### Track 5: Release 0.7.0 / 0.7.1 — Egress Modernization & Spatial Relocation (Completed ✅)
+### Track 5: Release 0.7.x — Egress, Stasis & Multi-Tenancy (Active 🟡)
 
 | ID | Task Description | Priority | Complexity | Status | Target Files |
 |---|---|---|---|---|---|
@@ -147,10 +150,11 @@ Complexity Tiers:
 | **E-12** | Unified card-level invariant engine (`TimerPauseReason` tokens, idempotent dismissal) | 🔴 P0 | 🟡 Medium | ✅ Completed | `lib/src/notification/notification.dart` |
 | **E-13** | Queue-level timer stasis (`NotificationTimerScope` for reorder, relocation, and programmatic pause) | 🔴 P0 | 🟡 Medium | ✅ Completed | `lib/src/notification_queue/queue_widget.dart`, `queue_coordinator.dart` |
 | **E-14** | Enlarged 36x36 close button hit area & unified header expand tap region | 🟢 P2 | 🟢 Low | ✅ Completed | `lib/src/notification/notification.dart` |
+| **E-15** | Studio Multi-Tenant Split-Viewport: validate concurrent 1:1 controllers, token isolation & teardowns | 🔴 P0 | 🟡 Medium | 🟡 Active | `example/`, `lib/src/core/` |
 
 ---
 
-### Track 6: Release 0.8.x — Gesture Rationalization & Infrastructure Hardening (Planned 🔵)
+### Track 6: Release 0.8.x — Gesture Rationalization & Legacy Purge (Planned 🔵)
 
 | ID | Task Description | Priority | Complexity | Status | Target Files |
 |---|---|---|---|---|---|
@@ -159,12 +163,22 @@ Complexity Tiers:
 | **R-03** | Convert `DismissGesturePlugin` to pure egress without legacy zone bridges | 🟡 P1 | 🟢 Low | 📅 Planned | `lib/src/notification/interaction/plugins/dismiss.dart` |
 | **R-04** | Unified Spatial Movement: consolidate `Reorder`, `Relocate`, and `ReorderAndRelocate` into one engine | 🔴 P0 | 🔴 High | 📅 Planned | `lib/src/behaviors/drag_behavior.dart`, `plugins/` |
 | **R-05** | Rationalized Card Actions: decouple `Pin` and `Snooze` from full-card drag behaviors into card action model | 🟡 P1 | 🟡 Medium | 📅 Planned | `lib/src/behaviors/drag_intents.dart`, `plugins/` |
-| **R-06** | Multi-Window Studio Reality Testing: implement real desktop multi-window in Studio to stress-test multi-tenancy | 🔴 P0 | 🔴 High | 📅 Planned | `example/`, `lib/src/core/` |
-| **R-07** | Align Studio configurator, code generator, and docs with rationalized interaction vocabulary | 🟢 P2 | 🟢 Low | 📅 Planned | `example/`, `doc/` |
+| **R-06** | Align Studio configurator, code generator, and docs with rationalized interaction vocabulary | 🟢 P2 | 🟢 Low | 📅 Planned | `example/`, `doc/` |
 
 ---
 
-### Track 7: Advanced Features & Platform Perfection (F-Series)
+### Track 7: Release 0.9.x+ — Native Multi-Window & 1:N Multi-View (Exploratory 🟣)
+
+| ID | Task Description | Priority | Complexity | Status | Target Files |
+|---|---|---|---|---|---|
+| **W-01** | 1:N Multi-View Controller Architecture (`targetView`, active-window routing, broadcast mode) | 🔴 P0 | 🔴 High | 🟣 Exploratory | `lib/src/core/notification_controller.dart` |
+| **W-02** | View-scoped `OverlayPortal` & `DropTargetRegistry` coordinates across native `FlutterView`s | 🟡 P1 | 🔴 High | 🟣 Exploratory | `lib/src/core/notification_scope.dart`, `drop_target_registry.dart` |
+| **W-03** | Multi-display DPI invariance across heterogeneous monitors and dynamic scaling shifts | 🟡 P1 | 🟡 Medium | 🟣 Exploratory | `lib/src/notification/interaction/` |
+| **W-04** | High-throughput 120Hz stress profiling under concurrent multi-view queues | 🟢 P2 | 🟡 Medium | 🟣 Exploratory | `benchmark/`, `test/stress/` |
+
+---
+
+### Track 8: Advanced Features & Platform Perfection (F-Series)
 
 | ID | Feature / Job Name | Phase | Priority | Complexity | Status | Target Files |
 |---|---|---|---|---|---|---|
@@ -226,12 +240,10 @@ Complexity Tiers:
 
 ---
 
-## ✅ Completed Milestones History
+## 📦 Completed Release History (Tags)
 
 | Release | Date | Highlights | Key Files Modified |
 |---|---|---|---|
-| **v0.7.1** | 2026-11-14 | **Egress Visuals, Flight & Timer Safety**: In-slot reveal underlay (`EgressUnderlay`), dynamic card tilt, inertial momentum flight portal (`EgressFlightOverlay`), auto-dismiss timer preservation across drag start/cancel, scheduled `DismissZone` deprecation for `v0.8.0`. | `lib/src/notification/interaction/`, `lib/src/notification/notification_widget_state.dart`, `example/` |
-| **v0.7.0** | 2026-11-12 | **Cross-Queue Relocation & Modern Egress**: Cross-queue slot relocation with live destination insertion previews; introduced sealed `DismissEgress` hierarchy (`horizontal`, `natural`, `outward`, `cross`, `any`); dual-threshold displacement/velocity mechanics; deprecated legacy `DismissZone`. | `lib/src/notification/interaction/`, `lib/src/core/queue_coordinator.dart`, `example/` |
 | **v0.6.1** | 2026-11-10 | **Platform Hardening & Semantic A11y**: Added `NotificationA11yOptions`, desktop right-click context menu engine, keyboard shortcut modifier isolation (`Ctrl`, `Cmd`, `Alt`, `Shift`), post-drag card `unfocus()`. | `lib/src/notification/`, `lib/src/core/notification_overlay.dart`, `specs/accessibility.md` |
 | **v0.6.0** | 2026-11-08 | **Monolith Decomposition**: Decomposed 26-part `notification.dart` monolith into distinct sub-libraries (`theme/`, `interaction/`, `widgets/`), extracted `CoordinatorResolver` mixin, sealed `NotificationEvent` enhancements. | `lib/src/notification/`, `lib/src/core/` |
 | **v0.5.2** | 2026-11-05 | **Grouping UX & Performance Polish**: Introduced `GroupCountBehavior` hierarchy (`HiddenCount`, `TotalCount`, `NoCount`, `CustomCount`); peek card timer stasis & drag auto-dismiss suspension; expanded bundle timer pause; atomic bundle dismiss & backlog purging; `CurvedAnimation` leak fixes; duplicate GlobalKey collision hardening; coordinator tracking cleanup; reorder 120Hz smooth memoized snapshots. | `lib/src/notification_queue/`, `lib/src/core/queue_coordinator.dart`, `example/` |

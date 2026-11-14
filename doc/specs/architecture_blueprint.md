@@ -704,11 +704,14 @@ _allWindowEvents.listen(analyticsService.track);
 The library does not impose a global merge — merging is the app's concern.
 
 > [!NOTE]
-> **Active Studio Validation**: While this controller-per-window pattern
-> provides the architectural foundation, live desktop multi-window testing is
-> an active maturation objective being stress-tested in the Studio example to
-> verify OS window lifecycle teardowns, coordinate transformations, and display
-> scaling under real OS conditions.
+> **Multi-Tenancy vs. Multi-View Orchestration**: The controller-per-window
+> pattern shown above is the **1:1 multi-tenancy model** active in v0.7.x.
+> It provides rock-solid isolation across windows without static state.
+> The evolution toward **1:N multi-view coordination** (a single controller
+> routing to multiple windows/views) is planned for v0.9.x once upstream
+> Flutter desktop multi-view settles. The core package remains 100%
+> zero-dependency. For the comprehensive analysis, see
+> [multi_window_and_tenancy.md](../core/multi_window_and_tenancy.md).
 
 ---
 
@@ -981,31 +984,33 @@ The major evolutionary phases across FNQ's history and active exploration:
   added WCAG 2.1 AA accessibility options (`NotificationA11yOptions`), desktop
   right-click context menu engine, and `NotificationThemeData`.
 
-### Continuous Egress & Temporal Invariance: v0.7.0 – v0.7.1
-- **Architectural Shift**: Physical continuous egress and invariant timekeeping.
-- **Key Deliverables**: Replaced artificial screen-edge drop zones with
-  card-centric `DismissEgress` and `EgressFlightOverlay`; cross-queue slot
-  relocation; replaced loose boolean flags with token-based invariant engine
-  (`TimerPauseReason`); introduced queue-level stasis
-  (`NotificationTimerScope`).
+### Continuous Egress & Infrastructure Maturation: v0.7.x (Active Development)
+- **Status**: Active, unreleased development version.
+- **Architectural Shift**: Physical continuous egress, invariant timekeeping,
+  and multi-tenancy reality testing.
+- **Key Deliverables**: Card-centric `DismissEgress` and `EgressFlightOverlay`;
+  cross-queue slot relocation; token-based invariant engine
+  (`TimerPauseReason`); queue-level stasis (`NotificationTimerScope`); Studio
+  multi-tenant split-viewport validation.
 
-### Infrastructure Maturation & Gesture Rationalization: v0.8.x (Planned)
-- **Architectural Shift**: Conceptual gesture unification & reality testing.
+### Gesture Rationalization & Legacy Purge: v0.8.x (Planned)
+- **Architectural Shift**: Conceptual gesture unification and dead-code purge.
 - **Key Deliverables**:
   1. Consolidate fragmented spatial movement (`Reorder`, `Relocate`,
      `ReorderAndRelocate`) into a single, cohesive spatial movement engine.
   2. Rationalize card retention actions (`Pin`, `Snooze`) out of standalone
      drag behaviors into a dedicated card action/retention model.
   3. Purge legacy `DismissZone` and screen-edge target machinery (~1,200 LOC).
-  4. Implement real multi-window desktop support in the Studio example to
-     battle-test `NotificationController` and `NotificationScope` under real
-     OS multi-window conditions.
 
-### Deep Hardening & Edge-Case Stress Testing: v0.9.x+ (Exploratory)
-- **Architectural Shift**: High-throughput profiling and multi-engine teardowns.
-- **Key Deliverables**: Stress benchmarks under 120Hz frame budgets, screen
-  reader WCAG 2.1 AA audit, and memory leak analysis across rapid lifecycle
-  events.
+### Native Multi-Window & 1:N Multi-View Coordination: v0.9.x+ (Exploratory)
+- **Architectural Shift**: First-class multi-view orchestration.
+- **Key Deliverables**:
+  1. 1:N multi-view coordination inside `NotificationController` (`targetView`,
+     active-window routing, broadcast mode).
+  2. View-bound `OverlayPortal` and `DropTargetRegistry` coordinates across
+     heterogeneous displays and DPI scales.
+  3. Stress benchmarks under 120Hz frame budgets, screen reader WCAG 2.1 AA
+     audit, and multi-engine lifecycle teardowns.
 
 ### Eventual Production Stability: v1.0.0 (Target Horizon)
 - **Architectural Shift**: Production General Availability.

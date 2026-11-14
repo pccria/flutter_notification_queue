@@ -75,7 +75,11 @@ state to explicit widget subtrees without global singletons.
   - Emits notification lifecycle events via a broadcast stream
     (`controller.events`).
   - Implements multi-tenancy: multiple controllers can exist concurrently in
-    separate Flutter windows, tabs, or tests without interference.
+    separate Flutter windows, tabs, or tests without interference. Each
+    controller enforces a strict 1:1 attachment invariant with its
+    `NotificationScope` in v0.7.x, laying the foundation for future 1:N
+    multi-view orchestration (see [multi_window_and_tenancy.md](
+    multi_window_and_tenancy.md)).
 
 - **`NotificationScope`**:
   - An `InheritedWidget` that provides subtree access to the controller via
