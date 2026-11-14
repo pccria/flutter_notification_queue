@@ -112,6 +112,21 @@ abstract class NotificationScopeState {
   /// Clears recorded history.
   void clearHistory();
 
+  /// Pauses auto-dismiss timers for all notifications in [position].
+  void pauseQueue(final QueuePosition position);
+
+  /// Resumes auto-dismiss timers for all notifications in [position].
+  void resumeQueue(final QueuePosition position);
+
+  /// Pauses auto-dismiss timers for all notifications across all queues.
+  void pauseAll();
+
+  /// Resumes auto-dismiss timers for all notifications across all queues.
+  void resumeAll();
+
+  /// Whether the queue at [position] is currently paused.
+  bool isQueuePaused(final QueuePosition position);
+
   /// Disposes resources held by the scope surface.
   void dispose();
 }
@@ -578,6 +593,30 @@ class NotificationController {
   void clearHistory() {
     _attachedState?.clearHistory();
   }
+
+  /// Pauses auto-dismiss timers for all notifications in [position].
+  void pauseQueue(final QueuePosition position) {
+    _attachedState?.pauseQueue(position);
+  }
+
+  /// Resumes auto-dismiss timers for all notifications in [position].
+  void resumeQueue(final QueuePosition position) {
+    _attachedState?.resumeQueue(position);
+  }
+
+  /// Pauses auto-dismiss timers for all notifications across all queues.
+  void pauseAll() {
+    _attachedState?.pauseAll();
+  }
+
+  /// Resumes auto-dismiss timers for all notifications across all queues.
+  void resumeAll() {
+    _attachedState?.resumeAll();
+  }
+
+  /// Whether the queue at [position] is currently in timer stasis.
+  bool isQueuePaused(final QueuePosition position) =>
+      _attachedState?.isQueuePaused(position) ?? false;
 
   // ── Testing ───────────────────────────────────────────────────────────────
 

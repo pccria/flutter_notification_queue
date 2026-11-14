@@ -166,6 +166,57 @@ class QueueCoordinator implements NotificationScopeState {
     }
   }
 
+  /// The set of queue positions whose auto-dismiss timers are programmatically
+  /// paused in stasis.
+  final _pausedQueuesNotifier = ValueNotifier<Set<QueuePosition>>({});
+
+  /// Notifier exposing the set of queues currently in programmatic timer
+  /// stasis.
+  ValueListenable<Set<QueuePosition>> get pausedQueues => _pausedQueuesNotifier;
+
+  /// Whether the queue at [position] is currently paused.
+  @override
+  bool isQueuePaused(final QueuePosition position) =>
+      _pausedQueuesNotifier.value.contains(position);
+
+  /// Pauses auto-dismiss timers for all notifications in [position].
+  @override
+  void pauseQueue(final QueuePosition position) {
+    if (_isDisposed || _pausedQueuesNotifier.value.contains(position)) {
+      return;
+    }
+    _pausedQueuesNotifier.value = {..._pausedQueuesNotifier.value, position};
+  }
+
+  /// Resumes auto-dismiss timers for all notifications in [position].
+  @override
+  void resumeQueue(final QueuePosition position) {
+    if (_isDisposed || !_pausedQueuesNotifier.value.contains(position)) {
+      return;
+    }
+    final next = Set<QueuePosition>.of(_pausedQueuesNotifier.value)
+      ..remove(position);
+    _pausedQueuesNotifier.value = next;
+  }
+
+  /// Pauses auto-dismiss timers for all notifications across all queues.
+  @override
+  void pauseAll() {
+    if (_isDisposed) {
+      return;
+    }
+    _pausedQueuesNotifier.value = Set.of(QueuePosition.values);
+  }
+
+  /// Resumes auto-dismiss timers for all notifications across all queues.
+  @override
+  void resumeAll() {
+    if (_isDisposed) {
+      return;
+    }
+    _pausedQueuesNotifier.value = {};
+  }
+
   /// Active snooze timers that need to be cancelled if the coordinator
   /// detaches or disposes.
   final _snoozeTimers = <Timer>{};
@@ -222,6 +273,7 @@ class QueueCoordinator implements NotificationScopeState {
     try {
       _activeQueuesNotifier.dispose();
       _interactionFocusNotifier.dispose();
+      _pausedQueuesNotifier.dispose();
     } on Object catch (e) {
       _logger.debug('Error disposing active queues notifier: $e');
     }

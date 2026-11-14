@@ -1,7 +1,7 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
-import 'package:flutter_notification_queue/src/notification/interaction/gesture_state_machine.dart';
-import 'package:flutter_notification_queue/src/notification/interaction/widgets/widgets.dart';
+import 'package:flutter_notification_queue/src/notification/notification.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -392,5 +392,108 @@ void main() {
 
       controller.dispose();
     });
+
+    testWidgets(
+      'auto-dismiss timer freezes during mouse drag and does not leak on exit',
+      (final tester) async {
+        final controller = NotificationController(
+          channels: {
+            const NotificationChannel(
+              name: 'mouse_drag_channel',
+              position: QueuePosition.topRight,
+            ),
+          },
+          queues: {
+            const NotificationQueue(
+              position: QueuePosition.topRight,
+              dragBehavior: Dismiss(),
+            ),
+          },
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: SizedBox.expand(),
+            ),
+          ),
+        );
+
+        controller.show(
+          const AppNotification(
+            id: 'mouse-drag-card',
+            channelName: 'mouse_drag_channel',
+            message: 'Mouse drag timer test',
+            dismissDuration: Duration(seconds: 4),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final cardFinder = find.text('Mouse drag timer test');
+        expect(cardFinder, findsOneWidget);
+
+        final state = tester.state<NotificationWidgetState>(
+          find.byType(NotificationWidget),
+        );
+        expect(state.dismissProgressController, isNotNull);
+        expect(state.dismissProgressController!.isAnimating, isTrue);
+
+        // Advance 1 second
+        await tester.pump(const Duration(seconds: 1));
+        final progressBeforeDrag = state.dismissProgressController!.value;
+        expect(progressBeforeDrag, greaterThan(0.0));
+
+        // Start mouse drag
+        final startPos = tester.getCenter(cardFinder);
+        final gesture = await tester.startGesture(
+          startPos,
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+
+        // Drag far enough to start drag and exit
+        await gesture.moveBy(const Offset(25, 0));
+        await tester.pump();
+
+        // Verify timer is paused and NOT animating
+        expect(state.isDragPaused, isTrue);
+        expect(state.dismissProgressController!.isAnimating, isFalse);
+        final frozenProgress = state.dismissProgressController!.value;
+
+        // Advance 3 seconds while still holding drag (timer must stay paused)
+        await tester.pump(const Duration(seconds: 3));
+
+        // Must still be paused and not dismissed
+        expect(state.isDragPaused, isTrue);
+        expect(state.dismissProgressController!.isAnimating, isFalse);
+        expect(state.dismissProgressController!.value, equals(frozenProgress));
+        expect(find.text('Mouse drag timer test'), findsOneWidget);
+
+        // Release drag and let snap-back settle
+        await gesture.up();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pump(const Duration(seconds: 1));
+
+        // Drag ended and snap-back finished, so drag pause is cleared
+        expect(state.isDragPaused, isFalse);
+
+        // Move mouse away from the card so hover pause releases
+        await gesture.moveTo(const Offset(0, 500));
+        await tester.pump();
+
+        // Let remaining time tick down and verify dismissal
+        await tester.pump(const Duration(seconds: 4));
+        await tester.pumpAndSettle();
+        expect(find.text('Mouse drag timer test'), findsNothing);
+
+        controller.dispose();
+      },
+    );
   });
 }

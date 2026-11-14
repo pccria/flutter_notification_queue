@@ -168,6 +168,9 @@ class DraggableTransitionsState extends State<DraggableTransitions>
       ])
       ..sink();
 
+    if (_fsm.value is! GestureIdle) {
+      widget.notification.key.currentState?.resumeDismissTimer();
+    }
     _fsm.dispose();
     if (_snapBackController.isAnimating) {
       _snapBackController.stop();
@@ -411,6 +414,9 @@ class DraggableTransitionsState extends State<DraggableTransitions>
       } else {
         final originQueueKey = coordinator.getWidgetKey(_fsm.initialPosition);
         originQueueKey.currentState?.setActiveDragGroup(null);
+        if (_fsm.value is! GestureSettling) {
+          widget.notification.key.currentState?.resumeDismissTimer();
+        }
       }
     }
 

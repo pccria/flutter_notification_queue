@@ -573,13 +573,12 @@ class NotificationWidgetState extends State<NotificationWidget>
   final ValueNotifier<bool> isExpanded = ValueNotifier(false);
 
   AnimationController? _dismissProgressController;
-  bool _isMouseHovering = false;
-  bool _isDragPaused = false;
-  bool _isContextMenuOpen = false;
+  final Set<TimerPauseReason> _pauseReasons = <TimerPauseReason>{};
   bool _hasWebHoverDisable = false;
   bool _hasWebMenuDisable = false;
   bool _hasBuiltOnce = false;
   bool _isDisposed = false;
+  bool _isDismissing = false;
   QueueCoordinator? _cachedCoordinator;
   OverlayEntry? _contextMenuEntry;
   VoidCallback? _dismissContextMenu;
@@ -587,6 +586,72 @@ class NotificationWidgetState extends State<NotificationWidget>
   static final Timer _dummyTimer = Timer(Duration.zero, () {});
   Timer? get dismissTimer =>
       _dismissProgressController != null ? _dummyTimer : null;
+
+  /// Whether the auto-dismiss timer is currently paused by a drag gesture.
+  @visibleForTesting
+  bool get isDragPaused => _pauseReasons.contains(TimerPauseReason.drag);
+
+  /// Whether the mouse cursor is currently hovering over this card.
+  @visibleForTesting
+  bool get isMouseHovering => _pauseReasons.contains(TimerPauseReason.hover);
+
+  /// Whether the context menu is currently open.
+  @visibleForTesting
+  bool get isContextMenuOpen =>
+      _pauseReasons.contains(TimerPauseReason.contextMenu);
+
+  /// The active set of pause reasons preventing the auto-dismiss timer.
+  @visibleForTesting
+  Set<TimerPauseReason> get pauseReasons => Set.unmodifiable(_pauseReasons);
+
+  /// The progress controller driving the auto-dismiss timer, if active.
+  @visibleForTesting
+  AnimationController? get dismissProgressController =>
+      _dismissProgressController;
+
+  /// Whether this card is currently performing a dismissal animation.
+  @visibleForTesting
+  bool get isDismissing => _isDismissing;
+
+  /// Whether the auto-dismiss timer should actively tick forward.
+  bool get shouldTimerRun =>
+      resolvedDismissDuration != null &&
+      !widget.permanent &&
+      !widget.isPinned &&
+      _pauseReasons.isEmpty &&
+      mounted &&
+      !_isDisposed &&
+      NotificationTimerScope.isEnabledNonSubscribing(context);
+
+  void _syncTimerState() {
+    if (!mounted || _isDisposed) {
+      return;
+    }
+    if (_dismissProgressController == null) {
+      if (shouldTimerRun) {
+        initDismissTimer();
+      }
+      return;
+    }
+    if (shouldTimerRun) {
+      if (!_dismissProgressController!.isAnimating &&
+          _dismissProgressController!.status != AnimationStatus.completed) {
+        _dismissProgressController!.forward();
+      }
+    } else {
+      if (_dismissProgressController!.isAnimating) {
+        _dismissProgressController!.stop(canceled: false);
+      }
+    }
+  }
+
+  void _setPauseReason(final TimerPauseReason reason, final bool active) {
+    final changed =
+        active ? _pauseReasons.add(reason) : _pauseReasons.remove(reason);
+    if (changed) {
+      _syncTimerState();
+    }
+  }
 
   late final AnimationController animationController;
   late final FocusNode _focusNode;
@@ -611,7 +676,7 @@ class NotificationWidgetState extends State<NotificationWidget>
           _showCloseButton.value = 1.0;
         } else {
           _showCloseButton.value = widget.queue.closeButtonBehavior
-              .onHover(isHovering: _isMouseHovering);
+              .onHover(isHovering: isMouseHovering);
         }
       }
       setState(() {});
@@ -644,6 +709,12 @@ class NotificationWidgetState extends State<NotificationWidget>
     )..value = 1.0;
 
     widget.isPinnedNotifier.addListener(_handlePinChanged);
+    if (widget.isPinned) {
+      _pauseReasons.add(TimerPauseReason.pinned);
+    }
+    if (isExpanded.value) {
+      _pauseReasons.add(TimerPauseReason.expanded);
+    }
     if (widget.coordinator != null) {
       _cachedCoordinator = widget.coordinator;
     }
@@ -671,17 +742,8 @@ class NotificationWidgetState extends State<NotificationWidget>
       );
     }
 
-    final timerAllowed = NotificationTimerScope.isEnabled(context);
-    if (!timerAllowed) {
-      ditchDismissTimer();
-    } else if (_dismissProgressController == null &&
-        !widget.isPinned &&
-        !isExpanded.value &&
-        !_isMouseHovering &&
-        !_isDragPaused &&
-        !_isContextMenuOpen) {
-      initDismissTimer();
-    }
+    NotificationTimerScope.isEnabled(context);
+    _syncTimerState();
 
     _logger.debugBuffer
       ?..writeAll([
@@ -732,8 +794,10 @@ class NotificationWidgetState extends State<NotificationWidget>
 
   void _handlePinChanged() {
     if (widget.isPinned) {
+      _setPauseReason(TimerPauseReason.pinned, true);
       ditchDismissTimer();
     } else {
+      _setPauseReason(TimerPauseReason.pinned, false);
       initDismissTimer();
     }
     if (mounted) {
@@ -751,6 +815,11 @@ class NotificationWidgetState extends State<NotificationWidget>
   Future<void> dismiss({
     final DismissReason reason = DismissReason.programmatic,
   }) async {
+    if (_isDismissing) {
+      return;
+    }
+    _isDismissing = true;
+    ditchDismissTimer();
     await animationController.reverse();
     coordinator.dismissWidget(widget, reason: reason);
     _logger.debugBuffer
@@ -790,11 +859,7 @@ class NotificationWidgetState extends State<NotificationWidget>
   }
 
   void initDismissTimer() {
-    if (_isDragPaused || _isContextMenuOpen) {
-      return;
-    }
-    if (mounted && !NotificationTimerScope.isEnabledNonSubscribing(context)) {
-      ditchDismissTimer();
+    if (!shouldTimerRun) {
       return;
     }
     if (resolvedDismissDuration != null) {
@@ -806,7 +871,7 @@ class NotificationWidgetState extends State<NotificationWidget>
         );
         _dismissProgressController!.addStatusListener((final status) {
           if (status == AnimationStatus.completed) {
-            if (mounted && !isExpanded.value) {
+            if (mounted && shouldTimerRun) {
               dismiss(reason: DismissReason.timeout);
             }
           }
@@ -834,30 +899,17 @@ class NotificationWidgetState extends State<NotificationWidget>
 
   /// Pauses the auto-dismiss timer (e.g. while being dragged or hovered).
   void pauseDismissTimer() {
-    _isDragPaused = true;
-    _dismissProgressController?.stop(canceled: false);
+    _setPauseReason(TimerPauseReason.drag, true);
   }
 
-  /// Resumes the auto-dismiss timer if not paused by expansion or hover.
+  /// Resumes the auto-dismiss timer if no other pause reasons are active.
   void resumeDismissTimer() {
-    _isDragPaused = false;
-    if (!_isMouseHovering && !isExpanded.value && !_isContextMenuOpen) {
-      if (_dismissProgressController != null) {
-        _dismissProgressController!.forward();
-      } else {
-        initDismissTimer();
-      }
-    }
+    _setPauseReason(TimerPauseReason.drag, false);
   }
 
   void _toggleExpanded() {
     isExpanded.value = !isExpanded.value;
-
-    if (isExpanded.value) {
-      _dismissProgressController?.stop(canceled: false);
-    } else if (!_isMouseHovering && !_isContextMenuOpen) {
-      _dismissProgressController?.forward();
-    }
+    _setPauseReason(TimerPauseReason.expanded, isExpanded.value);
     if (mounted) {
       setState(() {});
     }
@@ -871,7 +923,7 @@ class NotificationWidgetState extends State<NotificationWidget>
       return KeyEventResult.ignored;
     }
 
-    if (_isContextMenuOpen) {
+    if (isContextMenuOpen) {
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         _dismissContextMenu?.call();
         return KeyEventResult.handled;
@@ -1036,8 +1088,7 @@ class NotificationWidgetState extends State<NotificationWidget>
       return;
     }
 
-    _isContextMenuOpen = true;
-    _dismissProgressController?.stop(canceled: false);
+    _setPauseReason(TimerPauseReason.contextMenu, true);
 
     final position = RelativeRect.fromLTRB(
       globalPosition.dx,
@@ -1091,16 +1142,10 @@ class NotificationWidgetState extends State<NotificationWidget>
         await _openContextMenuViaOverlay(globalPosition, items);
       }
     } finally {
-      _isContextMenuOpen = false;
+      _setPauseReason(TimerPauseReason.contextMenu, false);
       if (kIsWeb && _hasWebMenuDisable) {
         coordinator.webContextMenuController.releaseDisable();
         _hasWebMenuDisable = false;
-      }
-      if (mounted &&
-          !_isMouseHovering &&
-          !widget.isPinned &&
-          !isExpanded.value) {
-        _dismissProgressController?.forward();
       }
     }
   }
@@ -1437,16 +1482,13 @@ class NotificationWidgetState extends State<NotificationWidget>
               color: theme.backgroundColor.withValues(alpha: theme.opacity),
               child: Listener(
                 onPointerDown: (final _) {
-                  _dismissProgressController?.stop(canceled: false);
+                  _setPauseReason(TimerPauseReason.touchHold, true);
                 },
                 onPointerUp: (final _) {
-                  if (!_isMouseHovering && !isExpanded && !_isContextMenuOpen) {
-                    _dismissProgressController?.forward();
-                  }
+                  _setPauseReason(TimerPauseReason.touchHold, false);
                 },
                 child: MouseRegion(
                   onEnter: (final _) {
-                    _isMouseHovering = true;
                     if (kIsWeb &&
                         coordinator
                             .configuration.a11yOptions.enableContextMenu) {
@@ -1457,19 +1499,16 @@ class NotificationWidgetState extends State<NotificationWidget>
                     }
                     _showCloseButton.value = widget.queue.closeButtonBehavior
                         .onHover(isHovering: true);
-                    _dismissProgressController?.stop(canceled: false);
+                    _setPauseReason(TimerPauseReason.hover, true);
                   },
                   onExit: (final _) {
-                    _isMouseHovering = false;
                     if (kIsWeb && _hasWebHoverDisable) {
                       coordinator.webContextMenuController.releaseDisable();
                       _hasWebHoverDisable = false;
                     }
                     _showCloseButton.value = widget.queue.closeButtonBehavior
                         .onHover(isHovering: false);
-                    if (!isExpanded && !_isContextMenuOpen) {
-                      _dismissProgressController?.forward();
-                    }
+                    _setPauseReason(TimerPauseReason.hover, false);
                   },
                   child: InkWell(
                     canRequestFocus: false,

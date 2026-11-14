@@ -11,3 +11,4 @@ part './dismiss_zone.dart';
 part './notification_priority.dart';
 part './queue_overflow_strategy.dart';
 part './queue_positions.dart';
+part './timer_pause_reason.dart';

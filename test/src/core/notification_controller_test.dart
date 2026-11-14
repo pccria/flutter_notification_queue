@@ -181,6 +181,32 @@ class _FakeNotificationScopeState implements NotificationScopeState {
     clearedHistory = true;
   }
 
+  final Set<QueuePosition> pausedQueues = {};
+
+  @override
+  void pauseQueue(final QueuePosition position) {
+    pausedQueues.add(position);
+  }
+
+  @override
+  void resumeQueue(final QueuePosition position) {
+    pausedQueues.remove(position);
+  }
+
+  @override
+  void pauseAll() {
+    pausedQueues.addAll(QueuePosition.values);
+  }
+
+  @override
+  void resumeAll() {
+    pausedQueues.clear();
+  }
+
+  @override
+  bool isQueuePaused(final QueuePosition position) =>
+      pausedQueues.contains(position);
+
   @override
   void dispose() {
     _eventController.close();
@@ -534,6 +560,29 @@ void main() {
         fakeScope.updatedMessages,
         contains((errorHandle.id, 'Failed: Exception: network_error')),
       );
+    });
+
+    test('pauseQueue, resumeQueue, pauseAll, resumeAll, isQueuePaused', () {
+      final fakeScope = _FakeNotificationScopeState();
+      final controller = NotificationController()..attach(fakeScope);
+      addTearDown(controller.dispose);
+
+      expect(controller.isQueuePaused(QueuePosition.topRight), isFalse);
+
+      controller.pauseQueue(QueuePosition.topRight);
+      expect(controller.isQueuePaused(QueuePosition.topRight), isTrue);
+      expect(controller.isQueuePaused(QueuePosition.bottomLeft), isFalse);
+
+      controller.resumeQueue(QueuePosition.topRight);
+      expect(controller.isQueuePaused(QueuePosition.topRight), isFalse);
+
+      controller.pauseAll();
+      expect(controller.isQueuePaused(QueuePosition.topRight), isTrue);
+      expect(controller.isQueuePaused(QueuePosition.bottomLeft), isTrue);
+
+      controller.resumeAll();
+      expect(controller.isQueuePaused(QueuePosition.topRight), isFalse);
+      expect(controller.isQueuePaused(QueuePosition.bottomLeft), isFalse);
     });
   });
 }

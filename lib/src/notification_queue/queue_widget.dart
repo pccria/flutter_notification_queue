@@ -1630,6 +1630,24 @@ class QueueWidgetState extends State<QueueWidget>
     }
   }
 
+  /// Whether auto-dismiss timers should actively run for notifications in
+  /// this queue.
+  bool get isQueueTimerEnabled {
+    if (_coordinator.isQueuePaused(widget.queue.position)) {
+      return false;
+    }
+    if (_reorderDragState.value != null) {
+      return false;
+    }
+    final focus = _coordinator.interactionFocus.value;
+    if (focus != null &&
+        (focus.source == widget.queue.position ||
+            focus.target == widget.queue.position)) {
+      return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(final BuildContext context) {
     final pendingCount = _pendingNotifications.length;
@@ -1660,6 +1678,8 @@ class QueueWidgetState extends State<QueueWidget>
             _externalDragGap,
             _externalDragFeedback,
             _coordinator.interactionFocus,
+            _coordinator.pausedQueues,
+            _reorderDragState,
           ]),
           builder: (final context, final columnChild) {
             final externalGap = _externalDragGap.value;
@@ -1701,39 +1721,42 @@ class QueueWidgetState extends State<QueueWidget>
             final double scale =
                 externalGap != null ? 1.012 : (hasExternalHover ? 1.018 : 1.0);
 
-            return AnimatedOpacity(
-              duration: const Duration(milliseconds: 160),
-              curve: Curves.easeOut,
-              opacity: focusOpacity,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-                transform: Matrix4.identity()
-                  ..translateByDouble(leanX, 0.0, 0.0, 1.0)
-                  ..scaleByDouble(scale, scale, 1.0, 1.0),
-                transformAlignment: Alignment.center,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned.fill(
-                      child: _QueueExternalHalo(
-                        progress: progress,
-                        style: widget.queue.style,
-                        visible: hasExternalHover,
-                        position: widget.queue.position,
-                      ),
-                    ),
-                    if (gapRect != null)
-                      Positioned.fromRect(
-                        rect: gapRect,
-                        child: _ExternalDropGapWidget(
-                          style: widget.queue.style,
+            return NotificationTimerScope(
+              enabled: isQueueTimerEnabled,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOut,
+                opacity: focusOpacity,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  transform: Matrix4.identity()
+                    ..translateByDouble(leanX, 0.0, 0.0, 1.0)
+                    ..scaleByDouble(scale, scale, 1.0, 1.0),
+                  transformAlignment: Alignment.center,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(
+                        child: _QueueExternalHalo(
                           progress: progress,
-                          verticalDirection: widget.queue.verticalDirection,
+                          style: widget.queue.style,
+                          visible: hasExternalHover,
+                          position: widget.queue.position,
                         ),
                       ),
-                    columnChild!,
-                  ],
+                      if (gapRect != null)
+                        Positioned.fromRect(
+                          rect: gapRect,
+                          child: _ExternalDropGapWidget(
+                            style: widget.queue.style,
+                            progress: progress,
+                            verticalDirection: widget.queue.verticalDirection,
+                          ),
+                        ),
+                      columnChild!,
+                    ],
+                  ),
                 ),
               ),
             );
