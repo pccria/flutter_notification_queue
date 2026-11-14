@@ -1540,11 +1540,12 @@ class NotificationWidgetState extends State<NotificationWidget>
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 spacing: 4,
                                 children: [
-                                  _getExpandButton(isExpanded: isExpanded),
                                   Expanded(
-                                    child: _getTitle(isExpanded: isExpanded),
+                                    child: _getHeaderArea(
+                                      isExpanded: isExpanded,
+                                    ),
                                   ),
-                                  _getCloseButton(isExpanded: true),
+                                  _getCloseButton(isExpanded: isExpanded),
                                 ],
                               ),
                               Padding(
@@ -1679,12 +1680,34 @@ class NotificationWidgetState extends State<NotificationWidget>
             )
           : const SizedBox.shrink();
 
+  Widget _getHeaderArea({required final bool isExpanded}) => MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _toggleExpanded,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _getExpandButton(isExpanded: isExpanded),
+              if (hasTitle) ...[
+                const SizedBox(width: 4),
+                Expanded(
+                  child: _getTitle(isExpanded: isExpanded),
+                ),
+              ] else ...[
+                const Spacer(),
+              ],
+            ],
+          ),
+        ),
+      );
+
   Widget _getExpandButton({required final bool isExpanded}) {
     final isBottom = widget.queue.verticalDirection == VerticalDirection.up;
     final expandMoreIcon = isBottom ? Icons.expand_less : Icons.expand_more;
     final expandLessIcon = isBottom ? Icons.expand_more : Icons.expand_less;
     return SizedBox.square(
-      dimension: 32,
+      dimension: 36,
       child: Center(
         child: IconButton(
           alignment: AlignmentGeometry.center,
@@ -1703,7 +1726,7 @@ class NotificationWidgetState extends State<NotificationWidget>
   final _showCloseButton = ValueNotifier(0.0);
 
   Widget _getCloseButton({required final bool isExpanded}) => SizedBox.square(
-        dimension: 24,
+        dimension: 36,
         child: ValueListenableBuilder(
           valueListenable: _showCloseButton,
           builder: (final context, final opacity, final child) => ExcludeFocus(
