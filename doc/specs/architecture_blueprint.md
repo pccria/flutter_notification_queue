@@ -2,61 +2,70 @@
 
 ## 1. Executive Summary
 
-This document serves as the foundational architectural blueprint and design rationale for **Flutter Notification Queue (FNQ)**. It details the paradigm shift from prototype-style static singletons to an idiomatic, multi-tenant design, informed by:
+This document serves as the foundational architectural blueprint and design
+rationale for **Flutter Notification Queue (FNQ)**. It details the architectural
+evolution of the framework—from its early prototype era through the multi-tenant
+revolution (v0.4.0), platform hardening (v0.5.x–v0.6.x), continuous spatial and
+temporal invariance (v0.7.x), and the scheduled trajectory to the final
+**v1.0.0 General Availability (GA)** release.
 
+The architectural progression is informed by:
 - A structural audit of early singleton architectures and their failure modes
+  in versions v0.1.0 through v0.3.x.
 - An analysis of how leading overlay libraries in the Flutter ecosystem
-  (`toastification`, `bot_toast`, `overlay_support`) each solved — and where they each
-  failed — the same problem space
+  (`toastification`, `bot_toast`, `overlay_support`) each solved—and where they
+  failed—the same problem space.
 - Canonical Flutter SDK patterns (`ScaffoldMessenger`, `TextEditingController`,
-  `Navigator`) as the authoritative reference implementation
+  `Navigator`) as the authoritative reference implementation.
 
-**Target audience:** maintainers, contributors, and architects evaluating FNQ's system design.
+**Target audience:** Maintainers, contributors, and architects evaluating FNQ's
+system design and evolutionary roadmap.
 
 ---
 
-## 2. What v0.x Got Right and What It Got Wrong
+## 2. What the Prototype Era (v0.1.0 – v0.3.x) Got Right and Where It Failed
 
 ### 2.1 The Original Architecture
+In versions v0.1.0 through v0.3.x, FNQ prioritized extreme convenience for quick
+prototyping. The entire system was held together by three global primitives:
 
-v0.x prioritized extreme convenience. The entire system was held together by three things:
+- **`FlutterNotificationQueue.configure()`**: A static call that created a
+  global singleton coordinator.
+- **`NotificationWidget(...).show()`**: A widget-named configuration object that
+  knew how to dispatch itself into the global overlay.
+- **`FlutterNotificationQueue.builder`**: A static builder method that injected
+  the global `OverlayPortal` into `MaterialApp`.
 
-- **`FlutterNotificationQueue.configure()`** — a static call that created a global singleton coordinator
-- **`NotificationWidget(...).show()`** — a widget that knew how to dispatch itself into the global overlay
-- **`FlutterNotificationQueue.builder`** — a static builder method that injected the global `OverlayPortal` into `MaterialApp`
-
-This was intentionally minimal and worked well as a proof of concept.
+While minimal and functional as a proof of concept, this architecture hit
+critical scaling walls in production.
 
 ### 2.2 The Two Structural Flaws
 
-**Flaw 1 — The static singleton locks multi-tenancy.**
-Because `FlutterNotificationQueue.coordinator` is a global static, there can be exactly one
-active notification surface in the process. This makes it impossible to:
+#### Flaw 1 — The static singleton locks multi-tenancy (v0.1.x – v0.3.x)
+Because `FlutterNotificationQueue.coordinator` was a global static, there could
+be exactly one active notification surface in the process. This made it
+impossible to:
+- Run two independent queues in a desktop multi-window app.
+- Sandbox notification state in tests without explicit `reset()` calls.
+- Use FNQ in an add-to-app embedding (multiple `FlutterEngine` instances).
+- Have isolated notification contexts per route or page subtree.
 
-- Run two independent queues in a desktop multi-window app
-- Sandbox notification state in widget tests without explicit `reset()` teardown calls
-- Use FNQ in an add-to-app embedding (multiple `FlutterEngine` instances)
-- Have isolated notification contexts per route or page subtree
-
-The line that enforces this lock is in
-`notification_overlay.dart` at the point where `initState()` calls:
-
+The coupling that locked multi-tenancy was in `notification_overlay.dart`:
 ```dart
-// The coupling that makes multi-tenancy impossible:
+// The legacy coupling that made multi-tenancy impossible in v0.1.x–v0.3.x:
 _attachedCoordinator = FlutterNotificationQueue.coordinator; // global singleton
 ```
 
-**Flaw 2 — The Active Widget anti-pattern.**
-`NotificationWidget` is named `Widget` but is not a Flutter Widget in any meaningful sense.
-It is a data/configuration object. Calling `.show()` on it conflates two distinct roles:
-the data payload and the dispatch action. This naming misled users into treating it as a
-widget (placing it in build methods, passing it to widget parameters) when it is a command.
+#### Flaw 2 — The Active Widget anti-pattern (v0.1.x – v0.3.x)
+`NotificationWidget` was named `Widget` but was not a Flutter widget in any
+meaningful sense. It was a data/configuration object. Calling `.show()` on it
+conflated two distinct roles: the data payload and the dispatch command. This
+naming misled developers into placing it in build methods or passing it to
+widget parameters.
 
 ### 2.3 The Ecosystem Consensus
-
-Every major overlay library in the Flutter ecosystem has gone through the same evolution —
-from a static singleton toward a scoped, instance-based model. The end state that wins for
-advanced use cases is always the same shape:
+Every major overlay library in the Flutter ecosystem has evolved from a static
+singleton toward a scoped, instance-based model:
 
 ```
 [One StatefulWidget] = overlay mount point + InheritedWidget lookup
@@ -64,65 +73,63 @@ advanced use cases is always the same shape:
         └── pure-Dart controller = contextless escape hatch
 ```
 
-`ScaffoldMessenger` is the reference implementation of this pattern in the Flutter SDK itself:
-a single `StatefulWidget` that simultaneously mounts the snackbar overlay AND provides
-`.of(context)` lookup, backed by a pure-Dart `GlobalKey` for contextless access.
-
-The key lesson from libraries that failed at multi-tenancy (`toastification`, `bot_toast`):
-they kept their singletons and added contextless escape hatches on top. The library that got
-it right (`overlay_support`, `flash`) achieved isolation by making the scope widget the
-authoritative owner of the overlay instance.
+`ScaffoldMessenger` is the reference implementation of this pattern in the
+Flutter SDK itself: a single `StatefulWidget` that simultaneously mounts the
+overlay AND provides `.of(context)` lookup, backed by a pure-Dart handle for
+contextless access.
 
 ---
 
-## 3. The Architectural Thesis
+## 3. The Multi-Tenant Architecture (Introduced in v0.4.0)
 
-> FNQ v1.0 adopts the **`TextEditingController` ↔ `TextField`** attachment pattern from the
-> Flutter SDK: a pure-Dart **`NotificationController`** owns configuration and provides
-> contextless dispatch; a **`NotificationScope`** widget is the single widget that both mounts
-> the overlay surface AND provides `InheritedWidget` lookup — exactly as `ScaffoldMessenger`
-> does for snack bars.
+> In **v0.4.0**, FNQ adopted the **`TextEditingController` ↔ `TextField`**
+> attachment pattern from the Flutter SDK: a pure-Dart
+> **`NotificationController`** owns configuration and provides contextless
+> dispatch; a **`NotificationScope`** widget is the single widget that both
+> mounts the overlay surface AND provides `InheritedWidget` lookup—exactly as
+> `ScaffoldMessenger` does for snack bars.
 
 The Flutter SDK translation table:
 
-| Flutter SDK concept | FNQ v1.0 equivalent |
+| Flutter SDK Concept | FNQ Implementation (v0.4.0+) |
 |---|---|
 | `ScaffoldMessenger` (StatefulWidget + InheritedWidget) | `NotificationScope` |
 | `ScaffoldMessengerState` (the engine) | `NotificationScopeState` |
-| `GlobalKey<ScaffoldMessengerState>` (contextless handle) | `NotificationController` |
+| `GlobalKey<ScaffoldMessengerState>` | `NotificationController` |
 | `SnackBar` (pure data payload) | `AppNotification` |
 | `ScaffoldMessenger.of(context)` | `NotificationScope.of(context)` |
 | `showSnackBar()` | `show()` |
 
 The attachment lifecycle mirrors `TextEditingController` ↔ `EditableTextState`:
-
 - `controller._attach(state)` — called in `NotificationScope.initState()`
 - `controller._detach()` — called in `NotificationScope.dispose()`
-- `controller.show(notification)` — delegates to `state.show(notification)` when attached
+- `controller.show(notification)` — delegates to `state.show(notification)`
 
 ---
 
-## 4. Terminology & Naming
+## 4. Terminology & Evolutionary Renaming (v0.4.0)
 
-Every public-facing name was evaluated against four criteria: semantic accuracy, Flutter
+Every public-facing name was evaluated against semantic accuracy, Flutter
 precedent, conflict risk, and readability at the call site.
 
-### 4.1 Name Changes
+### 4.1 Name Changes Introduced in v0.4.0
 
-| v0.x | v1.0 | Rationale |
-|---|---|---|
-| `NotificationWidget` | `AppNotification` | Removes the `Widget` lie. The `App-` prefix distinguishes in-app notifications from OS push notifications — a distinction users genuinely make. No `dart:core` conflict. Matches Flutter's `AppBar`, `AppLifecycleListener` naming pattern. |
-| `FlutterNotificationQueue` | `NotificationController` | Lifecycle owner for notification state. Directly consistent with `AnimationController`, `ScrollController`, `TextEditingController`. |
-| *(new widget)* | `NotificationScope` | Role-focused, not mechanism-focused. The word "scope" communicates what this widget does — it defines the widget subtree within which notifications appear. `NotificationScope.of(context)` reads as naturally as `ScaffoldMessenger.of(context)`. |
-| `FnqEvent` | `NotificationEvent` | Removes an opaque internal abbreviation from public API. The subtypes are already well-named; only the base type changes. |
-| `showIfAttached()` | `tryShow()` | Follows Dart's `int.tryParse` convention — the `try` prefix signals "safe, non-throwing version." Concise and idiomatic. |
+- **`NotificationWidget` $\to$ `AppNotification`**:
+  Pure data intent; removes misleading `Widget` suffix.
+- **`FlutterNotificationQueue` $\to$ `NotificationController`**:
+  Instance-bound lifecycle controller.
+- **`NotificationScope` (new widget)**:
+  Widget subtree injector and `OverlayPortal` host.
+- **`FnqEvent` $\to$ `NotificationEvent`**:
+  Removes opaque abbreviation from public API.
+- **`showIfAttached()` $\to$ `tryShow()`**:
+  Idiomatic non-throwing try-pattern.
 
-### 4.2 Names That Do Not Change
-
+### 4.2 Names Retained for Continuity
 `NotificationChannel`, `NotificationQueue`, `QueuePosition`, `DismissReason`,
-`NotificationPriority`, and the entire event subtype hierarchy
-(`NotificationQueued`, `NotificationDismissed`, `NotificationTapped`, `QueueOverflowed`, etc.)
-are semantically accurate and should not change. Notably, `QueueOverflowed` is intentionally
+`NotificationPriority`, and event subtypes (`NotificationQueued`,
+`NotificationDismissed`, `NotificationTapped`, `QueueOverflowed`) were retained
+due to their semantic clarity.
 *not* prefixed with `Notification` — the *queue* overflowed, not a notification.
 
 ---
@@ -135,8 +142,9 @@ are semantically accurate and should not change. Notably, `QueueOverflowed` is i
 /// Represents the intent to display an in-app notification.
 ///
 /// This is a pure data object — it has no UI dependency, no [BuildContext]
-/// requirement, and no dispatch method. Pass it to [NotificationController.show]
-/// or [NotificationScope.of(context).show].
+/// requirement, and no dispatch method.
+/// Pass it to [NotificationController.show] or
+/// [NotificationScope.of(context).show].
 ///
 /// ```dart
 /// final notification = AppNotification(
@@ -199,11 +207,12 @@ class AppNotification {
 ### 5.2 `NotificationController` — Lifecycle Owner & Dispatch Handle
 
 ```dart
-/// Configuration owner and contextless dispatch handle for a notification surface.
+/// Configuration owner and contextless dispatch handle for a notification
+/// surface.
 ///
-/// Create one instance per independent notification surface (one per app window,
-/// one per isolated test, one per embedded FlutterEngine). Attach it to the
-/// widget tree via [NotificationScope].
+/// Create one instance per independent notification surface (one per app
+/// window, one per isolated test, one per embedded FlutterEngine). Attach it
+/// to the widget tree via [NotificationScope].
 ///
 /// ## Lifecycle
 ///
@@ -239,14 +248,15 @@ class NotificationController {
     bool captureFlutterErrors = false,
   });
 
-  /// Whether a [NotificationScope] is currently mounted and attached to this controller.
+  /// Whether a [NotificationScope] is currently mounted and attached to
+  /// this controller.
   bool get isAttached;
 
   /// Stable broadcast stream of all notification lifecycle events.
   ///
-  /// This stream **persists across [NotificationScope] mount and unmount cycles**.
-  /// Listeners attached before the scope mounts will continue to receive events
-  /// from the scope once it does mount, without re-subscribing.
+  /// This stream **persists across [NotificationScope] mount and unmount
+  /// cycles**. Listeners attached before the scope mounts will continue to
+  /// receive events from the scope once it does mount, without re-subscribing.
   ///
   /// ```dart
   /// controller.events.listen((event) {
@@ -322,7 +332,7 @@ void _attach(NotificationScopeState state) {
   );
   _attachedState = state;
   // Wire the scope's raw event stream into the stable proxy stream.
-  // The proxy survives attach/detach cycles; listeners do not need to re-subscribe.
+  // The proxy survives attach/detach cycles; listeners keep subscriptions.
   _stateSub = state._coordinator.events.listen(_proxyController.add);
 }
 
@@ -361,7 +371,8 @@ void _detach() {
 /// );
 /// ```
 ///
-/// For isolated subtree scopes (e.g., a single desktop window), place it directly:
+/// For isolated subtree scopes (e.g., a single desktop window), place it
+/// directly:
 ///
 /// ```dart
 /// NotificationScope(
@@ -382,7 +393,8 @@ class NotificationScope extends StatefulWidget {
   /// Returns the [NotificationScopeState] for the nearest [NotificationScope]
   /// ancestor in the widget tree.
   ///
-  /// Throws if no [NotificationScope] is found. Use [maybeOf] for optional lookup.
+  /// Throws if no [NotificationScope] is found. Use [maybeOf] for optional
+  /// lookup.
   ///
   /// ```dart
   /// ElevatedButton(
@@ -417,8 +429,8 @@ class NotificationScopeState extends State<NotificationScope> {
     if (old.controller != widget.controller) {
       old.controller._detach();
       widget.controller._attach(this);
-      // Note: configuration hot-swapping is not supported in v1.0.
-      // To change queue/channel configuration, replace the NotificationScope subtree.
+      // Note: configuration hot-swapping is not supported.
+      // To change configuration, replace the NotificationScope subtree.
     }
   }
 
@@ -432,8 +444,10 @@ class NotificationScopeState extends State<NotificationScope> {
   void show(AppNotification notification) =>
       _coordinator.queue(notification._toEntry());
 
-  void dismiss(String id, {DismissReason reason = DismissReason.programmatic}) =>
-      _coordinator.dismissById(id, reason: reason);
+  void dismiss(
+    String id, {
+    DismissReason reason = DismissReason.programmatic,
+  }) => _coordinator.dismissById(id, reason: reason);
 
   void dismissAll({DismissReason reason = DismissReason.programmatic}) =>
       _coordinator.dismissAll(reason: reason);
@@ -458,15 +472,15 @@ This single change is the mechanical unlock for all multi-tenancy scenarios:
 ```diff
 // lib/src/core/notification_overlay.dart — initState()
 
-- _attachedCoordinator = FlutterNotificationQueue.coordinator; // ← global singleton
-+ // coordinator is now injected via widget.coordinator from NotificationScope.build()
+- _attachedCoordinator = FlutterNotificationQueue.coordinator;
++ // Coordinator is injected via widget.coordinator from
++ // NotificationScope.build()
 + widget.coordinator.attach(_overlayPortalController);
 ```
 
-The `_NotificationOverlay` widget gains a `coordinator` constructor parameter, which
-`NotificationScopeState.build()` supplies. All existing overlay rendering logic —
-`OverlayPortal`, the `Stack` fallback, `_NotificationQueueStack`, `QueueWidget` — remains
-completely unchanged.
+The `_NotificationOverlay` widget gains a `coordinator` parameter supplied by
+`NotificationScopeState.build()`. All existing overlay rendering logic
+(`OverlayPortal`, `Stack` fallback, queue widgets) remains unchanged.
 
 ### 5.5 `NotificationEvent` — Renamed Event Base Type
 
@@ -491,7 +505,8 @@ final class NotificationGroupExpanded extends NotificationEvent { ... }
 final class NotificationGroupCollapsed extends NotificationEvent { ... }
 final class NotificationGroupDismissed extends NotificationEvent { ... }
 final class NotificationChannelRouteUpdated extends NotificationEvent { ... }
-final class QueueOverflowed extends NotificationEvent { ... } // note: not "Notification" prefix
+// Note: QueueOverflowed intentionally omits the "Notification" prefix:
+final class QueueOverflowed extends NotificationEvent { ... }
 ```
 
 ---
@@ -587,7 +602,8 @@ controller.events.listen((event) {
 
 ### Scenario A — Standard Mobile/Web App (Most Common)
 
-One controller, one scope, app-wide coverage. The simplest and most common usage.
+One controller, one scope, app-wide coverage. The simplest and most common
+usage:
 
 ```dart
 // main.dart
@@ -616,14 +632,16 @@ class MyApp extends StatelessWidget {
 }
 ```
 
-The controller lives as long as the app. No `dispose()` needed (process ends when app ends).
-For apps using Riverpod, the controller is a natural `Provider` or `StateProvider` value.
+The controller lives as long as the app. No `dispose()` needed (process ends
+when app ends). For apps using Riverpod, the controller is a natural
+`Provider` value.
 
 ---
 
 ### Scenario B — Flutter Desktop Multi-Window
 
-Each window gets its own controller and scope. Notifications are completely isolated.
+Each window gets its own controller and scope. Notifications are completely
+isolated.
 
 ```dart
 // Window A — spawned when the user opens a new editor window
@@ -664,13 +682,13 @@ class _EditorWindowState extends State<EditorWindow> {
 }
 ```
 
-When the user closes Window A, `_EditorWindowState.dispose()` runs, which calls
-`_notifications.dispose()`. The `NotificationScope.dispose()` that runs first (as part of
-widget tree teardown) calls `controller._detach()`. The coordinator is cleaned up via
-standard Flutter lifecycle — no manual intervention required.
+When the user closes Window A, `_EditorWindowState.dispose()` runs, calling
+`_notifications.dispose()`. The `NotificationScope.dispose()` that runs first
+(as part of widget tree teardown) calls `controller._detach()`. The coordinator
+is cleaned up via standard Flutter lifecycle.
 
-Notifications dispatched to `_notifications` appear **only** in Window A's overlay.
-Window B's `_notifications` instance is completely independent.
+Notifications dispatched to `_notifications` appear **only** in Window A's
+overlay. Window B's `_notifications` instance is completely independent.
 
 If the app needs a global merged event stream for analytics:
 
@@ -683,17 +701,19 @@ final _allWindowEvents = StreamGroup.merge([
 _allWindowEvents.listen(analyticsService.track);
 ```
 
-The library does not impose a global merge — merging is the app's concern and the app's choice.
+The library does not impose a global merge — merging is the app's concern.
 
 ---
 
 ### Scenario C — Flutter Add-to-App (Embedded in Native)
 
-When Flutter is embedded in a native iOS or Android app, multiple `FlutterEngine` instances
-may run concurrently. With v0.x's global singleton, only the first engine's notifications
-would work; the second would fight over the same coordinator state.
+When Flutter is embedded in a native iOS or Android app, multiple
+`FlutterEngine` instances may run concurrently. In the v0.1.x–v0.3.x prototype
+era with a global singleton, only the first engine's notifications would work;
+the second would fight over the same coordinator state.
 
-With v1.0, each engine gets its own controller, created when the Flutter module initializes:
+Since v0.4.0, each engine gets its own controller, created when the Flutter
+module initializes:
 
 ```dart
 // flutter_module/lib/main.dart — entry point for the embedded engine
@@ -724,16 +744,16 @@ class EmbeddedApp extends StatelessWidget {
 }
 ```
 
-No state is shared between engine instances. Each embedded Flutter surface operates with
-full isolation.
+No state is shared between engine instances. Each embedded Flutter surface
+operates with full isolation.
 
 ---
 
 ### Scenario D — Per-Route / Per-Page Isolated Scope
 
-Some apps need notifications scoped to a specific page — for example, a dashboard where
-"data sync" notifications should only appear while the dashboard is visible and auto-dismiss
-when the user navigates away.
+Some apps need notifications scoped to a specific page — for example, a
+dashboard where "data sync" notifications should only appear while the
+dashboard is visible and auto-dismiss when the user navigates away.
 
 ```dart
 class DashboardPage extends StatefulWidget { ... }
@@ -752,7 +772,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   void dispose() {
-    _localNotifications.dispose(); // all notifications auto-dismiss on page exit
+    // all notifications auto-dismiss on page exit
+    _localNotifications.dispose();
     super.dispose();
   }
 
@@ -777,9 +798,11 @@ notifications vanish — with zero explicit cleanup code required.
 
 ### Scenario E — Widget Test Isolation (Zero Shared State)
 
-In v0.x, every widget test that used FNQ required a `tearDown` call to `FlutterNotificationQueue.reset()`, because the global singleton leaked between tests.
+In the v0.1.x–v0.3.x prototype era, every widget test that used FNQ required a
+`tearDown` call to `FlutterNotificationQueue.reset()`, because the global
+singleton leaked between tests.
 
-In v1.0, each test tree has its own controller:
+Since v0.4.0, each test tree creates its own isolated controller:
 
 ```dart
 testWidgets('shows error notification when API fails', (tester) async {
@@ -824,24 +847,27 @@ testWidgets('does not show notification when API succeeds', (tester) async {
 
 ---
 
-## 8. Migration Plan: v0.3.0 → v0.4.0
+## 8. Historical Milestone: The v0.3.0 → v0.4.0 Architectural Transition
+
+In August 2026, FNQ executed a two-phase architectural transition to eliminate
+the legacy prototype singletons and establish the multi-tenant baseline:
 
 ### Phase A — v0.3.0: Additive Deprecations (Zero Breaking Changes)
-
-Ship the entire new API alongside the existing API. Users can adopt at their own pace.
-The old API continues to work but emits deprecation warnings.
+Shipped the modern `NotificationController` and `NotificationScope` API
+alongside legacy singletons. The old API continued functioning while emitting
+actionable deprecation warnings:
 
 ```dart
 @Deprecated(
-  'FlutterNotificationQueue is replaced by NotificationController + NotificationScope. '
-  'See doc/migration_v0_4.md for a step-by-step guide.',
+  'FlutterNotificationQueue is replaced by NotificationController + '
+  'NotificationScope. See doc/migration_v0_4.md for a step-by-step guide.',
 )
 final class FlutterNotificationQueue { ... }
 
 @Deprecated(
   'NotificationWidget is replaced by AppNotification. '
-  'NotificationWidget(...).show() becomes controller.show(AppNotification(...)). '
-  'See doc/migration_v0_4.md.',
+  'NotificationWidget(...).show() becomes '
+  'controller.show(AppNotification(...)).',
 )
 final class NotificationWidget { ... }
 
@@ -849,97 +875,169 @@ final class NotificationWidget { ... }
 typedef FnqEvent = NotificationEvent;
 ```
 
-No user code breaks in v0.3.0. The deprecation warnings are the migration signal.
-
 ### Phase B — v0.4.0: Breaking Removal
+Removed all deprecated static symbols in `v0.4.0` under pre-1.0 SemVer rules
+(where `0.y.0` indicates breaking structural changes). The codebase was
+standardized 100% around `NotificationController`, `NotificationScope`, and
+`AppNotification`.
 
-Remove all deprecated static symbols in v0.4.0 under pre-1.0 SemVer rules (where `0.y.0` indicates breaking API changes). The codebase is completely standardized around `NotificationController`, `NotificationScope`, and `AppNotification`. A `doc/migration_v0_4.md` guide accompanies the release.
+**One-to-one migration replacement:**
 
-**One-to-one replacement table:**
-
-| v0.3.x Legacy API | v0.4.0 Modern Architecture |
+| v0.1.x–v0.3.x Legacy Symbol | v0.4.0+ Modern Architecture |
 |---|---|
-| `FlutterNotificationQueue.configure(queues: q, channels: c)` | `NotificationController(queues: q, channels: c)` |
-| `FlutterNotificationQueue.builder` | `(ctx, child) => NotificationScope(controller: c, child: child!)` |
-| `NotificationWidget(message: m).show()` | `controller.show(AppNotification(message: m))` |
-| `FlutterNotificationQueue.show(message: m)` | `controller.show(AppNotification(message: m))` |
+| `FlutterNotificationQueue.configure(...)` | `NotificationController(...)` |
+| `FlutterNotificationQueue.builder` | `NotificationScope(controller: c, ...)` |
+| `NotificationWidget.show()` | `controller.show(AppNotification(...))` |
 | `FlutterNotificationQueue.events` | `controller.events` |
 | `FlutterNotificationQueue.getHistory(...)` | `controller.getHistory(...)` |
-| `FlutterNotificationQueue.reset()` | Not needed — dispose controller or let tree dispose it |
+| `FlutterNotificationQueue.reset()` | Not needed — controller scoped to tree |
 | `FnqEvent` | `NotificationEvent` |
 
 ---
 
-## 9. Implementation Order for v0.3.0
+## 9. Historical Implementation Stages of v0.4.0
 
-Steps 1 and 2 are purely additive and carry zero risk.
-Step 3 is the highest-risk change — the render engine touches — but is also the smallest
-in terms of diff size: one line in `notification_overlay.dart`.
-Steps 4–5 can proceed in parallel with step 3 once the coordinator interface is stable.
+The structural migration to `v0.4.0` was executed across 10 progressive steps:
 
 ```
-Step 1  AppNotification
-        ├── Create class with same parameters as NotificationWidget
-        ├── Add internal _toEntry() adapter method
-        └── Mark NotificationWidget @Deprecated
-
-Step 2  NotificationController
-        ├── Pure Dart, zero Flutter SDK imports
-        ├── _attach() / _detach() internal protocol
-        ├── Stable _proxyController event stream
-        └── show(), tryShow(), dismiss(), dismissAll(), getHistory(), events, dispose()
-
-Step 3  _NotificationOverlay refactor
-        ├── Add coordinator constructor parameter
-        ├── Remove FlutterNotificationQueue.coordinator static access
-        └── All rendering logic (OverlayPortal, Stack fallback) is unchanged
-
-Step 4  QueueCoordinator.fromController() factory
-        └── Accept configuration from NotificationController rather than ConfigurationManager
-
-Step 5  NotificationScope
-        ├── StatefulWidget + private _NotificationScopeData InheritedWidget
-        ├── initState() → controller._attach(this)
-        ├── dispose() → controller._detach()
-        ├── build() → _NotificationScopeData + _NotificationOverlay(coordinator: _coordinator)
-        ├── NotificationScope.of(context)
-        └── NotificationScope.maybeOf(context)
-
-Step 6  NotificationEvent rename
-        ├── sealed class NotificationEvent (rename FnqEvent)
-        └── typedef FnqEvent = NotificationEvent (deprecation bridge)
-
-Step 7  Mark FlutterNotificationQueue @Deprecated
-
-Step 8  Update all tests
-        └── Remove FlutterNotificationQueue.reset() tearDown calls
-
-Step 9  Update example app
-
-Step 10 Write doc/migration_v0_4.md
+Step 1  AppNotification (pure data payload class)
+Step 2  NotificationController (pure Dart lifecycle owner)
+Step 3  _NotificationOverlay refactor (accepts coordinator instance)
+Step 4  QueueCoordinator.fromController() constructor
+Step 5  NotificationScope (StatefulWidget + InheritedWidget)
+Step 6  NotificationEvent sealed class rename
+Step 7  Deprecation warnings on FlutterNotificationQueue
+Step 8  Update test suite to remove reset() tearDown calls
+Step 9  Update example app to multi-tenant controllers
+Step 10 Publish doc/migration_v0_4.md guide
 ```
 
 ---
 
-## 10. Where FNQ Stands in the Ecosystem After v1.0
+## 10. Ecosystem Comparison & Current Standing
 
-| Capability | FNQ v1.0 | toastification | bot_toast | overlay_support | flash |
+The table below reflects FNQ's capabilities as of **v0.7.x**:
+
+| Capability | FNQ | toastification | bot_toast | overlay_supp. | flash |
 |---|:---:|:---:|:---:|:---:|:---:|
-| True multi-tenancy (isolated controller per surface) | ✅ | ❌ | ❌ | ⚠️ limited | ✅ native |
-| Spatial multi-queue (multiple positions simultaneously) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| True multi-tenancy (isolated controller) | ✅ | ❌ | ❌ | ⚠️ limited | ✅ native |
+| Spatial multi-queue (simultaneous) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Priority triage & overflow backpressure | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Notification grouping with gesture-driven unravel | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Rich typed event stream (`NotificationEvent` sealed class) | ✅ | Partial | Partial | ❌ | Partial |
+| Notification grouping with card unravel | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Typed event stream | ✅ | Partial | Partial | ❌ | Partial |
 | Channel-based routing & dynamic parking | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Zero-reset test isolation | ✅ | ❌ | ❌ | ✅ | ✅ |
+| Continuous egress & momentum flight | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Token invariant & queue stasis engine | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-v1.0 does not add new features. It makes FNQ's existing, unique capabilities available to
-every production Flutter application — the ones that cannot tolerate a global static
-singleton because they run multiple windows, embed multiple engines, or demand rigorous
-test isolation.
+All of the advanced architectural capabilities listed above are active and
+verified in the codebase today (`v0.7.x`).
 
 ---
 
-*Last updated: 2026-08-13 — Incorporates: maturity audit, ecosystem analysis,
-TextEditingController attachment pattern, NotificationScope decision, AppNotification
-naming, NotificationEvent rename, tryShow() convention, and multi-tenancy scenario review.*
+## 11. Evolutionary Lineage & The Infrastructure Maturation Path
+
+The roadmap toward eventual production readiness is an evolving exploration
+rather than a rigid countdown.
+
+> [!NOTE]
+> **Working Hypotheses & Exploratory Pre-1.0 SemVer**: All future milestone
+> projections (`v0.8.x`, `v0.9.x`, etc.) are **surface anticipations and
+> working hypotheses**, not immutable commitments. FNQ will iterate through as
+> many minor releases as required to thoroughly stress-test infrastructure,
+> discover edge cases, and harden fundamentals before declaring any API freeze.
+
+The major evolutionary phases across FNQ's history and active exploration:
+
+### Prototype Era: v0.1.0 – v0.3.x
+- **Focus**: Proof-of-concept and rapid setup via
+  `FlutterNotificationQueue.configure()`.
+- **Architectural Flaws**: Global static singleton blocked desktop multi-window
+  apps and test isolation (required `reset()` in tests); Active Widget
+  anti-pattern conflated data payload with dispatch command.
+
+### Multi-Tenant Revolution: v0.4.0
+- **Architectural Shift**: Eliminated all static singletons.
+- **Key Deliverables**: Introduced pure-Dart `NotificationController`,
+  widget-tree `NotificationScope`, pure data `AppNotification`, and sealed
+  `NotificationEvent` hierarchy.
+
+### Stability, Leaks & Grouping: v0.5.0 – v0.5.2
+- **Architectural Shift**: Memory hardening and visual card bundling.
+- **Key Deliverables**: Resolved snooze timer leaks, non-destructive error
+  chaining, `GroupCountBehavior` deck bundling, peek card timer stasis, and
+  duplicate GlobalKey collisions.
+
+### Encapsulation & Platform Hardening: v0.6.0 – v0.6.1
+- **Architectural Shift**: Monolith decomposition and accessibility.
+- **Key Deliverables**: Decomposed 26-part monolith into clean sub-libraries,
+  added WCAG 2.1 AA accessibility options (`NotificationA11yOptions`), desktop
+  right-click context menu engine, and `NotificationThemeData`.
+
+### Continuous Egress & Temporal Invariance: v0.7.0 – v0.7.1
+- **Architectural Shift**: Physical continuous egress and invariant timekeeping.
+- **Key Deliverables**: Replaced artificial screen-edge drop zones with
+  card-centric `DismissEgress` and `EgressFlightOverlay`; cross-queue slot
+  relocation; replaced loose boolean flags with token-based invariant engine
+  (`TimerPauseReason`); introduced queue-level stasis
+  (`NotificationTimerScope`).
+
+### Infrastructure Maturation & Gesture Rationalization: v0.8.x (Planned)
+- **Architectural Shift**: Conceptual gesture unification & reality testing.
+- **Key Deliverables**:
+  1. Consolidate fragmented spatial movement (`Reorder`, `Relocate`,
+     `ReorderAndRelocate`) into a single, cohesive spatial movement engine.
+  2. Rationalize card retention actions (`Pin`, `Snooze`) out of standalone
+     drag behaviors into a dedicated card action/retention model.
+  3. Purge legacy `DismissZone` and screen-edge target machinery (~1,200 LOC).
+  4. Implement real multi-window desktop support in the Studio example to
+     battle-test `NotificationController` and `NotificationScope` under real
+     OS multi-window conditions.
+
+### Deep Hardening & Edge-Case Stress Testing: v0.9.x+ (Exploratory)
+- **Architectural Shift**: High-throughput profiling and multi-engine teardowns.
+- **Key Deliverables**: Stress benchmarks under 120Hz frame budgets, screen
+  reader WCAG 2.1 AA audit, and memory leak analysis across rapid lifecycle
+  events.
+
+### Eventual Production Stability: v1.0.0 (Target Horizon)
+- **Architectural Shift**: Production General Availability.
+- **Milestone Definition**: Long-term API freeze and stability guarantee,
+  declared only when the underlying infrastructure has proven rock-solid
+  across real desktop, web, and mobile production workloads.
+
+### 11.1 Token-Based Invariant Engine (Shipped in v0.7.1)
+The legacy approach of managing countdowns through ad-hoc boolean flags
+(`_isMouseHovering`, `_isDragPaused`) was replaced with an immutable token set:
+
+```dart
+final Set<TimerPauseReason> _pauseReasons = <TimerPauseReason>{};
+
+bool get shouldTimerRun =>
+    NotificationTimerScope.isEnabledNonSubscribing(context) &&
+    _pauseReasons.isEmpty &&
+    !_isDismissing;
+```
+
+Any interaction (`drag`, `hover`, `touchHold`, `expanded`, `contextMenu`,
+`pinned`) acquires a discrete token. Releasing the interaction revokes the
+token. The timer runs if and only if zero pause tokens exist.
+
+### 11.2 Queue Stasis (`NotificationTimerScope`, Shipped in v0.7.1)
+Queues synchronize stasis across all rendered cards via
+`NotificationTimerScope`. During in-queue reordering, cross-queue relocation, or
+programmatic pause (`controller.pauseQueue`, `controller.pauseAll`), the entire
+queue halts countdowns without mutating individual card state tokens.
+
+### 11.3 Card-Centric Egress & Inertial Flight (Shipped in v0.7.0/v0.7.1)
+Swipe dismissals follow card-centric egress trajectories (`DismissEgress`)
+rather than hardcoded screen borders. Committing past dual thresholds
+(fractional displacement or ballistic `escapeVelocity`) detaches the card
+into an `EgressFlightOverlay` that coasts off-screen while the queue stack
+immediately collapses the vacated slot beneath it.
+
+---
+
+*Last updated: 2026-11-14 — Incorporates: architectural axioms, token-based
+timer invariant engine, queue stasis subsystem, card-centric egress physics,
+cross-queue slot relocation, and complete version lineage tracking.*

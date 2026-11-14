@@ -53,6 +53,35 @@
     bypassing dismissal desaturation filters.
 
 ### Bug Fixes & Timer Resilience
+- **Unified Card-Level Invariant Engine**:
+  - Replaced scattered boolean timer flags (`_isMouseHovering`, `_isDragPaused`,
+    `_isContextMenuOpen`) with token-based set accounting
+    (`Set<TimerPauseReason>`).
+  - Added single invariant getter `shouldTimerRun` that mathematically validates
+    that all pause tokens are released before ticking the auto-dismiss timer.
+  - Eliminated timer clobbering where ending a hover or drag could prematurely
+    restart an expanded, pinned, or context-menu-active card's timer.
+  - Added atomic dismissal serialization (`_isDismissing`) inside
+    `NotificationWidgetState.dismiss` to guarantee idempotency across concurrent
+    timeout, tap, swipe, and programmatic dismissal calls.
+- **Queue-Level Timer Stasis Architecture**:
+  - Integrated `NotificationTimerScope` into `QueueWidgetState` to
+    automatically pause auto-dismiss timers across an entire queue during
+    intra-queue reorder drags (`_reorderDragState`).
+  - Implemented cross-queue relocation stasis: whenever a card is dragged
+    between queues, both the source and target queues freeze their timers,
+    preventing cards from expiring underneath the user's active interaction.
+  - Added programmatic queue stasis control: `pauseQueue(position)`,
+    `resumeQueue(position)`, `pauseAll()`, `resumeAll()`, and
+    `isQueuePaused(position)` on `NotificationController` and
+    `QueueCoordinator`.
+  - Hardened nested timer scopes in `QueueGroupWidget` to ensure child groups
+    cannot override parent queue stasis.
+- **Interaction & Touch Target Polish**:
+  - Enlarged close button hit region to a comfortable 36x36 dp bounding box
+    while maintaining a refined 18 dp visual icon.
+  - Unified header touch target so tapping the notification title expands the
+    card even when `TapToDismiss` is configured on the card body.
 - **Auto-Dismiss Timer Stasis & Recovery**:
   - Fixed an issue where initiating and cancelling a swipe drag permanently
     ditch-cancelled the auto-dismiss timer.
@@ -84,11 +113,11 @@
 
 ### Bug Fixes & Stability
 - **Keyboard Shortcut Modifier Isolation**:
-  - `NotificationWidgetState._handleCardKeyEvent` now inspects modifier keys
-    (`Control`, `Meta`, `Alt`, `Shift`). App-level shortcuts such as `Ctrl+Enter`
-    or `Cmd+Enter` (e.g. Fire Draft) and `Ctrl+E` (Toggle Code Editor) are no
-    longer captured as card activations or shortcuts by whichever card currently
-    holds keyboard focus.
+  - `NotificationWidgetState._handleCardKeyEvent` now inspects modifier
+    keys (`Control`, `Meta`, `Alt`, `Shift`). App-level shortcuts such as
+    `Ctrl+Enter` or `Cmd+Enter` (e.g. Fire Draft) and `Ctrl+E` (Toggle Code
+    Editor) are no longer captured as card activations or shortcuts by
+    whichever card currently holds keyboard focus.
   - Resolved an issue where pressing `Ctrl+Enter` while testing notifications
     dismissed the last relocated notification with `DismissReason.userTap`.
   - Added `NotificationWidgetState.unfocus()` called on gesture drag completion

@@ -1,39 +1,101 @@
 # Notification Lifecycle
 
-Understanding the lifecycle of a notification from payload intent to teardown is essential for debugging, customization, and event stream observation.
+Understanding the lifecycle of a notification from payload intent to teardown is
+essential for debugging, customization, and event stream observation.
 
-## The 5 Stages
+---
 
-### 1. Intent Dispatch (`controller.show(AppNotification(...))`)
-- Application code or service dispatches an `AppNotification` payload.
-- `NotificationController` validates channel and queue configurations via `ConfigurationManager`.
-- Resolves target queue (via `targetPosition`, `channel.position`, or default).
+## 1. The 5 Lifecycle Stages
+
+```mermaid
+graph TD
+    S1["1. Intent Dispatch<br/>(controller.show)"]
+    S2["2. Triage & Capacity<br/>(QueueCoordinator)"]
+    S3["3. Mounting & Entrance<br/>(QueueWidget & OverlayPortal)"]
+    S4["4. Active Interaction & Timer<br/>(Invariant Token Engine)"]
+    S5["5. Dismissal & Teardown<br/>(Flight Overlay)"]
+    S1 --> S2
+    S2 --> S3
+    S3 --> S4
+    S4 --> S5
+```
+
+---
+
+### Stage 1: Intent Dispatch
+- Application code or service dispatches an `AppNotification` payload via
+  `controller.show(...)`.
+- `NotificationController` validates channel and queue configurations via
+  `ConfigurationManager`.
+- Resolves target queue (via explicit `targetPosition`, `channel.position`, or
+  fallback default).
 - Emits `NotificationQueued` event on `controller.events`.
 
-### 2. Queue Triage & Capacity Evaluation
+---
+
+### Stage 2: Queue Triage & Capacity Evaluation
 - The notification is passed to the `QueueCoordinator`.
-- Coordinator evaluates priority triage, preemption rules, and capacity limits (`maxStackSize`).
-- If capacity is exceeded, lower-priority notifications are dropped, evicted, or parked according to queue policies (`QueueOverflowed` event emitted).
+- Coordinator evaluates priority triage, preemption rules, and capacity limits
+  (`maxStackSize`).
+- If capacity is exceeded, lower-priority notifications are dropped, evicted,
+  or parked according to queue policies (`QueueOverflowed` event emitted).
 
-### 3. Mounting & Display
-- `QueueCoordinator` ensures `OverlayPortalController` is attached via `NotificationScope`.
+---
+
+### Stage 3: Mounting & Entrance Animation
+- `QueueCoordinator` ensures `OverlayPortalController` is attached via
+  `NotificationScope`.
 - Active `QueueWidget` mounts and renders the card into the spatial stack.
-- The notification animates onto the screen using its configured entrance animation (`Slide`, `Scale`, `Fade`).
+- The notification animates onto the screen using its configured entrance
+  transition (`Slide`, `Scale`, `Fade`).
 
-### 4. Active Interaction & Timer Countdown
-- The card sits in the spatial stack.
-- Users can interact with the notification (swipe dismiss, drag to reorder/relocate, expand deck, tap actions).
-- **Auto-Dismiss Timer**: If `defaultDismissDuration` or notification-specific duration is specified, an internal countdown timer runs.
-- **Timer Stasis & Drag Resilience**:
-  - **Touch & Drag Stasis**: Initiating a swipe or drag interaction immediately suspends the auto-dismiss timer countdown (`pauseDismissTimer()`), freezing remaining duration.
-  - **Cancel & Snap-Back Recovery**: If the drag is released before threshold without committing, the card snaps back to its slot and the timer cleanly resumes (`resumeDismissTimer()`) from its exact remaining duration.
-  - **Bundled Deck Stasis**: Lifting the representative card reveals the peek card beneath in visual stasis (`opacity = 0.55`) with its timer frozen. Expanding a bundle (`pauseTimersWhenExpanded: true`) halts timers across all bundled cards.
+---
 
-### 5. Dismissal & Teardown (`NotificationDismissed`)
-- **Trigger**: Timer completion, manual swipe, card tap, group purge, or programmatic `controller.dismiss(...)`.
+### Stage 4: Active Interaction & Invariant Timekeeping
+- The card sits in the spatial stack wrapped in `NotificationTimerScope`.
+- Auto-dismiss countdown runs subject to the mathematical invariant:
+  `shouldTimerRun = isTimerEnabled && _pauseReasons.isEmpty && !_isDismissing`
+- **Interaction Suspends Entropy (Axiom IV)**:
+  - **Hover**: Cursor over card adds `TimerPauseReason.hover`.
+  - **Touch Hold**: Sustained mobile contact adds `TimerPauseReason.touchHold`.
+  - **Drag Gesture**: Pointer pan adds `TimerPauseReason.drag` and applies
+    dynamic angular tilt (`enableTilt`) while revealing `EgressUnderlay`.
+  - **Context Menu**: Opening secondary click menu adds
+    `TimerPauseReason.contextMenu`.
+  - **Expanded Deck**: Tapping to expand adds `TimerPauseReason.expanded`.
+- **Queue-Level Stasis**:
+  - Reordering or relocating cards freezes all cards across affected queues
+    via `NotificationTimerScope(enabled: !isQueuePaused)`.
+  - Application developers can programmatically freeze queues via
+    `controller.pauseQueue(...)` or `controller.pauseAll()`.
+- **Duration Conservation**:
+  - Releasing an uncommitted drag or un-pausing resumes the countdown timer
+    from the exact remaining millisecond duration without resetting.
+
+---
+
+### Stage 5: Dismissal & Teardown
+- **Dismissal Trigger**:
+  - Auto-dismiss timer completion (`DismissReason.timeout`).
+  - User swipe past threshold or escape velocity (`DismissReason.userSwipe`).
+  - User card tap action (`DismissReason.userTap`).
+  - Programmatic dismissal (`controller.dismiss(...)` or
+    `controller.dismissGroup(...)`).
+  - Capacity eviction (`DismissReason.evicted`).
+- **Idempotent Guard**:
+  - `_isDismissing` flag ensures dismissal logic executes exactly once per card,
+    preventing duplicate controller calls or post-dispose animations.
 - **Exit Modes**:
-  - **In-Place Reverse Animation**: For programmatic dismissals, timeout completions, and tap-to-dismiss actions, the card executes its configured reverse transition (`Slide`, `Scale`, `Fade`).
-  - **Ballistic Inertial Exit Flight (`EgressFlightOverlay`)**: For committed user swipe dismissals, the card smoothly detaches into an overlay flight portal, continuing its coasting trajectory off-screen at its exact finger release velocity. The source slot in the queue stack collapses immediately beneath it.
-- **Teardown**: Notification state is removed from the active queue list and disposed.
-- Emits `NotificationDismissed` event containing the exact `DismissReason` (`timeout`, `userSwipe`, `userTap`, `programmatic`, `evicted`).
-- **Portal Cleanup**: When all queues become empty, `QueueCoordinator` detaches the `OverlayPortalController` to release system resources.
+  - **Ballistic Inertial Flight (`EgressFlightOverlay`)**:
+    Committed swipe dismissals detach the card into an overlay flight portal,
+    coasting off-screen at finger release velocity while the queue stack slot
+    collapses immediately beneath it.
+  - **In-Place Reverse Animation**:
+    Timeouts and programmatic dismissals execute configured reverse
+    transitions (`Slide`, `Scale`, `Fade`).
+- **Teardown & Cleanup**:
+  - Card state and tickers are disposed.
+  - Notification entry is removed from `QueueCoordinator` active buckets.
+  - `NotificationDismissed` event is emitted.
+  - When all queues are empty, `QueueCoordinator` detaches the
+    `OverlayPortalController` to conserve system resources.
