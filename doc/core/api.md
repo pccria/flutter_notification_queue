@@ -111,10 +111,16 @@ Declarative configuration object for spatial layout and stacking behavior.
 - `maxStackSize`: Maximum concurrent notifications allowed in the queue.
 
 #### Queue Drag Behaviors (`QueueNotificationBehavior`)
+
+##### 1. Spatial Egress
 - `Dismiss({egress, dismissThreshold, escapeVelocity, ...})`:
   Directional swipe-to-dismiss with card-centric egress paths, dual thresholds,
   angular tilt, and reveal underlays. Parameters: `egress`, `dismissThreshold`,
   `escapeVelocity`, `enableTilt`, `showUnderlay`, `dismissIcon`, `dismissColor`.
+
+##### 2. Spatial Movement (Reorder & Relocate)
+*Note: In `v0.7.x`, spatial movement is exposed via separate classes. In
+`v0.8.x`, these converge into a single unified spatial movement behavior.*
 - `Reorder({thresholdInPixels, springPhysics})`:
   In-queue live stack reordering with gravity-well hysteresis.
 - `Relocate.to(positions, {permanent, springPhysics})`:
@@ -122,8 +128,16 @@ Declarative configuration object for spatial layout and stacking behavior.
 - `ReorderAndRelocate.to(positions, ...)`:
   Hybrid interaction: reorders locally or relocates across queues when dragged
   past escape threshold (`escapeThresholdInPixels`).
-- `Disabled()`:
-  Disables all drag interaction gestures.
+
+##### 3. Retention & Card Actions (@experimental)
+*Note: Drag-to-action is experimental in `v0.7.x` and evolving into a dedicated
+action/retention model (header action pills, context menus, reveal actions).*
+- `Pin()`: Pins the card to prevent auto-dismiss and gesture dismissals.
+- `Snooze({duration})`: Temporarily shelves the card for later re-display.
+- `CustomAction({actionName})`: Dispatches a developer-defined action event.
+
+##### 4. Interaction Disabled
+- `Disabled()`: Disables all drag interaction gestures.
 
 #### Dismiss Egress Strategies (`DismissEgress`)
 - `DismissEgress.horizontal({allowLeft = true, allowRight = true})`:

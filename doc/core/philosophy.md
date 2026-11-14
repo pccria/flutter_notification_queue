@@ -1,9 +1,10 @@
-# The Philosophy & Foundational Axioms of FNQ
+# The Philosophy & Architectural Principles of FNQ
 
 > [!NOTE]
-> This document formalizes the philosophical principles, design axioms, and
-> mental models governing **Flutter Notification Queue (FNQ)**. It serves as the
-> authoritative guide for architectural decisions across the library.
+> This document formalizes the architectural principles, mental models, and
+> design axioms that guide **Flutter Notification Queue (FNQ)**. These axioms
+> are not rigid dogmas, but living engineering principles that are actively
+> stress-tested, refined, and validated against real-world Flutter apps.
 
 ---
 
@@ -60,6 +61,13 @@ FNQ follows the Flutter SDK's `TextEditingController` ↔ `TextField` and
   manager, and contextless dispatch handle.
 - **`NotificationScope`**: Single widget-tree injector that mounts the
   `OverlayPortal` and provides `NotificationScope.of(context)` lookup.
+
+### Real-World Multi-Window Desktop Validation
+While `NotificationController` and `NotificationScope` are architecturally
+designed for multi-tenancy, live multi-window desktop behavior is an active
+maturation target. Real-world testing in the Studio example is being used to
+verify coordinate transformations, window lifecycle teardowns, and focus
+management under actual OS conditions.
 
 ---
 
@@ -231,6 +239,12 @@ relying on disconnected pop-in/pop-out animations.
   threshold, the card detaches into an overlay portal and coasts off-screen at
   its exact release velocity, while the source slot in the queue collapses
   immediately beneath it.
+- **Unified Spatial Movement**: Translating cards across slots (in-queue slot
+  reordering and cross-queue relocation) operates as a continuous spatial
+  mechanic rather than disconnected gesture modes.
+- **Dedicated Retention Actions**: Operations like pinning and snoozing act on
+  card lifecycle through contextual controls, rather than synthetic full-card
+  drag interactions.
 
 ---
 

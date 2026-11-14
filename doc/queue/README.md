@@ -57,15 +57,30 @@ NotificationQueue(
 
 Queue behavior governs how users interact with notification cards in the stack:
 
+### 1. Spatial Egress
 - **`Dismiss()`**: Directional swipe to dismiss with customizable egress
   trajectories, physical tilt, and reveal underlays.
+
+### 2. Spatial Movement (Reorder & Relocate)
+*Note: In `v0.7.x`, local reordering and cross-queue relocation are exposed
+via separate behaviors. In `v0.8.x`, these converge into a single unified
+spatial movement engine.*
 - **`Reorder()`**: Drag up/down to reorder notifications within the stack
   featuring gravity-well hysteresis.
 - **`Relocate.to()`**: Drag notification cards across queue positions with
   live drop previews.
 - **`ReorderAndRelocate.to()`**: Hybrid spatial drag supporting both in-queue
   reordering and cross-queue relocation past an escape threshold.
-- **`Disabled()`**: Non-interactive notification cards.
+
+### 3. Retention & Card Actions (@experimental)
+*Note: Drag-to-action is experimental in `v0.7.x` and evolving into a dedicated
+card action model (header pills, context menus, partial reveal underlays).*
+- **`Pin()`**: Pins the notification against auto-dismiss and drag exit.
+- **`Snooze()`**: Temporarily shelves the card for re-display.
+- **`CustomAction()`**: Triggers a developer-defined action event.
+
+### 4. Non-Interactive
+- **`Disabled()`**: Disables all pointer drag interactions.
 
 ---
 

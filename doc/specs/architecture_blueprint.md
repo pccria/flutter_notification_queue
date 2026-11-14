@@ -6,8 +6,8 @@ This document serves as the foundational architectural blueprint and design
 rationale for **Flutter Notification Queue (FNQ)**. It details the architectural
 evolution of the framework—from its early prototype era through the multi-tenant
 revolution (v0.4.0), platform hardening (v0.5.x–v0.6.x), continuous spatial and
-temporal invariance (v0.7.x), and the scheduled trajectory to the final
-**v1.0.0 General Availability (GA)** release.
+temporal invariance (v0.7.x), and the ongoing infrastructure maturation path
+toward production readiness.
 
 The architectural progression is informed by:
 - A structural audit of early singleton architectures and their failure modes
@@ -702,6 +702,13 @@ _allWindowEvents.listen(analyticsService.track);
 ```
 
 The library does not impose a global merge — merging is the app's concern.
+
+> [!NOTE]
+> **Active Studio Validation**: While this controller-per-window pattern
+> provides the architectural foundation, live desktop multi-window testing is
+> an active maturation objective being stress-tested in the Studio example to
+> verify OS window lifecycle teardowns, coordinate transformations, and display
+> scaling under real OS conditions.
 
 ---
 
