@@ -9,6 +9,7 @@ import '../bloc/notification_bloc.dart';
 import '../bloc/setup_bloc.dart';
 import '../models/queue_setup.dart';
 import '../studio_theme.dart';
+import 'multi_tenant_stage.dart';
 
 /// A persistent, tactile quick-action toolbar that allows developers to
 /// fire the current draft, quick presets, bursts, or clear the stage
@@ -181,6 +182,13 @@ class QuickFireCockpit extends StatelessWidget {
             icon: Icons.layers_outlined,
             accentColor: const Color(0xFF0EA5E9),
             onTap: () => _fireGroupBurst(context),
+          ),
+          const SizedBox(width: 6),
+          _CockpitChip(
+            label: 'Split Stage',
+            icon: Icons.splitscreen_rounded,
+            accentColor: const Color(0xFF6366F1),
+            onTap: () => MultiTenantSplitViewportDialog.show(context),
           ),
           // ── Keyboard Shortcuts Guide ──
           IconButton(

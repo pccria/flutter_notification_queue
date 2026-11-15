@@ -9,6 +9,7 @@ import 'panels/code_editor_panel.dart';
 import 'panels/configurator_panel.dart';
 import 'panels/event_log_panel.dart';
 import 'studio_theme.dart';
+import 'widgets/multi_tenant_stage.dart';
 import 'widgets/pane_splitter.dart';
 import 'widgets/project_info_dialog.dart';
 import 'widgets/quick_fire_cockpit.dart';
@@ -138,12 +139,32 @@ class _StudioShellState extends State<_StudioShell> {
                       onPressed: () => QuickFireCockpit.showModal(context),
                     ),
                   ),
+                  const SizedBox(width: 4),
+                  Tooltip(
+                    message: 'Multi-Tenant Split Stage',
+                    child: IconButton(
+                      icon: const Icon(Icons.splitscreen_rounded, size: 20),
+                      onPressed: () =>
+                          MultiTenantSplitViewportDialog.show(context),
+                    ),
+                  ),
                 ] else ...[
                   // Desktop Pane Toggles
                   BlocBuilder<StudioBloc, StudioState>(
                     builder: (final context, final state) => Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        _PaneToggleAction(
+                          icon: Icons.splitscreen_rounded,
+                          label: 'SPLIT STAGE',
+                          isOpen: false,
+                          tooltip:
+                              'Multi-Tenant Split-Viewport Stage '
+                              '(v0.7.x Crucible)',
+                          onPressed: () =>
+                              MultiTenantSplitViewportDialog.show(context),
+                        ),
+                        const SizedBox(width: 4),
                         _PaneToggleAction(
                           icon: Icons.code,
                           label: 'CODE',

@@ -6,6 +6,7 @@ import '../../bloc/setup_bloc.dart';
 import '../../models/channel_setup.dart';
 import '../../models/queue_setup.dart';
 import '../../studio_theme.dart';
+import '../../widgets/multi_tenant_stage.dart';
 
 /// A curated set of one-click demo scenarios that showcase different FNQ
 /// features in realistic use cases.
@@ -726,6 +727,16 @@ final _scenarios = [
         targetPosition: QueuePosition.bottomCenter,
       );
     },
+  ),
+
+  // ── 17. Multi-Tenant Split-Viewport Stage (v0.7.x) ──
+  _Scenario(
+    title: 'Multi-Tenant Split-Viewport Stage',
+    subtitle: 'Dual 1:1 controllers, independent stasis tokens, '
+        'isolated drag registries & teardowns',
+    icon: Icons.splitscreen_rounded,
+    color: const Color(0xFF6366F1),
+    onFire: (final context) => MultiTenantSplitViewportDialog.show(context),
   ),
 ];
 

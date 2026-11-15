@@ -71,8 +71,11 @@ final controller = NotificationController(
 Widget tree scope injector for attaching `NotificationController` to the
 overlay surface.
 
-- `NotificationScope({required controller, required child})`:
-  Injects `NotificationController` and binds `NotificationOverlay`.
+- `NotificationScope({required controller, required child, bool useRootOverlay = true})`:
+  Injects `NotificationController` and binds `NotificationOverlay`. When
+  `useRootOverlay: false`, notification portals attach to the nearest ancestor
+  `Overlay` instead of the root window, enabling local viewport scoping and
+  sub-window boundary containment.
 - `NotificationScope.of(context)`:
   Looks up the nearest `NotificationController` in the widget tree hierarchy.
 

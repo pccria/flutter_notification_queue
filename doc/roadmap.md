@@ -4,7 +4,7 @@
 > **Strategic Focus**: Multi-Tenancy Hardening, Egress Physics, Invariant
 > Stasis, and Reality Testing.  
 > **Baseline Quality**: `flutter analyze --fatal-warnings` — 0 issues |
-> `flutter test` — 415/415 passing | `example test` — 55/55 passing.
+> `flutter test` — 423/423 passing | `example test` — 60/60 passing.
 
 ---
 
@@ -150,7 +150,7 @@ Complexity Tiers:
 | **E-12** | Unified card-level invariant engine (`TimerPauseReason` tokens, idempotent dismissal) | 🔴 P0 | 🟡 Medium | ✅ Completed | `lib/src/notification/notification.dart` |
 | **E-13** | Queue-level timer stasis (`NotificationTimerScope` for reorder, relocation, and programmatic pause) | 🔴 P0 | 🟡 Medium | ✅ Completed | `lib/src/notification_queue/queue_widget.dart`, `queue_coordinator.dart` |
 | **E-14** | Enlarged 36x36 close button hit area & unified header expand tap region | 🟢 P2 | 🟢 Low | ✅ Completed | `lib/src/notification/notification.dart` |
-| **E-15** | Studio Multi-Tenant Split-Viewport: validate concurrent 1:1 controllers, token isolation & teardowns | 🔴 P0 | 🟡 Medium | 🟡 Active | `example/`, `lib/src/core/` |
+| **E-15** | Studio Multi-Tenant Split-Viewport: validate concurrent 1:1 controllers, token isolation & teardowns | 🔴 P0 | 🟡 Medium | ✅ Completed | `example/`, `lib/src/core/` |
 
 ---
 

@@ -27,6 +27,7 @@ class NotificationOverlay extends StatefulWidget {
   const NotificationOverlay({
     required this.child,
     this.coordinator,
+    this.useRootOverlay = true,
     super.key,
   });
 
@@ -36,6 +37,14 @@ class NotificationOverlay extends StatefulWidget {
   /// Optional explicit queue coordinator instance.
   /// If null, falls back to context's [NotificationScope].
   final QueueCoordinator? coordinator;
+
+  /// Whether the overlay portal should mount into the root [Overlay] or the
+  /// nearest ancestor [Overlay].
+  ///
+  /// Defaults to `true` (standard full-window layering). Set to `false` when
+  /// embedding within an isolated virtual viewport, multi-tenant frame, or
+  /// container with its own local [Overlay].
+  final bool useRootOverlay;
 
   /// Static router method for use in [MaterialApp.builder].
   ///
@@ -113,7 +122,9 @@ class _NotificationOverlayState extends State<NotificationOverlay>
         overlayChildBuilder: (final context) => _NotificationQueueStack(
           coordinator: coordinator,
         ),
-        overlayLocation: OverlayChildLocation.rootOverlay,
+        overlayLocation: widget.useRootOverlay
+            ? OverlayChildLocation.rootOverlay
+            : OverlayChildLocation.nearestOverlay,
         child: widget.child,
       );
     } else {
