@@ -69,9 +69,9 @@ state to explicit widget subtrees without global singletons.
 
 - **`NotificationController`**:
   - The single source of truth for runtime notification state.
-  - Exposes dispatch APIs: `show()`, `dismiss()`, `dismissAll()`,
-    `clearHistory()`, `pauseQueue()`, `resumeQueue()`, `pauseAll()`, and
-    `resumeAll()`.
+  - Exposes dispatch APIs: `show()`, `dismiss()`,
+    `dismissAll({clearBacklog = false})`, `clearHistory()`, `pauseQueue()`,
+    `resumeQueue()`, `pauseAll()`, and `resumeAll()`.
   - Emits notification lifecycle events via a broadcast stream
     (`controller.events`).
   - Implements multi-tenancy: multiple controllers can exist concurrently in
@@ -84,7 +84,10 @@ state to explicit widget subtrees without global singletons.
 - **`NotificationScope`**:
   - An `InheritedWidget` that provides subtree access to the controller via
     `NotificationScope.of(context)`.
-  - Hosts the root `OverlayPortal` to render notifications above application UI.
+  - Hosts the `OverlayPortal` to render notifications above application UI.
+    Defaults to the root window (`useRootOverlay: true`), but supports local
+    ancestor overlay binding (`useRootOverlay: false`) for sub-viewports and
+    virtual multi-tenant stages.
 
 ### 2.2. Configuration & Validation Plane
 The configuration plane validates and freezes declared queues and channels

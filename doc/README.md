@@ -35,6 +35,10 @@ specifications.
 - [**Getting Started**](getting_started.md):
   Quick start guide to integrate FNQ into your app using
   `NotificationController` and `NotificationScope`.
+- [**Migration Guide: Upgrading to v0.7.0**](migration_v0_7.md):
+  Comprehensive upgrade guide for v0.7.x, covering card-centric directional
+  egress, temporal stasis tokens, queue stasis controls, atomic backlog
+  purging, and sub-viewport scoping (`useRootOverlay: false`).
 - [**Migration Guide: Upgrading to v0.5.0**](migration_v0_5.md):
   Comprehensive upgrade guide for v0.5.0, covering the four architectural tiers,
   permanent queue relocation, `NotificationThemeData`, and `QueueStyle`.

@@ -38,7 +38,10 @@ graph TD
 - Coordinator evaluates priority triage, preemption rules, and capacity limits
   (`maxStackSize`).
 - If capacity is exceeded, lower-priority notifications are dropped, evicted,
-  or parked according to queue policies (`QueueOverflowed` event emitted).
+  or held in the pending backlog queue (`QueueOverflowed` event emitted if
+  `maxPendingSize` is breached). Pending backlog items promote into active slots
+  as visible cards dismiss, unless purged via
+  `controller.dismissAll(clearBacklog: true)`.
 
 ---
 
@@ -79,8 +82,10 @@ graph TD
   - Auto-dismiss timer completion (`DismissReason.timeout`).
   - User swipe past threshold or escape velocity (`DismissReason.userSwipe`).
   - User card tap action (`DismissReason.userTap`).
-  - Programmatic dismissal (`controller.dismiss(...)` or
-    `controller.dismissGroup(...)`).
+  - Programmatic dismissal (`controller.dismiss(...)`,
+    `controller.dismissGroup(...)`, or `controller.dismissAll(...)`). Calling
+    `dismissAll(clearBacklog: true)` atomically purges pending backlog items
+    alongside active cards, preventing subsequent backpressure promotions.
   - Capacity eviction (`DismissReason.evicted`).
 - **Idempotent Guard**:
   - `_isDismissing` flag ensures dismissal logic executes exactly once per card,

@@ -33,13 +33,21 @@ This pattern automatically:
 
 ### Subtree & Multi-Tenant Scope Binding
 
-For embedded Flutter modules, desktop split views, or multi-window screens, `NotificationScope` can be placed over any independent widget subtree:
+For embedded Flutter modules, desktop split views, modal dialogs, or virtual
+multi-tenant stages, `NotificationScope` can be placed over any independent
+widget subtree with `useRootOverlay: false`:
 
 ```dart
 NotificationScope(
   controller: dashboardNotificationController,
+  useRootOverlay: false, // Binds to nearest ancestor Overlay
   child: DashboardWidget(),
 )
 ```
 
-Notifications dispatched via `dashboardNotificationController` or `NotificationScope.of(context)` within this subtree will render inside that specific scope's overlay bounds.
+- When `useRootOverlay: true` (default), the portal mounts to
+  `OverlayChildLocation.rootOverlay`, rendering over the entire application
+  window.
+- When `useRootOverlay: false`, the portal mounts to
+  `OverlayChildLocation.nearestOverlay`, strictly constraining notification
+  stacks and gesture flight paths within the local subtree's nearest `Overlay`.

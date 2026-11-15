@@ -34,6 +34,9 @@ paradigm**:
 | **Sensory Feedback & Underlay** | 🟢 New Feature | `enableTilt`, `showUnderlay`, `dismissColor`, and `dismissIcon` on `Dismiss`. |
 | **Inertial Momentum Flight** | 🟢 New Feature | Committed cards coast off-screen via `EgressFlightOverlay` at finger velocity while stack collapses. |
 | **Drag Timer Preservation** | 🟢 Bugfix | Touching/dragging cards pauses auto-dismiss countdown; cancelling drag cleanly resumes countdown without loss. |
+| **Queue-Level Stasis Controls** | 🟢 New Feature | Programmatically freeze/resume queue timers via `pauseQueue()`, `resumeQueue()`, `pauseAll()`, and `resumeAll()`. |
+| **Atomic Backpressure Purge** | 🟢 New Feature | `controller.dismissAll(clearBacklog: true)` atomically purges pending capacity backlog alongside active cards. |
+| **Sub-Viewport Local Scoping** | 🟢 New Feature | `NotificationScope(useRootOverlay: false)` binds portals to nearest ancestor `Overlay` for embedded frames and modals. |
 | **`Dismiss(zones: ...)` & `DismissZone`** | 🟡 Deprecated | Deprecated in `v0.7.0`. Fully backward compatible via `effectiveEgress`. Scheduled for removal in `v0.8.0`. |
 | **Cross-Queue Relocation Engine** | 🟢 New Feature | `Relocate.to(...)` and `ReorderAndRelocate.to(...)` support live destination insertion previews. |
 
@@ -143,3 +146,87 @@ In **v0.7.1+**, the timer lifecycle is strictly preserved:
    the timer resumes smoothly (`resumeDismissTimer()`) from its exact remaining
    duration.
 3. If the card commits to dismissal, the timer is safely ditched and disposed.
+
+---
+
+## 5. Queue-Level Stasis Controls
+
+In addition to individual card interaction stasis (hover, drag, expand),
+`v0.7.x` introduces programmatic queue-level stasis through
+`NotificationController`:
+
+```dart
+// Freeze countdown timers for all cards in a specific queue:
+controller.pauseQueue(QueuePosition.topRight);
+
+// Resume countdown timers for that queue:
+controller.resumeQueue(QueuePosition.topRight);
+
+// Query whether a queue is currently in stasis:
+final isFrozen = controller.isQueuePaused(QueuePosition.topRight);
+
+// Freeze or resume all queues simultaneously (e.g. during full-screen modal):
+controller.pauseAll();
+controller.resumeAll();
+```
+
+Behind the scenes, stasis is propagated via `NotificationTimerScope`, ensuring
+zero ticker leaks and immediate frame-level freeze.
+
+---
+
+## 6. Atomic Backlog Purging with `dismissAll(clearBacklog: true)`
+
+When queues enforce capacity limits (`maxStackSize`), high-frequency bursts
+accumulate pending notifications in the coordinator's backlog.
+
+By default, `controller.dismissAll()` (or `clearBacklog: false`) dismisses all
+*currently active* notifications, allowing pending backlog items to be promoted
+in FIFO order into freed slots.
+
+To perform a complete and immediate queue reset—cancelling both active and
+pending notifications in a single atomic pass—use `clearBacklog: true`:
+
+```dart
+// Atomically dismiss all active cards AND purge all pending backlog items:
+controller.dismissAll(clearBacklog: true);
+```
+
+When `clearBacklog: true` is passed:
+1. Pending backlog items in mounted queues are atomically purged before active
+   cards exit, preventing pending promotions.
+2. Unmounted items waiting in the initialization queue are removed.
+3. `NotificationDismissed` events are emitted for all purged items.
+4. Active cards execute their standard exit animations.
+
+---
+
+## 7. Sub-Viewport Scoping with `NotificationScope(useRootOverlay: false)`
+
+Historically, `NotificationScope` attached its `OverlayPortal` to the root
+application window (`OverlayChildLocation.rootOverlay`). While ideal for
+standard apps, this caused overlay bleeding when embedding `NotificationScope`
+into nested desktop panes, virtual split viewports, or modal dialogs.
+
+In `v0.7.x`, `NotificationScope` and `NotificationOverlay` accept
+`useRootOverlay`:
+
+```dart
+// Default (full-window application layer):
+NotificationScope(
+  controller: controller,
+  useRootOverlay: true, // Default
+  child: MyApp(),
+);
+
+// Local viewport containment (nested stages, desktop split-panes, modals):
+NotificationScope(
+  controller: localController,
+  useRootOverlay: false, // Binds to nearest ancestor Overlay
+  child: LocalViewportContainer(),
+);
+```
+
+When `useRootOverlay: false` is set, notification stacks and flight portals are
+strictly bounded within the nearest ancestor `Overlay`, enabling true 1:1
+multi-tenant virtual stages without third-party window managers.

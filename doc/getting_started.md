@@ -91,6 +91,12 @@ class MyApp extends StatelessWidget {
 }
 ```
 
+> [!TIP]
+> **Sub-Viewport & Local Scoping**: When embedding `NotificationScope` inside a
+> sub-window, modal dialog, or isolated desktop pane (rather than the root app
+> window), pass `useRootOverlay: false` so that notification portals attach to
+> the nearest local `Overlay` rather than the root window.
+
 ---
 
 ## 4. Dispatching Notifications
@@ -177,7 +183,29 @@ final subscription = controller.events.listen((NotificationEvent event) {
 
 ---
 
-## 7. Disposing the Controller
+## 7. Programmatic Dismissals & Stasis
+
+You can programmatically dismiss individual cards, bundles, or all active
+notifications:
+
+```dart
+// Dismiss a specific notification:
+controller.dismiss(notification);
+
+// Dismiss all visible notifications:
+controller.dismissAll();
+
+// Complete queue reset: dismiss active notifications AND purge pending backlog:
+controller.dismissAll(clearBacklog: true);
+
+// Freeze/resume countdown timers for a queue:
+controller.pauseQueue(QueuePosition.topRight);
+controller.resumeQueue(QueuePosition.topRight);
+```
+
+---
+
+## 8. Disposing the Controller
 
 When your application or module finishes, call `dispose()` on the controller to cancel active timers, detach overlay controllers, and close event streams:
 

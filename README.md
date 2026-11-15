@@ -451,6 +451,7 @@ NotificationQueue(
 | `FlutterNotificationQueue.events` | `controller.events` | Stable broadcast stream |
 
 For full step-by-step details, see the migration guides:
+* [**Upgrading to v0.7.0**](doc/migration_v0_7.md) (Card-centric directional egress, timer stasis, queue stasis controls, atomic backlog purging, sub-viewport scoping)
 * [**Upgrading to v0.5.0**](doc/migration_v0_5.md) (Four architectural tiers, permanent queue relocation, `NotificationThemeData`)
 * [**Upgrading to v0.4.0**](doc/migration_v0_4.md) (Migration to `NotificationController` and `NotificationScope`)
 
