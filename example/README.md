@@ -26,14 +26,33 @@ NFQ Studio allows developers and UI designers to configure spatial queues, desig
 * **Payload Builder**: Adjust titles, messages, priority tiers (`low`, `normal`, `high`, `critical`), permanent flags, dismiss timers, accent tints, and action buttons.
 * **Production Code Generator**: Emits clean, copy-pasteable Dart code matching your current live setup, complete with modern `DismissEgress` configurations.
 
-### 4. Global Keyboard Shortcuts
-The Studio responds globally to hardware keyboard shortcuts—even when text input fields are focused:
+### 4. Embedded Virtual Multi-Window Stage (`VirtualStageCanvas`)
+* **Live Dual-Workspace Canvas**: Toggle between standard Studio layout and
+  the embedded Virtual Stage via the `STAGE` top-bar button or the Cockpit
+  (`+ Window`).
+* **Active Focus Binding**: Clicking any virtual window automatically focuses
+  it in `SetupBloc`—binding the Studio Configurator, Live Radar, and Code
+  Generator directly to that window's configuration without UI bloat.
+* **Local Overlay Isolation**: Each window hosts its own isolated
+  `NotificationScope(useRootOverlay: false)` and dedicated
+  `NotificationController`, ensuring cards animate, stack, and dismiss strictly
+  within their respective window frames.
+* **Target Selector Handle**: The Quick-Fire Cockpit provides a dynamic target
+  dropdown (`Active`, `Window 1`, `Window 2`, `Broadcast to Both`) to route
+  notification drafts, presets, and bursts to specific windows.
+* **Stasis & Lifecycle Simulators**: Window chrome controls let developers test
+  queue stasis timer freezing (`⏸ STASIS`), surface unmounting / remounting with
+  zero orphan tickers, and atomic backlog clearing
+  (`dismissAll(clearBacklog: true)`).
+
+### 5. Global Keyboard Shortcuts
+The Studio responds globally to hardware keyboard shortcuts:
 
 | Shortcut | macOS | Action |
 |:---|:---|:---|
 | **`Ctrl + Enter`** | `⌘ + Enter` | Fire current notification draft |
-| **`Ctrl + E`** | `⌘ + E` | Reset draft to default values |
-| **`Ctrl + L`** | `⌘ + L` | Load a random notification draft scenario |
+| **`Ctrl + E`** | `⌘ + E` | Toggle Code Editor panel |
+| **`Ctrl + L`** | `⌘ + L` | Toggle Event Log panel |
 
 ---
 

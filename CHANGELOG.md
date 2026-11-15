@@ -95,6 +95,20 @@
     timers on successfully acted-upon cards.
   - Added consistent post-drag `unfocus()` calls across `Pin`, `Snooze`, and
     `CustomAction` plugins.
+- **Atomic Backlog Purging with `clearBacklog` on `dismissAll`**:
+  - Added optional `clearBacklog: false` parameter to
+    `NotificationController.dismissAll()` and `QueueCoordinator.dismissAll()`.
+  - When set to `true`, atomically flushes both visible active cards and
+    pending backlog entries, guaranteeing zero queued cards linger in memory or
+    re-emerge into the queue.
+- **Embedded Virtual Multi-Window Stage in NFQ Studio**:
+  - Integrated an interactive `VirtualStageCanvas` directly into the Studio
+    workbench with window chrome, local overlay isolation
+    (`NotificationScope(useRootOverlay: false)`), and stasis freezing.
+  - Configurator and inspector tools dynamically bind to whichever virtual
+    window holds active focus, eliminating UI bloat.
+  - Added targeted dispatch handle (`Target: Active / Win 1 / Win 2 / Both`)
+    in the Quick-Fire Cockpit for cross-window testing.
 
 ### Deprecations & Cleanups
 - **Scheduled Removal of `DismissZone` for v0.8.0**:
