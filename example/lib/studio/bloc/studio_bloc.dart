@@ -43,6 +43,22 @@ final class ToggleEventLog extends StudioEvent {
   final bool? open;
 }
 
+final class ToggleStage extends StudioEvent {
+  const ToggleStage({this.open});
+
+  final bool? open;
+}
+
+final class ResizeConfigurator extends StudioEvent {
+  const ResizeConfigurator({
+    required this.delta,
+    required this.totalWidth,
+  });
+
+  final double delta;
+  final double totalWidth;
+}
+
 final class ResetPaneLayout extends StudioEvent {
   const ResetPaneLayout();
 }
@@ -56,9 +72,13 @@ class StudioState {
     this.isCodeEditorOpen = true,
     this.eventLogWidth = 280.0,
     this.isEventLogOpen = true,
+    this.isStageOpen = false,
+    this.configuratorWidth = 420.0,
   });
 
   static const double minMainPaneWidth = 360.0;
+  static const double minConfiguratorWidth = 340.0;
+  static const double maxConfiguratorWidth = 650.0;
   static const double minCodeEditorWidth = 280.0;
   static const double maxCodeEditorWidth = 900.0;
   static const double minEventLogWidth = 220.0;
@@ -69,6 +89,8 @@ class StudioState {
   final bool isCodeEditorOpen;
   final double eventLogWidth;
   final bool isEventLogOpen;
+  final bool isStageOpen;
+  final double configuratorWidth;
 
   StudioState copyWith({
     final ThemeMode? themeMode,
@@ -76,6 +98,8 @@ class StudioState {
     final bool? isCodeEditorOpen,
     final double? eventLogWidth,
     final bool? isEventLogOpen,
+    final bool? isStageOpen,
+    final double? configuratorWidth,
   }) =>
       StudioState(
         themeMode: themeMode ?? this.themeMode,
@@ -83,6 +107,8 @@ class StudioState {
         isCodeEditorOpen: isCodeEditorOpen ?? this.isCodeEditorOpen,
         eventLogWidth: eventLogWidth ?? this.eventLogWidth,
         isEventLogOpen: isEventLogOpen ?? this.isEventLogOpen,
+        isStageOpen: isStageOpen ?? this.isStageOpen,
+        configuratorWidth: configuratorWidth ?? this.configuratorWidth,
       );
 }
 
@@ -158,6 +184,23 @@ class StudioBloc extends Bloc<StudioEvent, StudioState> {
       );
     });
 
+    on<ToggleStage>((final event, final emit) {
+      emit(
+        state.copyWith(
+          isStageOpen: event.open ?? !state.isStageOpen,
+        ),
+      );
+    });
+
+    on<ResizeConfigurator>((final event, final emit) {
+      final newWidth = state.configuratorWidth + event.delta;
+      final clamped = newWidth.clamp(
+        StudioState.minConfiguratorWidth,
+        StudioState.maxConfiguratorWidth,
+      );
+      emit(state.copyWith(configuratorWidth: clamped));
+    });
+
     on<ResetPaneLayout>((final event, final emit) {
       emit(
         state.copyWith(
@@ -165,6 +208,8 @@ class StudioBloc extends Bloc<StudioEvent, StudioState> {
           isCodeEditorOpen: true,
           eventLogWidth: 280.0,
           isEventLogOpen: true,
+          isStageOpen: false,
+          configuratorWidth: 420.0,
         ),
       );
     });

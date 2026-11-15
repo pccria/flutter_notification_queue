@@ -141,11 +141,10 @@ class _StudioShellState extends State<_StudioShell> {
                   ),
                   const SizedBox(width: 4),
                   Tooltip(
-                    message: 'Multi-Tenant Split Stage',
+                    message: 'Virtual Stage',
                     child: IconButton(
                       icon: const Icon(Icons.splitscreen_rounded, size: 20),
-                      onPressed: () =>
-                          MultiTenantSplitViewportDialog.show(context),
+                      onPressed: () => setState(() => _tabIndex = 0),
                     ),
                   ),
                 ] else ...[
@@ -156,13 +155,14 @@ class _StudioShellState extends State<_StudioShell> {
                       children: [
                         _PaneToggleAction(
                           icon: Icons.splitscreen_rounded,
-                          label: 'SPLIT STAGE',
-                          isOpen: false,
-                          tooltip:
-                              'Multi-Tenant Split-Viewport Stage '
-                              '(v0.7.x Crucible)',
-                          onPressed: () =>
-                              MultiTenantSplitViewportDialog.show(context),
+                          label: 'STAGE',
+                          isOpen: state.isStageOpen,
+                          tooltip: state.isStageOpen
+                              ? 'Hide Virtual Stage Canvas'
+                              : 'Show Virtual Stage Canvas',
+                          onPressed: () => context
+                              .read<StudioBloc>()
+                              .add(const ToggleStage()),
                         ),
                         const SizedBox(width: 4),
                         _PaneToggleAction(
@@ -248,6 +248,10 @@ class _StudioShellState extends State<_StudioShell> {
                         .withValues(alpha: 0.38),
                     items: const [
                       BottomNavigationBarItem(
+                        icon: Icon(Icons.splitscreen_rounded),
+                        label: 'Stage',
+                      ),
+                      BottomNavigationBarItem(
                         icon: Icon(Icons.tune),
                         label: 'Configure',
                       ),
@@ -271,10 +275,35 @@ class _StudioShellState extends State<_StudioShell> {
         builder: (final context, final state) => Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Permanent Main Pane ──
-            const Expanded(
-              child: ConfiguratorPanel(),
-            ),
+            // ── Configurator & Virtual Stage Canvas ──
+            if (state.isStageOpen) ...[
+              SizedBox(
+                width: state.configuratorWidth,
+                child: const ConfiguratorPanel(),
+              ),
+              PaneSplitter(
+                tooltip: 'Drag to resize Configurator / '
+                    'Double-click to collapse Stage',
+                onDoubleClick: () => context
+                    .read<StudioBloc>()
+                    .add(const ToggleStage(open: false)),
+                onDragDelta: (final delta) {
+                  context.read<StudioBloc>().add(
+                        ResizeConfigurator(
+                          delta: delta,
+                          totalWidth: totalWidth,
+                        ),
+                      );
+                },
+              ),
+              const Expanded(
+                child: VirtualStageCanvas(),
+              ),
+            ] else ...[
+              const Expanded(
+                child: ConfiguratorPanel(),
+              ),
+            ],
 
             // ── Code Editor Pane & Splitter ──
             if (state.isCodeEditorOpen) ...[
@@ -366,6 +395,7 @@ class _StudioShellState extends State<_StudioShell> {
   Widget _narrowLayout() => IndexedStack(
         index: _tabIndex,
         children: const [
+          VirtualStageCanvas(),
           ConfiguratorPanel(),
           CodeEditorPanel(),
           EventLogPanel(),

@@ -7,227 +7,19 @@ import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
 import '../bloc/notification_bloc.dart';
 import '../bloc/setup_bloc.dart';
+import '../bloc/studio_bloc.dart';
 import '../models/queue_setup.dart';
-import '../studio_theme.dart';
+import '../models/virtual_window_data.dart';
 import 'multi_tenant_stage.dart';
 
 /// A persistent, tactile quick-action toolbar that allows developers to
 /// fire the current draft, quick presets, bursts, or clear the stage
 /// from anywhere in NFQ Studio without scrolling.
-class QuickFireCockpit extends StatelessWidget {
+class QuickFireCockpit extends StatefulWidget {
   const QuickFireCockpit({super.key});
 
   @override
-  Widget build(final BuildContext context) {
-    final colorScheme = StudioTheme.colorScheme;
-    final isDark = StudioTheme.isDark;
-
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: isDark
-            ? colorScheme.surface.withValues(alpha: 0.92)
-            : colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.onSurface.withValues(alpha: 0.08),
-          ),
-        ),
-      ),
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        children: [
-          // ── Primary Action: Fire Draft ──
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              elevation: 2,
-            ),
-            icon: const Icon(Icons.bolt_rounded, size: 16),
-            label: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'FIRE DRAFT',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 1.5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.onPrimary.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    defaultTargetPlatform == TargetPlatform.macOS
-                        ? '⌘↵'
-                        : 'Ctrl+↵',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            onPressed: () =>
-                context.read<NotificationBloc>().add(const FirePreview()),
-          ),
-          const SizedBox(width: 10),
-
-          VerticalDivider(
-            width: 1,
-            indent: 4,
-            endIndent: 4,
-            color: colorScheme.onSurface.withValues(alpha: 0.12),
-          ),
-          const SizedBox(width: 10),
-
-          // ── Quick Presets ──
-          _CockpitChip(
-            label: 'Info',
-            icon: Icons.info_outline,
-            accentColor: const Color(0xFF51B4F9),
-            onTap: () => _fireQuickPreset(
-              context,
-              channelName: 'info',
-              title: 'System Information',
-              message: 'Background synchronization completed cleanly.',
-            ),
-          ),
-          const SizedBox(width: 6),
-          _CockpitChip(
-            label: 'Success',
-            icon: Icons.check_circle_outline,
-            accentColor: const Color(0xFF2D7512),
-            onTap: () => _fireQuickPreset(
-              context,
-              channelName: 'success',
-              title: 'Payment Confirmed',
-              message: 'Invoice #1084 settled for \$140.00.',
-            ),
-          ),
-          const SizedBox(width: 6),
-          _CockpitChip(
-            label: 'Warning',
-            icon: Icons.warning_amber_rounded,
-            accentColor: const Color(0xFFC97725),
-            onTap: () => _fireQuickPreset(
-              context,
-              channelName: 'warning',
-              title: 'Storage Warning',
-              message: 'Disk volume reached 92% capacity.',
-            ),
-          ),
-          const SizedBox(width: 6),
-          _CockpitChip(
-            label: 'Critical',
-            icon: Icons.error_outline,
-            accentColor: const Color(0xFFD03332),
-            onTap: () => _fireQuickPreset(
-              context,
-              channelName: 'error',
-              priority: NotificationPriority.high,
-              title: 'Database Outage',
-              message: 'Connection pool exhausted on replica 2.',
-            ),
-          ),
-          const SizedBox(width: 6),
-          _CockpitChip(
-            label: 'Pinned',
-            icon: Icons.push_pin_outlined,
-            accentColor: const Color(0xFF8B5CF6),
-            onTap: () => _fireQuickPreset(
-              context,
-              channelName: 'info',
-              permanent: true,
-              title: 'Update In Progress',
-              message: 'Applying firmware update 2.4.0. Stays until dismissed.',
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          VerticalDivider(
-            width: 1,
-            indent: 4,
-            endIndent: 4,
-            color: colorScheme.onSurface.withValues(alpha: 0.12),
-          ),
-          const SizedBox(width: 10),
-
-          // ── Stacking & Stress Test ──
-          _CockpitChip(
-            label: 'Burst 3x',
-            icon: Icons.auto_awesome_motion_rounded,
-            accentColor: const Color(0xFFEC4899),
-            onTap: () => _fireBurst(context),
-          ),
-          const SizedBox(width: 6),
-          _CockpitChip(
-            label: 'Group 4x',
-            icon: Icons.layers_outlined,
-            accentColor: const Color(0xFF0EA5E9),
-            onTap: () => _fireGroupBurst(context),
-          ),
-          const SizedBox(width: 6),
-          _CockpitChip(
-            label: 'Split Stage',
-            icon: Icons.splitscreen_rounded,
-            accentColor: const Color(0xFF6366F1),
-            onTap: () => MultiTenantSplitViewportDialog.show(context),
-          ),
-          // ── Keyboard Shortcuts Guide ──
-          IconButton(
-            icon: const Icon(Icons.keyboard_outlined, size: 18),
-            tooltip: 'Keyboard shortcuts',
-            style: IconButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(
-                  color: colorScheme.onSurface.withValues(alpha: 0.1),
-                ),
-              ),
-            ),
-            onPressed: () => _showShortcutsDialog(context),
-          ),
-          const SizedBox(width: 6),
-
-          // ── Stage Utility: Clear All ──
-          IconButton(
-            icon: const Icon(Icons.clear_all_rounded, size: 18),
-            tooltip: 'Dismiss all active notifications',
-            style: IconButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(
-                  color: colorScheme.onSurface.withValues(alpha: 0.1),
-                ),
-              ),
-            ),
-            onPressed: () {
-              context.read<SetupBloc>().controller.dismissAll();
-            },
-          ),
-        ],
-      ),
-    );
-  }
+  State<QuickFireCockpit> createState() => _QuickFireCockpitState();
 
   static void _showShortcutsDialog(final BuildContext context) {
     final theme = Theme.of(context);
@@ -323,27 +115,52 @@ class QuickFireCockpit extends StatelessWidget {
     required final String message,
     final NotificationPriority? priority,
     final bool permanent = false,
+    final String? targetWindowId,
   }) {
     final setupBloc = context.read<SetupBloc>();
-    final channelSetup = setupBloc.state.setup.channels[channelName];
+    final targetWindow = targetWindowId != null && targetWindowId != 'all'
+        ? setupBloc.getWindow(targetWindowId)
+        : setupBloc.state.activeWindow;
+    final channelSetup = (targetWindow ?? setupBloc.state.activeWindow)
+        .setup
+        .channels[channelName];
     final targetPosition =
         channelSetup?.position ?? setupBloc.state.activeQueuePosition;
 
-    setupBloc.controller.show(
-      AppNotification(
-        title: title,
-        message: message,
-        channelName: channelName,
-        priority: priority,
-        permanent: permanent,
-        dismissDuration: permanent ? null : const Duration(seconds: 5),
-      ),
-      targetPosition: targetPosition,
+    final notification = AppNotification(
+      title: title,
+      message: message,
+      channelName: channelName,
+      priority: priority,
+      permanent: permanent,
+      dismissDuration: permanent ? null : const Duration(seconds: 5),
     );
+
+    if (targetWindowId == 'all') {
+      for (final win in setupBloc.state.windows.values) {
+        if (win.isMounted) {
+          win.controller.show(
+            notification,
+            targetPosition: targetPosition,
+          );
+        }
+      }
+    } else {
+      (targetWindow ?? setupBloc.state.activeWindow).controller.show(
+        notification,
+        targetPosition: targetPosition,
+      );
+    }
   }
 
-  static void _fireBurst(final BuildContext context) {
+  static void _fireBurst(
+    final BuildContext context, {
+    final String? targetWindowId,
+  }) {
     final setupBloc = context.read<SetupBloc>();
+    final targetWindow = targetWindowId != null && targetWindowId != 'all'
+        ? setupBloc.getWindow(targetWindowId)
+        : setupBloc.state.activeWindow;
     final targetPosition = setupBloc.state.activeQueuePosition;
 
     final samples = [
@@ -355,25 +172,44 @@ class QuickFireCockpit extends StatelessWidget {
     for (var i = 0; i < samples.length; i++) {
       final sample = samples[i];
       Timer(Duration(milliseconds: i * 160), () {
-        setupBloc.controller.show(
-          AppNotification(
-            title: 'Burst alert #${i + 1}',
-            message: sample.$1,
-            channelName: sample.$2,
-            dismissDuration: const Duration(seconds: 6),
-          ),
-          targetPosition: targetPosition,
+        final notification = AppNotification(
+          title: 'Burst alert #${i + 1}',
+          message: sample.$1,
+          channelName: sample.$2,
+          dismissDuration: const Duration(seconds: 6),
         );
+        if (targetWindowId == 'all') {
+          for (final win in setupBloc.state.windows.values) {
+            if (win.isMounted) {
+              win.controller.show(
+                notification,
+                targetPosition: targetPosition,
+              );
+            }
+          }
+        } else {
+          (targetWindow ?? setupBloc.state.activeWindow).controller.show(
+            notification,
+            targetPosition: targetPosition,
+          );
+        }
       });
     }
   }
 
-  static void _fireGroupBurst(final BuildContext context) {
+  static void _fireGroupBurst(
+    final BuildContext context, {
+    final String? targetWindowId,
+  }) {
     final setupBloc = context.read<SetupBloc>();
+    final targetWindow = targetWindowId != null && targetWindowId != 'all'
+        ? setupBloc.getWindow(targetWindowId)
+        : setupBloc.state.activeWindow;
+    final currentTarget = targetWindow ?? setupBloc.state.activeWindow;
     final targetPosition = setupBloc.state.activeQueuePosition;
 
     final currentQueue =
-        setupBloc.state.setup.queues[targetPosition] ?? const QueueSetup();
+        currentTarget.setup.queues[targetPosition] ?? const QueueSetup();
     if (!currentQueue.groupingEnabled) {
       setupBloc.add(
         AddQueue(
@@ -396,15 +232,27 @@ class QuickFireCockpit extends StatelessWidget {
     for (var i = 0; i < messages.length; i++) {
       final msg = messages[i];
       Timer(Duration(milliseconds: i * 160), () {
-        setupBloc.controller.show(
-          AppNotification(
-            title: 'Alice',
-            message: msg,
-            channelName: 'chat',
-            dismissDuration: const Duration(seconds: 30),
-          ),
-          targetPosition: targetPosition,
+        final notification = AppNotification(
+          title: 'Alice',
+          message: msg,
+          channelName: 'chat',
+          dismissDuration: const Duration(seconds: 30),
         );
+        if (targetWindowId == 'all') {
+          for (final win in setupBloc.state.windows.values) {
+            if (win.isMounted) {
+              win.controller.show(
+                notification,
+                targetPosition: targetPosition,
+              );
+            }
+          }
+        } else {
+          currentTarget.controller.show(
+            notification,
+            targetPosition: targetPosition,
+          );
+        }
       });
     }
   }
@@ -418,6 +266,285 @@ class QuickFireCockpit extends StatelessWidget {
         isScrollControlled: true,
         builder: (final _) => const _QuickFireBottomSheet(),
       );
+}
+
+class _QuickFireCockpitState extends State<QuickFireCockpit> {
+  String? _targetWindowId;
+
+  @override
+  Widget build(final BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return BlocBuilder<SetupBloc, SetupState>(
+      builder: (final context, final setupState) => Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: isDark
+              ? colorScheme.surface.withValues(alpha: 0.92)
+              : colorScheme.surface,
+          border: Border(
+            bottom: BorderSide(
+              color: colorScheme.onSurface.withValues(alpha: 0.08),
+            ),
+          ),
+        ),
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+          children: [
+            // ── Primary Action: Fire Draft ──
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 2,
+              ),
+              icon: const Icon(Icons.bolt_rounded, size: 16),
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'FIRE DRAFT',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 1.5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.onPrimary.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      defaultTargetPlatform == TargetPlatform.macOS
+                          ? '⌘↵'
+                          : 'Ctrl+↵',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              onPressed: () => context.read<NotificationBloc>().add(
+                    FirePreview(targetWindowId: _targetWindowId),
+                  ),
+            ),
+            const SizedBox(width: 8),
+
+            // ── Target Selector Handle (when multiple windows present) ──
+            if (setupState.windows.length > 1) ...[
+              _WindowTargetSelector(
+                targetWindowId: _targetWindowId,
+                activeWindowId: setupState.activeWindowId,
+                windows: setupState.windows,
+                onSelected: (final target) {
+                  setState(() {
+                    _targetWindowId = target;
+                  });
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
+
+            VerticalDivider(
+              width: 1,
+              indent: 4,
+              endIndent: 4,
+              color: colorScheme.onSurface.withValues(alpha: 0.12),
+            ),
+            const SizedBox(width: 10),
+
+            // ── Quick Presets ──
+            _CockpitChip(
+              label: 'Info',
+              icon: Icons.info_outline,
+              accentColor: const Color(0xFF51B4F9),
+              onTap: () => QuickFireCockpit._fireQuickPreset(
+                context,
+                channelName: 'info',
+                title: 'System Information',
+                message: 'Background synchronization completed cleanly.',
+                targetWindowId: _targetWindowId,
+              ),
+            ),
+            const SizedBox(width: 6),
+            _CockpitChip(
+              label: 'Success',
+              icon: Icons.check_circle_outline,
+              accentColor: const Color(0xFF2D7512),
+              onTap: () => QuickFireCockpit._fireQuickPreset(
+                context,
+                channelName: 'success',
+                title: 'Payment Confirmed',
+                message: 'Invoice #1084 settled for \$140.00.',
+                targetWindowId: _targetWindowId,
+              ),
+            ),
+            const SizedBox(width: 6),
+            _CockpitChip(
+              label: 'Warning',
+              icon: Icons.warning_amber_rounded,
+              accentColor: const Color(0xFFC97725),
+              onTap: () => QuickFireCockpit._fireQuickPreset(
+                context,
+                channelName: 'warning',
+                title: 'Storage Warning',
+                message: 'Disk volume reached 92% capacity.',
+                targetWindowId: _targetWindowId,
+              ),
+            ),
+            const SizedBox(width: 6),
+            _CockpitChip(
+              label: 'Critical',
+              icon: Icons.error_outline,
+              accentColor: const Color(0xFFD03332),
+              onTap: () => QuickFireCockpit._fireQuickPreset(
+                context,
+                channelName: 'error',
+                priority: NotificationPriority.high,
+                title: 'Database Outage',
+                message: 'Connection pool exhausted on replica 2.',
+                targetWindowId: _targetWindowId,
+              ),
+            ),
+            const SizedBox(width: 6),
+            _CockpitChip(
+              label: 'Pinned',
+              icon: Icons.push_pin_outlined,
+              accentColor: const Color(0xFF8B5CF6),
+              onTap: () => QuickFireCockpit._fireQuickPreset(
+                context,
+                channelName: 'info',
+                permanent: true,
+                title: 'Update In Progress',
+                message:
+                    'Applying firmware update 2.4.0. Stays until dismissed.',
+                targetWindowId: _targetWindowId,
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            VerticalDivider(
+              width: 1,
+              indent: 4,
+              endIndent: 4,
+              color: colorScheme.onSurface.withValues(alpha: 0.12),
+            ),
+            const SizedBox(width: 10),
+
+            // ── Stacking & Stress Test ──
+            _CockpitChip(
+              label: 'Burst 3x',
+              icon: Icons.auto_awesome_motion_rounded,
+              accentColor: const Color(0xFFEC4899),
+              onTap: () => QuickFireCockpit._fireBurst(
+                context,
+                targetWindowId: _targetWindowId,
+              ),
+            ),
+            const SizedBox(width: 6),
+            _CockpitChip(
+              label: 'Group 4x',
+              icon: Icons.layers_outlined,
+              accentColor: const Color(0xFF0EA5E9),
+              onTap: () => QuickFireCockpit._fireGroupBurst(
+                context,
+                targetWindowId: _targetWindowId,
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // ── Multi-Window Stage Actions ──
+            if (setupState.windows.length == 1) ...[
+              _CockpitChip(
+                label: '+ Window',
+                icon: Icons.add_to_photos_outlined,
+                accentColor: const Color(0xFF06B6D4),
+                onTap: () {
+                  context.read<SetupBloc>().add(const AddVirtualWindow());
+                  context.read<StudioBloc>().add(const ToggleStage(open: true));
+                },
+              ),
+            ] else ...[
+              _CockpitChip(
+                label: 'Close Win 2',
+                icon: Icons.close_fullscreen_rounded,
+                accentColor: const Color(0xFFEF4444),
+                onTap: () => context
+                    .read<SetupBloc>()
+                    .add(const RemoveVirtualWindow('win_2')),
+              ),
+            ],
+            const SizedBox(width: 6),
+            _CockpitChip(
+              label: 'Split Stage',
+              icon: Icons.splitscreen_rounded,
+              accentColor: const Color(0xFF6366F1),
+              onTap: () => MultiTenantSplitViewportDialog.show(context),
+            ),
+            // ── Keyboard Shortcuts Guide ──
+            IconButton(
+              icon: const Icon(Icons.keyboard_outlined, size: 18),
+              tooltip: 'Keyboard shortcuts',
+              style: IconButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                side: BorderSide(
+                  color: colorScheme.onSurface.withValues(alpha: 0.1),
+                ),
+              ),
+              onPressed: () => QuickFireCockpit._showShortcutsDialog(context),
+            ),
+            const SizedBox(width: 6),
+
+            // ── Stage Utility: Clear Target / All ──
+            IconButton(
+              icon: const Icon(Icons.clear_all_rounded, size: 18),
+              tooltip: 'Dismiss active notifications',
+              style: IconButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                side: BorderSide(
+                  color: colorScheme.onSurface.withValues(alpha: 0.1),
+                ),
+              ),
+              onPressed: () {
+                final bloc = context.read<SetupBloc>();
+                if (_targetWindowId == 'all') {
+                  for (final win in bloc.state.windows.values) {
+                    win.controller.dismissAll();
+                  }
+                } else {
+                  final win = _targetWindowId != null
+                      ? bloc.getWindow(_targetWindowId!)
+                      : bloc.state.activeWindow;
+                  (win ?? bloc.state.activeWindow).controller.dismissAll();
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _QuickFireBottomSheet extends StatelessWidget {
@@ -747,7 +874,7 @@ class _CockpitChip extends StatelessWidget {
 
   @override
   Widget build(final BuildContext context) {
-    final colorScheme = StudioTheme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return InkWell(
       onTap: onTap,
@@ -825,6 +952,209 @@ class _ShortcutRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _WindowTargetSelector extends StatelessWidget {
+  const _WindowTargetSelector({
+    required this.targetWindowId,
+    required this.activeWindowId,
+    required this.windows,
+    required this.onSelected,
+  });
+
+  final String? targetWindowId;
+  final String activeWindowId;
+  final Map<String, VirtualWindowData> windows;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(final BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    String label;
+    if (targetWindowId == null) {
+      label = 'Active (${activeWindowId == 'win_1' ? 'Win 1' : 'Win 2'})';
+    } else if (targetWindowId == 'all') {
+      label = 'Both (1 & 2)';
+    } else if (targetWindowId == 'win_1') {
+      label = 'Win 1';
+    } else {
+      label = 'Win 2';
+    }
+
+    return PopupMenuButton<String?>(
+      tooltip: 'Target Virtual Window',
+      initialValue: targetWindowId,
+      onSelected: onSelected,
+      color: colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.25),
+        ),
+      ),
+      itemBuilder: (final _) => [
+        PopupMenuItem<String?>(
+          value: null,
+          child: Row(
+            children: [
+              Icon(
+                Icons.center_focus_strong_outlined,
+                size: 16,
+                color: targetWindowId == null
+                    ? colorScheme.primary
+                    : colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Active Window '
+                  '(${activeWindowId == 'win_1' ? 'Win 1' : 'Win 2'})',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: targetWindowId == null
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: targetWindowId == null
+                        ? colorScheme.primary
+                        : colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem<String?>(
+          value: 'win_1',
+          child: Row(
+            children: [
+              Icon(
+                Icons.desktop_windows_outlined,
+                size: 16,
+                color: targetWindowId == 'win_1'
+                    ? const Color(0xFF6366F1)
+                    : colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Window 1 (Primary)',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: targetWindowId == 'win_1'
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: targetWindowId == 'win_1'
+                        ? const Color(0xFF6366F1)
+                        : colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem<String?>(
+          value: 'win_2',
+          child: Row(
+            children: [
+              Icon(
+                Icons.web_asset_outlined,
+                size: 16,
+                color: targetWindowId == 'win_2'
+                    ? const Color(0xFF06B6D4)
+                    : colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Window 2 (Secondary)',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: targetWindowId == 'win_2'
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: targetWindowId == 'win_2'
+                        ? const Color(0xFF06B6D4)
+                        : colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String?>(
+          value: 'all',
+          child: Row(
+            children: [
+              Icon(
+                Icons.call_split_rounded,
+                size: 16,
+                color: targetWindowId == 'all'
+                    ? const Color(0xFFEC4899)
+                    : colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Broadcast to Both (1 & 2)',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: targetWindowId == 'all'
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: targetWindowId == 'all'
+                        ? const Color(0xFFEC4899)
+                        : colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: colorScheme.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: colorScheme.primary.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.filter_none_outlined,
+              size: 13,
+              color: colorScheme.primary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              'Target: $label',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 3),
+            Icon(
+              Icons.arrow_drop_down_rounded,
+              size: 16,
+              color: colorScheme.primary,
+            ),
+          ],
+        ),
       ),
     );
   }

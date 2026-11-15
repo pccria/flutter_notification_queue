@@ -84,7 +84,8 @@ final class UpdateSnoozeDurationSeconds extends StudioNotificationEvent {
 }
 
 final class FirePreview extends StudioNotificationEvent {
-  const FirePreview();
+  const FirePreview({this.targetWindowId});
+  final String? targetWindowId;
 }
 
 final class ResetDraft extends StudioNotificationEvent {
@@ -297,22 +298,38 @@ class NotificationBloc
         channelSetup?.position ??
         setupBloc.state.activeQueuePosition;
 
-    // Fire notification via NotificationController with targetPosition routing
-    setupBloc.controller.show(
-      AppNotification(
-        title: draft.title,
-        message: draft.message,
-        channelName: draft.channelName,
-        priority: draft.priority,
-        permanent: draft.permanent,
-        accentColor: draft.accentColorOverride,
-        action: action,
-        tapBehavior: tapBehavior,
-        dismissDuration: draft.dismissSeconds != null
-            ? Duration(seconds: draft.dismissSeconds!)
-            : null,
-      ),
-      targetPosition: targetPosition,
+    // Fire notification via NotificationController with target routing
+    final notification = AppNotification(
+      title: draft.title,
+      message: draft.message,
+      channelName: draft.channelName,
+      priority: draft.priority,
+      permanent: draft.permanent,
+      accentColor: draft.accentColorOverride,
+      action: action,
+      tapBehavior: tapBehavior,
+      dismissDuration: draft.dismissSeconds != null
+          ? Duration(seconds: draft.dismissSeconds!)
+          : null,
     );
+
+    if (event.targetWindowId == 'all') {
+      for (final win in setupBloc.state.windows.values) {
+        if (win.isMounted) {
+          win.controller.show(
+            notification,
+            targetPosition: targetPosition,
+          );
+        }
+      }
+    } else {
+      final target = event.targetWindowId != null
+          ? setupBloc.getWindow(event.targetWindowId!)
+          : setupBloc.state.activeWindow;
+      target?.controller.show(
+        notification,
+        targetPosition: targetPosition,
+      );
+    }
   }
 }

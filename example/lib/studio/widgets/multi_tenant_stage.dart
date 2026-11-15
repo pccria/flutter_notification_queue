@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
+export 'virtual_stage_canvas.dart';
+
 /// Interactive Multi-Tenant Split-Viewport Stage for Studio.
 ///
 /// Demonstrates and validates the **1:1 multi-tenancy model** active in
