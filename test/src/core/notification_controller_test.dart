@@ -13,6 +13,7 @@ class _FakeNotificationScopeState implements NotificationScopeState {
   final List<AppNotification> dismissedNotifications = [];
   final List<String> dismissedIds = [];
   bool dismissedAll = false;
+  bool dismissedAllClearBacklog = false;
   bool dismissedNewest = false;
   bool clearedHistory = false;
   final List<String> dismissedGroups = [];
@@ -60,8 +61,12 @@ class _FakeNotificationScopeState implements NotificationScopeState {
   }
 
   @override
-  void dismissAll({final DismissReason reason = DismissReason.programmatic}) {
+  void dismissAll({
+    final DismissReason reason = DismissReason.programmatic,
+    final bool clearBacklog = false,
+  }) {
     dismissedAll = true;
+    dismissedAllClearBacklog = clearBacklog;
   }
 
   @override
@@ -326,7 +331,7 @@ void main() {
       controller
         ..attach(fakeScope)
         ..dismiss(notification)
-        ..dismissAll()
+        ..dismissAll(clearBacklog: true)
         ..clearHistory();
 
       expect(
@@ -334,6 +339,7 @@ void main() {
         contains('notif-1'),
       );
       expect(fakeScope.dismissedAll, isTrue);
+      expect(fakeScope.dismissedAllClearBacklog, isTrue);
       expect(fakeScope.clearedHistory, isTrue);
 
       controller.dispose();

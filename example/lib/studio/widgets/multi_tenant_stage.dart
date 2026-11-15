@@ -324,10 +324,10 @@ class _MultiTenantSplitViewportStageState
 
   void _dismissAll() {
     if (_isMountedA) {
-      _controllerA.dismissAll();
+      _controllerA.dismissAll(clearBacklog: true);
     }
     if (_isMountedB) {
-      _controllerB.dismissAll();
+      _controllerB.dismissAll(clearBacklog: true);
     }
   }
 
@@ -401,7 +401,8 @@ class _MultiTenantSplitViewportStageState
                                 );
                               }
                             },
-                            onDismissAll: () => _controllerA.dismissAll(),
+                            onDismissAll: () =>
+                                _controllerA.dismissAll(clearBacklog: true),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -447,7 +448,8 @@ class _MultiTenantSplitViewportStageState
                                 );
                               }
                             },
-                            onDismissAll: () => _controllerB.dismissAll(),
+                            onDismissAll: () =>
+                                _controllerB.dismissAll(clearBacklog: true),
                           ),
                         ),
                       ],
@@ -503,7 +505,8 @@ class _MultiTenantSplitViewportStageState
                               );
                             }
                           },
-                          onDismissAll: () => _controllerA.dismissAll(),
+                          onDismissAll: () =>
+                              _controllerA.dismissAll(clearBacklog: true),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -550,7 +553,8 @@ class _MultiTenantSplitViewportStageState
                               );
                             }
                           },
-                          onDismissAll: () => _controllerB.dismissAll(),
+                          onDismissAll: () =>
+                              _controllerB.dismissAll(clearBacklog: true),
                         ),
                       ),
                     ],

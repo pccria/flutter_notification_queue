@@ -26,8 +26,12 @@ abstract class NotificationScopeState {
   });
 
   /// Dismisses all visible notifications.
+  ///
+  /// When [clearBacklog] is `true`, pending backlog notifications waiting due
+  /// to queue capacity limits are also purged immediately.
   void dismissAll({
     final DismissReason reason = DismissReason.programmatic,
+    final bool clearBacklog = false,
   });
 
   /// Dismisses the newest currently visible notification.
@@ -455,10 +459,14 @@ class NotificationController {
       false;
 
   /// Programmatically dismisses all currently visible notifications.
+  ///
+  /// When [clearBacklog] is `true`, pending backlog notifications waiting due
+  /// to queue capacity limits are also purged immediately.
   void dismissAll({
     final DismissReason reason = DismissReason.programmatic,
+    final bool clearBacklog = false,
   }) {
-    _attachedState?.dismissAll(reason: reason);
+    _attachedState?.dismissAll(reason: reason, clearBacklog: clearBacklog);
   }
 
   /// Dismisses the newest currently visible notification.

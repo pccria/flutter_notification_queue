@@ -36,8 +36,10 @@ final controller = NotificationController(
   to capacity limits.
 - `dismiss(AppNotification notification, {DismissReason? reason})`:
   Programmatically dismisses an active or queued notification.
-- `dismissAll({DismissReason? reason})`:
-  Dismisses all active notifications across all queues.
+- `dismissAll({DismissReason? reason, bool clearBacklog = false})`:
+  Dismisses all active notifications across all queues. When
+  `clearBacklog: true`, atomically purges all pending backlog notifications
+  waiting due to queue capacity limits and unmounted initialization items.
 - `dismissGroup(String groupKey, {DismissReason? reason})`:
   Dismisses all notifications in a group deck and purges backlog.
 - `clearHistory()`:

@@ -4,7 +4,7 @@
 > **Strategic Focus**: Multi-Tenancy Hardening, Egress Physics, Invariant
 > Stasis, and Reality Testing.  
 > **Baseline Quality**: `flutter analyze --fatal-warnings` — 0 issues |
-> `flutter test` — 423/423 passing | `example test` — 60/60 passing.
+> `flutter test` — 425/425 passing | `example test` — 60/60 passing.
 
 ---
 

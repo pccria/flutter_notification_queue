@@ -284,5 +284,158 @@ void main() {
         subscription.cancel(); // ignore: unawaited_futures
       },
     );
+
+    testWidgets(
+      'dismissAll(clearBacklog: false) dismisses active and promotes backlog',
+      timeout: const Timeout(Duration(seconds: 3)),
+      (final tester) async {
+        final controller = NotificationController(
+          channels: {
+            const NotificationChannel(
+              name: 'default',
+              position: QueuePosition.topCenter,
+              defaultDismissDuration: null,
+            ),
+          },
+          queues: {
+            const NotificationQueue(
+              position: QueuePosition.topCenter,
+              style: FlatQueueStyle(opacity: 1.0),
+              maxStackSize: 1,
+            ),
+          },
+        );
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: SizedBox.expand(),
+            ),
+          ),
+        );
+
+        final n1 = NotificationWidget(
+          id: 'n1',
+          message: 'Active Item',
+          coordinator: controller.coordinator,
+        );
+        final n2 = NotificationWidget(
+          id: 'n2',
+          message: 'Pending Item 2',
+          coordinator: controller.coordinator,
+        );
+        final n3 = NotificationWidget(
+          id: 'n3',
+          message: 'Pending Item 3',
+          coordinator: controller.coordinator,
+        );
+
+        n1.show();
+        n2.show();
+        n3.show();
+        await tester.pump();
+        await _driveAnimation(tester);
+
+        expect(find.text('Active Item'), findsOneWidget);
+        expect(find.text('Pending Item 2'), findsNothing);
+
+        // dismissAll without clearing backlog dismisses active, promoting n2
+        controller.dismissAll(clearBacklog: false);
+        await tester.pump();
+        await _driveAnimation(tester);
+
+        expect(find.text('Active Item'), findsNothing);
+        expect(find.text('Pending Item 2'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'dismissAll(clearBacklog: true) purges backlog and prevents promotion',
+      timeout: const Timeout(Duration(seconds: 3)),
+      (final tester) async {
+        final controller = NotificationController(
+          channels: {
+            const NotificationChannel(
+              name: 'default',
+              position: QueuePosition.topCenter,
+              defaultDismissDuration: null,
+            ),
+          },
+          queues: {
+            const NotificationQueue(
+              position: QueuePosition.topCenter,
+              style: FlatQueueStyle(opacity: 1.0),
+              maxStackSize: 1,
+            ),
+          },
+        );
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: SizedBox.expand(),
+            ),
+          ),
+        );
+
+        final dismissedEvents = <NotificationDismissed>[];
+        final sub = controller.events.listen((final event) {
+          if (event is NotificationDismissed) {
+            dismissedEvents.add(event);
+          }
+        });
+        addTearDown(sub.cancel);
+
+        final n1 = NotificationWidget(
+          id: 'n1',
+          message: 'Active Item',
+          coordinator: controller.coordinator,
+        );
+        final n2 = NotificationWidget(
+          id: 'n2',
+          message: 'Pending Item 2',
+          coordinator: controller.coordinator,
+        );
+        final n3 = NotificationWidget(
+          id: 'n3',
+          message: 'Pending Item 3',
+          coordinator: controller.coordinator,
+        );
+
+        n1.show();
+        n2.show();
+        n3.show();
+        await tester.pump();
+        await _driveAnimation(tester);
+
+        expect(find.text('Active Item'), findsOneWidget);
+
+        // dismissAll with clearBacklog: true immediately purges n2 and n3
+        controller.dismissAll(clearBacklog: true);
+        await tester.pump();
+        await _driveAnimation(tester);
+
+        // Active item exited, and no backlog item was promoted
+        expect(find.text('Active Item'), findsNothing);
+        expect(find.text('Pending Item 2'), findsNothing);
+        expect(find.text('Pending Item 3'), findsNothing);
+        expect(find.byType(NotificationWidget), findsNothing);
+
+        // All 3 notifications received NotificationDismissed events
+        final dismissedIds =
+            dismissedEvents.map((final e) => e.notification.id).toSet();
+        expect(dismissedIds, containsAll(['n1', 'n2', 'n3']));
+      },
+    );
   });
 }

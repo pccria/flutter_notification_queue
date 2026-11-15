@@ -802,6 +802,32 @@ class QueueWidgetState extends State<QueueWidget>
     }
   }
 
+  /// Atomically purges all pending backlog notifications from this queue,
+  /// unregistering their IDs and emitting dismissal events.
+  void clearBacklog({
+    final DismissReason reason = DismissReason.programmatic,
+  }) {
+    if (_pendingNotifications.isEmpty) {
+      return;
+    }
+    final pendingList = _pendingNotifications.toList();
+    setState(() {
+      _pendingNotifications.clear();
+      _pendingById.clear();
+      _invalidateSnapshot();
+    });
+
+    for (final pending in pendingList) {
+      _coordinator
+        ..unregisterEntryId(pending.id, widget.queue.position)
+        ..emitDismissed(
+          notification: pending.blueprint,
+          reason: reason,
+        );
+    }
+    _checkEmpty();
+  }
+
   /// Updates an active or pending notification in place.
   ///
   /// Returns a record with the updated and previous [NotificationWidget],

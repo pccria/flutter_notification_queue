@@ -524,6 +524,15 @@ void main() {
         expect(activeA.length, equals(3));
         expect(controllerA.isQueuePaused(QueuePosition.topCenter), isTrue);
 
+        // Now calling dismissAll with clearBacklog: true completely flushes
+        // both active items and the remaining pending backlog.
+        controllerA.dismissAll(clearBacklog: true);
+        await tester.pump();
+        await tester.pumpAndSettle();
+        final activeACleared =
+            controllerA.coordinator?.activeNotifications ?? [];
+        expect(activeACleared, isEmpty);
+
         // Controller B was not paused and its active slots remain intact.
         final activeB = controllerB.coordinator?.activeNotifications ?? [];
         expect(activeB.length, equals(3));

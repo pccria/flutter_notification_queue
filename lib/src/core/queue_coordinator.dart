@@ -493,10 +493,31 @@ class QueueCoordinator implements NotificationScopeState {
   }
 
   /// Dismisses all active notifications across all active queues.
+  ///
+  /// When [clearBacklog] is `true`, pending backlog notifications waiting
+  /// due to queue capacity limits (as well as unmounted items in the
+  /// initialization queue) are atomically purged and emit dismissal events.
   @override
   void dismissAll({
     final DismissReason reason = DismissReason.programmatic,
+    final bool clearBacklog = false,
   }) {
+    if (clearBacklog) {
+      for (final entry in _widgetStateKeys.entries) {
+        entry.value.currentState?.clearBacklog(reason: reason);
+      }
+      for (final pos in _initializationQueue.keys.toList()) {
+        final initQueue = _initializationQueue.remove(pos) ?? [];
+        for (final entry in initQueue) {
+          unregisterEntryId(entry.id, pos);
+          emitDismissed(
+            notification: entry.blueprint,
+            reason: reason,
+          );
+        }
+      }
+    }
+
     final active = activeNotifications;
     for (final notification in active) {
       dismissWidget(notification, reason: reason);
