@@ -9,10 +9,10 @@ import 'panels/code_editor_panel.dart';
 import 'panels/configurator_panel.dart';
 import 'panels/event_log_panel.dart';
 import 'studio_theme.dart';
-import 'widgets/multi_tenant_stage.dart';
 import 'widgets/pane_splitter.dart';
 import 'widgets/project_info_dialog.dart';
 import 'widgets/quick_fire_cockpit.dart';
+import 'widgets/virtual_stage_canvas.dart';
 
 /// The root layout for NFQ Studio.
 ///

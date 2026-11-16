@@ -9,7 +9,6 @@ import '../bloc/notification_bloc.dart';
 import '../bloc/setup_bloc.dart';
 import '../bloc/studio_bloc.dart';
 import '../models/virtual_window_data.dart';
-import 'multi_tenant_stage.dart';
 
 /// A persistent, tactile quick-action toolbar that allows developers to
 /// fire the current draft, quick presets, bursts, or clear the stage
@@ -146,7 +145,7 @@ class QuickFireCockpit extends StatefulWidget {
         if (win.isMounted && win.controller.isAttached) {
           final targetPosition =
               _resolvePositionForWindow(setupBloc, win, channelName);
-          win.controller.show(
+          win.controller.tryShow(
             notification,
             targetPosition: targetPosition,
           );
@@ -159,7 +158,7 @@ class QuickFireCockpit extends StatefulWidget {
       if (target != null && target.isMounted && target.controller.isAttached) {
         final targetPosition =
             _resolvePositionForWindow(setupBloc, target, channelName);
-        target.controller.show(
+        target.controller.tryShow(
           notification,
           targetPosition: targetPosition,
         );
@@ -192,7 +191,7 @@ class QuickFireCockpit extends StatefulWidget {
             if (win.isMounted && win.controller.isAttached) {
               final targetPosition =
                   _resolvePositionForWindow(setupBloc, win, sample.$2);
-              win.controller.show(
+              win.controller.tryShow(
                 notification,
                 targetPosition: targetPosition,
               );
@@ -207,7 +206,7 @@ class QuickFireCockpit extends StatefulWidget {
               target.controller.isAttached) {
             final targetPosition =
                 _resolvePositionForWindow(setupBloc, target, sample.$2);
-            target.controller.show(
+            target.controller.tryShow(
               notification,
               targetPosition: targetPosition,
             );
@@ -244,7 +243,7 @@ class QuickFireCockpit extends StatefulWidget {
             if (win.isMounted && win.controller.isAttached) {
               final targetPosition =
                   _resolvePositionForWindow(setupBloc, win, 'chat');
-              win.controller.show(
+              win.controller.tryShow(
                 notification,
                 targetPosition: targetPosition,
               );
@@ -259,7 +258,7 @@ class QuickFireCockpit extends StatefulWidget {
               target.controller.isAttached) {
             final targetPosition =
                 _resolvePositionForWindow(setupBloc, target, 'chat');
-            target.controller.show(
+            target.controller.tryShow(
               notification,
               targetPosition: targetPosition,
             );
@@ -504,13 +503,6 @@ class _QuickFireCockpitState extends State<QuickFireCockpit> {
                     .add(const RemoveVirtualWindow('win_2')),
               ),
             ],
-            const SizedBox(width: 6),
-            _CockpitChip(
-              label: 'Split Stage',
-              icon: Icons.splitscreen_rounded,
-              accentColor: const Color(0xFF6366F1),
-              onTap: () => MultiTenantSplitViewportDialog.show(context),
-            ),
             // ── Keyboard Shortcuts Guide ──
             IconButton(
               icon: const Icon(Icons.keyboard_outlined, size: 18),

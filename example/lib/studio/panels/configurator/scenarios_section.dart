@@ -3,10 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
 import '../../bloc/setup_bloc.dart';
+import '../../bloc/studio_bloc.dart';
 import '../../models/channel_setup.dart';
 import '../../models/queue_setup.dart';
 import '../../studio_theme.dart';
-import '../../widgets/multi_tenant_stage.dart';
 
 /// A curated set of one-click demo scenarios that showcase different FNQ
 /// features in realistic use cases.
@@ -419,7 +419,7 @@ final _scenarios = [
         final item = items[i];
         Future.delayed(
           Duration(milliseconds: 200 * i),
-          () => controller.show(item.$1, targetPosition: item.$2),
+          () => controller.tryShow(item.$1, targetPosition: item.$2),
         );
       }
     },
@@ -740,7 +740,33 @@ final _scenarios = [
         'isolated drag registries & teardowns',
     icon: Icons.splitscreen_rounded,
     color: const Color(0xFF6366F1),
-    onFire: (final context) => MultiTenantSplitViewportDialog.show(context),
+    onFire: (final context) {
+      context.read<StudioBloc>().add(const ToggleStage(open: true));
+      final setupBloc = context.read<SetupBloc>();
+      if (setupBloc.state.windows.length == 1) {
+        setupBloc.add(const AddVirtualWindow());
+      }
+      Future.delayed(const Duration(milliseconds: 300), () {
+        final win1 = setupBloc.getWindow('win_1');
+        final win2 = setupBloc.getWindow('win_2');
+        win1?.controller.tryShow(
+          const AppNotification(
+            title: 'Workspace A (Alpha)',
+            message: 'Primary production queue active.',
+            channelName: 'system',
+            dismissDuration: Duration(seconds: 8),
+          ),
+        );
+        win2?.controller.tryShow(
+          const AppNotification(
+            title: 'Workspace B (Beta)',
+            message: 'Secondary isolated queue running concurrently.',
+            channelName: 'orders',
+            dismissDuration: Duration(seconds: 8),
+          ),
+        );
+      });
+    },
   ),
 ];
 

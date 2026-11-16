@@ -253,5 +253,90 @@ void main() {
         expect(setupBloc.state.activeWindowId, equals('win_2'));
       },
     );
+
+    testWidgets(
+      'Virtual window stasis and unmount/remount controls operate '
+      'independently',
+      (final tester) async {
+        final setupBloc = SetupBloc();
+        final notificationBloc = NotificationBloc(setupBloc: setupBloc);
+        final studioBloc = StudioBloc();
+
+        addTearDown(() {
+          notificationBloc.close();
+          setupBloc.close();
+          studioBloc.close();
+        });
+
+        await tester.binding.setSurfaceSize(const Size(1400, 900));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider.value(value: setupBloc),
+              BlocProvider.value(value: notificationBloc),
+              BlocProvider.value(value: studioBloc),
+            ],
+            child: MaterialApp(
+              theme: StudioTheme.dark(),
+              builder: (final context, final child) {
+                StudioTheme.update(context);
+                return child!;
+              },
+              home: const Scaffold(
+                body: VirtualStageCanvas(),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Add Window 2
+        await tester.tap(find.text('+ Win 2'));
+        await tester.pumpAndSettle();
+
+        // 1. Stasis test on Window 2
+        final pauseButtons = find.byTooltip('Pause Queue Timers (Stasis)');
+        expect(pauseButtons, findsNWidgets(2));
+
+        // Tap pause on Window 2 (the second one)
+        await tester.tap(pauseButtons.last);
+        await tester.pumpAndSettle();
+
+        expect(setupBloc.state.windows['win_2']!.isPaused, isTrue);
+        expect(setupBloc.state.windows['win_1']!.isPaused, isFalse);
+
+        // Resume Window 2
+        final resumeButton = find.byTooltip('Resume Queue Timers');
+        expect(resumeButton, findsOneWidget);
+        await tester.tap(resumeButton);
+        await tester.pumpAndSettle();
+
+        expect(setupBloc.state.windows['win_2']!.isPaused, isFalse);
+
+        // 2. Unmount test on Window 1
+        final unmountButton = find.byTooltip('Unmount Surface');
+        expect(unmountButton, findsOneWidget);
+        await tester.tap(unmountButton);
+        await tester.pumpAndSettle();
+
+        expect(setupBloc.state.windows['win_1']!.isMounted, isFalse);
+        expect(
+          find.text('Workspace A (Alpha) Unmounted'),
+          findsOneWidget,
+        );
+
+        // Remount Window 1
+        await tester.tap(find.text('Remount Surface'));
+        await tester.pumpAndSettle();
+
+        expect(setupBloc.state.windows['win_1']!.isMounted, isTrue);
+        expect(
+          find.text('Workspace A (Alpha) Unmounted'),
+          findsNothing,
+        );
+      },
+    );
   });
 }
