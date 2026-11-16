@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.7.1] - 2026-11-17
+
+### Architecture Modularization & Clean Code
+- **Coordinator Delegate Decomposition (Phase 1)**:
+  - Extracted `QueueStasisManager` to isolate programmatic timer stasis state
+    sets (`Set<QueuePosition>`) and pause/resume lifecycle transitions from
+    rendering and overlay plumbing.
+  - Extracted `QueueA11yAnnouncer` to encapsulate live region screen-reader
+    announcements, priority thresholding, and assertiveness mapping via
+    `SemanticsService.sendAnnouncement`.
+  - Maintained 100% backward compatibility on `QueueCoordinator` and
+    `NotificationScopeState` as a composite facade.
+
+### Dependencies & Engine Alignment
+- **Semantic Logging Engine**:
+  - Upgraded `logd` constraint to `^0.10.6` to leverage the latest pure semantic
+    logging engine and zero-shim architecture.
+
 ## [0.7.0] - 2026-11-16
 
 ### Directional Egress Modernization

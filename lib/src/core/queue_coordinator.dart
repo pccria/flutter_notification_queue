@@ -166,56 +166,36 @@ class QueueCoordinator implements NotificationScopeState {
     }
   }
 
-  /// The set of queue positions whose auto-dismiss timers are programmatically
-  /// paused in stasis.
-  final _pausedQueuesNotifier = ValueNotifier<Set<QueuePosition>>({});
+  final _stasisManager = QueueStasisManager();
+  final _a11yAnnouncer = const QueueA11yAnnouncer();
 
   /// Notifier exposing the set of queues currently in programmatic timer
   /// stasis.
-  ValueListenable<Set<QueuePosition>> get pausedQueues => _pausedQueuesNotifier;
+  ValueListenable<Set<QueuePosition>> get pausedQueues =>
+      _stasisManager.pausedQueues;
 
   /// Whether the queue at [position] is currently paused.
   @override
   bool isQueuePaused(final QueuePosition position) =>
-      _pausedQueuesNotifier.value.contains(position);
+      _stasisManager.isQueuePaused(position);
 
   /// Pauses auto-dismiss timers for all notifications in [position].
   @override
-  void pauseQueue(final QueuePosition position) {
-    if (_isDisposed || _pausedQueuesNotifier.value.contains(position)) {
-      return;
-    }
-    _pausedQueuesNotifier.value = {..._pausedQueuesNotifier.value, position};
-  }
+  void pauseQueue(final QueuePosition position) =>
+      _stasisManager.pauseQueue(position);
 
   /// Resumes auto-dismiss timers for all notifications in [position].
   @override
-  void resumeQueue(final QueuePosition position) {
-    if (_isDisposed || !_pausedQueuesNotifier.value.contains(position)) {
-      return;
-    }
-    final next = Set<QueuePosition>.of(_pausedQueuesNotifier.value)
-      ..remove(position);
-    _pausedQueuesNotifier.value = next;
-  }
+  void resumeQueue(final QueuePosition position) =>
+      _stasisManager.resumeQueue(position);
 
   /// Pauses auto-dismiss timers for all notifications across all queues.
   @override
-  void pauseAll() {
-    if (_isDisposed) {
-      return;
-    }
-    _pausedQueuesNotifier.value = Set.of(QueuePosition.values);
-  }
+  void pauseAll() => _stasisManager.pauseAll();
 
   /// Resumes auto-dismiss timers for all notifications across all queues.
   @override
-  void resumeAll() {
-    if (_isDisposed) {
-      return;
-    }
-    _pausedQueuesNotifier.value = {};
-  }
+  void resumeAll() => _stasisManager.resumeAll();
 
   /// Active snooze timers that need to be cancelled if the coordinator
   /// detaches or disposes.
@@ -273,7 +253,7 @@ class QueueCoordinator implements NotificationScopeState {
     try {
       _activeQueuesNotifier.dispose();
       _interactionFocusNotifier.dispose();
-      _pausedQueuesNotifier.dispose();
+      _stasisManager.dispose();
     } on Object catch (e) {
       _logger.debug('Error disposing active queues notifier: $e');
     }
@@ -1160,36 +1140,11 @@ class QueueCoordinator implements NotificationScopeState {
 
   // ── Accessibility & Focus Traversal ──────────────────────────────────────
 
-  void _announceNotification(final NotificationWidget notification) {
-    final a11y = configuration.a11yOptions;
-    if (!a11y.enableLiveRegions) {
-      return;
-    }
-    final priority = notification.resolvedPriority;
-    if (priority < a11y.announcePriorityThreshold) {
-      return;
-    }
-    final title = notification.title;
-    final message = notification.message;
-    final announcement =
-        title != null && title.isNotEmpty ? '$title: $message' : message;
-    final assertiveness = priority == NotificationPriority.critical
-        ? Assertiveness.assertive
-        : Assertiveness.polite;
-
-    final view = PlatformDispatcher.instance.implicitView ??
-        PlatformDispatcher.instance.views.firstOrNull;
-    if (view != null) {
-      unawaited(
-        SemanticsService.sendAnnouncement(
-          view,
-          announcement,
-          TextDirection.ltr,
-          assertiveness: assertiveness,
-        ),
+  void _announceNotification(final NotificationWidget notification) =>
+      _a11yAnnouncer.announce(
+        notification,
+        options: configuration.a11yOptions,
       );
-    }
-  }
 
   /// Attempts to transfer keyboard focus to the first active notification card.
   ///

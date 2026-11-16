@@ -61,7 +61,7 @@ graph LR
 |---|---|---|---|
 | **v0.5.0–v0.5.2** | **Stability & Grouping** | ✅ Completed | Snooze timer cleanup, error chaining, single source-of-truth pinning, `GroupCountBehavior`, peek card timer stasis. |
 | **v0.6.0–v0.6.1** | **Monolith & Platform** | ✅ Completed | 26-part monolith decomposition, WCAG 2.1 AA accessibility, desktop context menu engine, `NotificationThemeData`. |
-| **v0.7.0** | **Egress, Stasis & Multi-Tenancy** | ✅ Completed | Card-centric egress (`DismissEgress`), flight portal (`EgressFlightOverlay`), token invariant engine (`TimerPauseReason`), queue stasis, cross-queue slot relocation, Studio split-viewport multi-tenancy validation, atomic `clearBacklog`. |
+| **v0.7.0–v0.7.1** | **Egress, Stasis, Multi-Tenancy & Delegates** | ✅ Completed | Card-centric egress (`DismissEgress`), flight portal (`EgressFlightOverlay`), token invariant engine (`TimerPauseReason`), queue stasis, cross-queue slot relocation, Studio split-viewport multi-tenancy validation, atomic `clearBacklog`, `QueueStasisManager` & `QueueA11yAnnouncer` delegates, `logd` ^0.10.6. |
 | **v0.8.0** | **Decomposition & Gesture Purge** | 🟡 Active | Decompose `QueueCoordinator` and `NotificationWidget` into delegates/components, unify spatial movement (`Reorder`/`Relocate` $\to$ 1 engine), card action framework, `DismissZone` dead code purge (~1,200 LOC). |
 | **v0.9.x+** | **Native Multi-Window & Multi-View** | 🟣 Exploratory | 1:N multi-view coordination inside `NotificationController`, active-window routing, multi-display DPI invariance, 120Hz stress profiling. |
 | **v1.0.0** | **Eventual Stability Horizon** | 🎯 Target | Long-term API freeze and enterprise production guarantee, declared only after infrastructure is proven in real-world apps. |
@@ -155,6 +155,8 @@ Complexity Tiers:
 | **E-16** | Atomic backlog purging: add `clearBacklog: false` parameter to `NotificationController.dismissAll()` | 🔴 P0 | 🟢 Low | ✅ Completed | `lib/src/core/notification_controller.dart`, `queue_coordinator.dart` |
 | **E-17** | Scope `HardwareKeyboard.instance.addHandler` to `widget.useRootOverlay` to prevent collisions | 🔴 P0 | 🟢 Low | ✅ Completed | `lib/src/core/notification_scope.dart` |
 | **E-18** | Native Studio Virtual Multi-Window stage (`VirtualStageCanvas`, workspace switcher, radar stream rebinding) | 🟡 P1 | 🔴 High | ✅ Completed | `example/lib/studio/` |
+| **E-19** | Coordinator delegate extraction (Phase 1): `QueueStasisManager` and `QueueA11yAnnouncer` | 🟡 P1 | 🟢 Low | ✅ Completed | `lib/src/core/queue_stasis_manager.dart`, `queue_a11y_announcer.dart` |
+| **E-20** | Upgrade `logd` constraint to `^0.10.6` to support pure semantic logging engine | 🟢 P2 | 🟢 Low | ✅ Completed | `pubspec.yaml` |
 
 ---
 

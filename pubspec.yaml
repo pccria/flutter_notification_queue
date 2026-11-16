@@ -3,7 +3,7 @@ description: >-
   A contextless, overlay-based in-app notification queue for Flutter
   with spatial positioning, gesture intents, priority triage, notification
   bundling, and event streams.
-version: 0.7.0
+version: 0.7.1
 
 homepage: https://github.com/pccria/flutter_notification_queue
 repository: https://github.com/pccria/flutter_notification_queue
@@ -27,7 +27,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  logd: ^0.9.0
+  logd: ^0.10.6
   meta: '>=1.9.0 <2.0.0'
 
 dev_dependencies:
