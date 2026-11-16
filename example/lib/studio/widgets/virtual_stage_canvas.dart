@@ -278,11 +278,35 @@ class _StageHeader extends StatelessWidget {
                   ),
                 ),
               ],
-              if (!isNarrow) ...[
+              if (!isNarrow && windowCount > 1) ...[
+                const SizedBox(width: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _WorkspaceTab(
+                      label: 'Win 1',
+                      isActive: activeWindow.id == 'win_1',
+                      accentColor: const Color(0xFF6366F1),
+                      onTap: () => context
+                          .read<SetupBloc>()
+                          .add(const SelectActiveWindow('win_1')),
+                    ),
+                    const SizedBox(width: 4),
+                    _WorkspaceTab(
+                      label: 'Win 2',
+                      isActive: activeWindow.id == 'win_2',
+                      accentColor: const Color(0xFF10B981),
+                      onTap: () => context
+                          .read<SetupBloc>()
+                          .add(const SelectActiveWindow('win_2')),
+                    ),
+                  ],
+                ),
+              ] else if (!isNarrow) ...[
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
-                    'Editing: ${activeWindow.title}',
+                    'Active: ${activeWindow.title}',
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11,
@@ -363,6 +387,69 @@ class _StageHeader extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _WorkspaceTab extends StatelessWidget {
+  const _WorkspaceTab({
+    required this.label,
+    required this.isActive,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isActive;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(final BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: isActive
+          ? accentColor.withValues(alpha: 0.18)
+          : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: BorderSide(
+          color: isActive
+              ? accentColor.withValues(alpha: 0.6)
+              : colorScheme.outlineVariant.withValues(alpha: 0.25),
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accentColor,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
+                  color: isActive
+                      ? colorScheme.onSurface
+                      : colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

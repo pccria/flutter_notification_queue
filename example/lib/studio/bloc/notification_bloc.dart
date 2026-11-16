@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
+import '../models/virtual_window_data.dart';
 import 'setup_bloc.dart';
 
 // ── Events ──
@@ -308,19 +309,24 @@ class NotificationBloc
           : null,
     );
 
-    final activeChannelSetup =
-        setupBloc.state.setup.channels[draft.channelName];
-    final activeTargetPosition = draft.positionOverride ??
-        activeChannelSetup?.position ??
-        setupBloc.state.activeQueuePosition;
+    QueuePosition? resolvePositionForWindow(final VirtualWindowData win) {
+      if (draft.positionOverride != null) {
+        return draft.positionOverride;
+      }
+      final channelPos = win.setup.channels[draft.channelName]?.position;
+      if (channelPos != null) {
+        return channelPos;
+      }
+      if (win.id == setupBloc.state.activeWindowId) {
+        return setupBloc.state.activeQueuePosition;
+      }
+      return win.setup.queues.keys.firstOrNull;
+    }
 
     if (event.targetWindowId == 'all') {
       for (final win in setupBloc.state.windows.values) {
         if (win.isMounted && win.controller.isAttached) {
-          final targetPosition = win.id == setupBloc.state.activeWindowId
-              ? activeTargetPosition
-              : (draft.positionOverride ??
-                  win.setup.channels[draft.channelName]?.position);
+          final targetPosition = resolvePositionForWindow(win);
           win.controller.show(
             notification,
             targetPosition: targetPosition,
@@ -332,10 +338,7 @@ class NotificationBloc
           ? setupBloc.getWindow(event.targetWindowId!)
           : setupBloc.state.activeWindow;
       if (target != null && target.isMounted && target.controller.isAttached) {
-        final targetPosition = target.id == setupBloc.state.activeWindowId
-            ? activeTargetPosition
-            : (draft.positionOverride ??
-                target.setup.channels[draft.channelName]?.position);
+        final targetPosition = resolvePositionForWindow(target);
         target.controller.show(
           notification,
           targetPosition: targetPosition,

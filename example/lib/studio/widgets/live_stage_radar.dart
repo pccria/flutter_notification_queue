@@ -30,6 +30,20 @@ class _LiveStageRadarState extends State<LiveStageRadar> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _resubscribe();
+  }
+
+  @override
+  void didUpdateWidget(final LiveStageRadar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.setupState.activeWindowId !=
+            oldWidget.setupState.activeWindowId ||
+        widget.setupState.controller != oldWidget.setupState.controller) {
+      _resubscribe();
+    }
+  }
+
+  void _resubscribe() {
     _eventSub?.cancel();
     final scope =
         NotificationScope.maybeOf(context) ?? widget.setupState.controller;

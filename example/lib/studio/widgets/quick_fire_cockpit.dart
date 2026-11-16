@@ -107,6 +107,21 @@ class QuickFireCockpit extends StatefulWidget {
     );
   }
 
+  static QueuePosition? _resolvePositionForWindow(
+    final SetupBloc setupBloc,
+    final VirtualWindowData win,
+    final String channelName,
+  ) {
+    final channelPos = win.setup.channels[channelName]?.position;
+    if (channelPos != null) {
+      return channelPos;
+    }
+    if (win.id == setupBloc.state.activeWindowId) {
+      return setupBloc.state.activeQueuePosition;
+    }
+    return win.setup.queues.keys.firstOrNull;
+  }
+
   static void _fireQuickPreset(
     final BuildContext context, {
     required final String channelName,
@@ -129,7 +144,12 @@ class QuickFireCockpit extends StatefulWidget {
     if (targetWindowId == 'all') {
       for (final win in setupBloc.state.windows.values) {
         if (win.isMounted && win.controller.isAttached) {
-          win.controller.show(notification);
+          final targetPosition =
+              _resolvePositionForWindow(setupBloc, win, channelName);
+          win.controller.show(
+            notification,
+            targetPosition: targetPosition,
+          );
         }
       }
     } else {
@@ -137,7 +157,12 @@ class QuickFireCockpit extends StatefulWidget {
           ? setupBloc.getWindow(targetWindowId)
           : setupBloc.state.activeWindow;
       if (target != null && target.isMounted && target.controller.isAttached) {
-        target.controller.show(notification);
+        final targetPosition =
+            _resolvePositionForWindow(setupBloc, target, channelName);
+        target.controller.show(
+          notification,
+          targetPosition: targetPosition,
+        );
       }
     }
   }
@@ -165,7 +190,12 @@ class QuickFireCockpit extends StatefulWidget {
         if (targetWindowId == 'all') {
           for (final win in setupBloc.state.windows.values) {
             if (win.isMounted && win.controller.isAttached) {
-              win.controller.show(notification);
+              final targetPosition =
+                  _resolvePositionForWindow(setupBloc, win, sample.$2);
+              win.controller.show(
+                notification,
+                targetPosition: targetPosition,
+              );
             }
           }
         } else {
@@ -175,7 +205,12 @@ class QuickFireCockpit extends StatefulWidget {
           if (target != null &&
               target.isMounted &&
               target.controller.isAttached) {
-            target.controller.show(notification);
+            final targetPosition =
+                _resolvePositionForWindow(setupBloc, target, sample.$2);
+            target.controller.show(
+              notification,
+              targetPosition: targetPosition,
+            );
           }
         }
       });
@@ -207,7 +242,12 @@ class QuickFireCockpit extends StatefulWidget {
         if (targetWindowId == 'all') {
           for (final win in setupBloc.state.windows.values) {
             if (win.isMounted && win.controller.isAttached) {
-              win.controller.show(notification);
+              final targetPosition =
+                  _resolvePositionForWindow(setupBloc, win, 'chat');
+              win.controller.show(
+                notification,
+                targetPosition: targetPosition,
+              );
             }
           }
         } else {
@@ -217,7 +257,12 @@ class QuickFireCockpit extends StatefulWidget {
           if (target != null &&
               target.isMounted &&
               target.controller.isAttached) {
-            target.controller.show(notification);
+            final targetPosition =
+                _resolvePositionForWindow(setupBloc, target, 'chat');
+            target.controller.show(
+              notification,
+              targetPosition: targetPosition,
+            );
           }
         }
       });
@@ -322,6 +367,9 @@ class _QuickFireCockpitState extends State<QuickFireCockpit> {
                   setState(() {
                     _targetWindowId = target;
                   });
+                  if (target != null && target != 'all') {
+                    context.read<SetupBloc>().add(SelectActiveWindow(target));
+                  }
                 },
               ),
               const SizedBox(width: 8),

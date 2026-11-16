@@ -42,6 +42,8 @@ class _EventLogPanelState extends State<EventLogPanel> {
   bool _searchOpen = false;
   String _searchQuery = '';
   _LogEntry? _selectedEntry;
+  StreamSubscription<SetupState>? _setupSub;
+  String? _lastActiveWindowId;
 
   @override
   void initState() {
@@ -56,9 +58,32 @@ class _EventLogPanelState extends State<EventLogPanel> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    SetupBloc? setupBloc;
+    try {
+      setupBloc = context.read<SetupBloc>();
+    } on Object catch (_) {
+      // Allowed in isolated component tests without SetupBloc.
+    }
+    if (setupBloc != null) {
+      _lastActiveWindowId = setupBloc.state.activeWindowId;
+      _setupSub?.cancel();
+      _setupSub = setupBloc.stream.listen((final state) {
+        if (mounted && _lastActiveWindowId != state.activeWindowId) {
+          _lastActiveWindowId = state.activeWindowId;
+          final scope = NotificationScope.maybeOf(context) ?? state.controller;
+          _subscribeToScope(scope);
+        }
+      });
+    }
+    final scope =
+        NotificationScope.maybeOf(context) ?? setupBloc?.state.controller;
+    if (scope != null) {
+      _subscribeToScope(scope);
+    }
+  }
+
+  void _subscribeToScope(final NotificationController scope) {
     _sub?.cancel();
-    final scope = NotificationScope.maybeOf(context) ??
-        context.read<SetupBloc>().state.controller;
     final history = scope.getHistory();
     _events.clear();
     _activeIds.clear();
@@ -67,10 +92,14 @@ class _EventLogPanelState extends State<EventLogPanel> {
       _processEvent(event, recordOnly: true);
     }
     _sub = scope.events.listen(_onEvent);
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
+    _setupSub?.cancel();
     _sub?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
