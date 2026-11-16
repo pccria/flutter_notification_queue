@@ -76,7 +76,9 @@ class _NotificationScopeState extends State<NotificationScope> {
   void initState() {
     super.initState();
     _initCoordinator();
-    HardwareKeyboard.instance.addHandler(_handleHardwareKey);
+    if (widget.useRootOverlay) {
+      HardwareKeyboard.instance.addHandler(_handleHardwareKey);
+    }
   }
 
   void _initCoordinator() {
@@ -158,6 +160,14 @@ class _NotificationScopeState extends State<NotificationScope> {
   @override
   void didUpdateWidget(final NotificationScope oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.useRootOverlay != oldWidget.useRootOverlay) {
+      if (oldWidget.useRootOverlay) {
+        HardwareKeyboard.instance.removeHandler(_handleHardwareKey);
+      }
+      if (widget.useRootOverlay) {
+        HardwareKeyboard.instance.addHandler(_handleHardwareKey);
+      }
+    }
     if (widget.controller != oldWidget.controller) {
       _eventSub?.cancel();
       oldWidget.controller.detach(_coordinator);
@@ -171,7 +181,9 @@ class _NotificationScopeState extends State<NotificationScope> {
 
   @override
   void dispose() {
-    HardwareKeyboard.instance.removeHandler(_handleHardwareKey);
+    if (widget.useRootOverlay) {
+      HardwareKeyboard.instance.removeHandler(_handleHardwareKey);
+    }
     _eventSub?.cancel();
     widget.controller.detach(_coordinator);
     _coordinator.dispose();
