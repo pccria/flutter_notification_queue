@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_notification_queue_example/studio/bloc/notification_bloc.dart';
 import 'package:flutter_notification_queue_example/studio/bloc/setup_bloc.dart';
 import 'package:flutter_notification_queue_example/studio/bloc/studio_bloc.dart';
+import 'package:flutter_notification_queue_example/studio/panels/configurator_panel.dart';
 import 'package:flutter_notification_queue_example/studio/studio_theme.dart';
 import 'package:flutter_notification_queue_example/studio/widgets/quick_fire_cockpit.dart';
 import 'package:flutter_notification_queue_example/studio/widgets/virtual_stage_canvas.dart';
@@ -172,6 +173,84 @@ void main() {
         expect(find.text('Broadcast to Both (1 & 2)'), findsOneWidget);
         expect(find.text('Window 1 (Primary)'), findsWidgets);
         expect(find.text('Window 2 (Secondary)'), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'ConfiguratorPanel workspace switcher and stage tabs switch active '
+      'window',
+      (final tester) async {
+        final setupBloc = SetupBloc();
+        final notificationBloc = NotificationBloc(setupBloc: setupBloc);
+        final studioBloc = StudioBloc();
+
+        addTearDown(() {
+          notificationBloc.close();
+          setupBloc.close();
+          studioBloc.close();
+        });
+
+        await tester.binding.setSurfaceSize(const Size(1400, 900));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider.value(value: setupBloc),
+              BlocProvider.value(value: notificationBloc),
+              BlocProvider.value(value: studioBloc),
+            ],
+            child: MaterialApp(
+              theme: StudioTheme.dark(),
+              builder: (final context, final child) {
+                StudioTheme.update(context);
+                return child!;
+              },
+              home: const Scaffold(
+                body: Row(
+                  children: [
+                    SizedBox(width: 450, child: ConfiguratorPanel()),
+                    Expanded(child: VirtualStageCanvas()),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Initially 1 window: no workspace switcher banner
+        expect(
+          find.text('TARGET VIEWPORT CONFIGURATION'),
+          findsNothing,
+        );
+
+        // Add secondary window via stage header
+        await tester.tap(find.text('+ Win 2'));
+        await tester.pumpAndSettle();
+
+        // Workspace switcher should now be visible in ConfiguratorPanel
+        expect(
+          find.text('TARGET VIEWPORT CONFIGURATION'),
+          findsOneWidget,
+        );
+        expect(setupBloc.state.activeWindowId, equals('win_2'));
+
+        // Stage header shows Win 1 and Win 2 tabs
+        expect(find.text('Win 1'), findsOneWidget);
+        expect(find.text('Win 2'), findsOneWidget);
+
+        // Switch to Win 1 via Stage header tab
+        await tester.tap(find.text('Win 1'));
+        await tester.pumpAndSettle();
+        expect(setupBloc.state.activeWindowId, equals('win_1'));
+
+        // Switch back to Win 2 via ConfiguratorPanel workspace switcher
+        final win2WorkspaceTab =
+            find.widgetWithText(InkWell, 'Workspace B (Beta)');
+        await tester.tap(win2WorkspaceTab.first);
+        await tester.pumpAndSettle();
+        expect(setupBloc.state.activeWindowId, equals('win_2'));
       },
     );
   });
