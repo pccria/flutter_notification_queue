@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.1] - 2026-11-14
+## [0.7.0] - 2026-11-16
 
 ### Directional Egress Modernization
 - **Card-Centric Egress Framework**:
@@ -27,47 +27,98 @@
     coasting off-screen at their exact release velocity while the queue stack
     immediately collapses behind them.
 
-### Relocate Whole-Queue Semantics & Engine Harmonization
+### Cross-Queue Slot Relocation (`FSM-02`) & Container Semantics
+- **Fine-Grained Cross-Queue Slot Relocation**:
+  - Dragging a notification card out of its home queue and hovering over an
+    adjacent destination queue previews a live insertion gap between existing
+    cards via smooth `Matrix4` card displacement (`previewExternalDrop` and
+    `clearExternalDrop`).
+  - Supported across both vertical stack orientations (`VerticalDirection.down`
+    and `VerticalDirection.up`).
+- **Sealed `DropTarget` Spatial Hierarchy**:
+  - Introduced strongly typed `@immutable DropTarget` models in
+    `drop_target_registry.dart`:
+    - `SlotTarget`: Slot-level target with destination queue `position`,
+      inter-card `gapIndex` ($0 \dots N$), and normalized proximity `progress`.
+    - `QueueTarget`: Coarse whole-queue target for unpopulated or unmounted
+      candidate queues.
+    - `NoTarget`: Unassigned drift in open screen space.
+- **Gesture FSM Maturation (`GestureRearranging`)**:
+  - Added sealed `GestureRearranging` state to `GestureStateMachine`, carrying
+    active `DropTarget`, `pointerPosition`, `cardRect`, and `homeContainerRect`.
+  - Unified drag feedback pipeline: `getActiveScale` smoothly scales cards
+    during rearranging without visual pop or scale resets.
+- **Drop Target Registry & Hysteresis Engine**:
+  - Implemented `QueueGeometrySnapshot` capturing container bounds, card
+    bounds, and gap anchors at drag lift-off for $O(1)$ spatial queries during
+    movement.
+  - Created pure `resolveTarget` function with directional hysteresis to
+    prevent slot flicker and boundary hopping.
 - **Whole-Queue Container Semantics for `Relocate`**:
   - Refined `RelocateGesturePlugin` to operate cleanly on a whole-queue
     container model (`QueueTarget`), purposefully preserving the destination
     queue's internal sorting, grouping, and priority triage policies.
   - Slot-level inter-card insertion (`SlotTarget`) remains exclusively
     dedicated to `ReorderAndRelocate`.
-  - Harmonized with `DropTargetRegistry.resolveTarget` with
-    `allowSlotTargeting: false` and `allowHomeReorder: false`.
-  - Destination queues highlight with dynamic Z-axis focus without splitting
-    cards apart.
   - Commits to the destination queue via `coordinator.relocateWidget` with
     `permanent` persistence support.
-  - Removed dead `_resolveQueueDockHover` helper and unused `dart:math` import.
-- **Multi-Stage Visual Feedback Pipeline**:
-  - Added `QueueWidgetState.previewExternalHover()` to drive live container
-    reception feedback on candidate queues during whole-queue drag.
-  - Enhanced `_QueueExternalHalo` with an illuminated, pulsating container
-    border, diffuse outer shadow, and dynamic floating reception pill
-    (`Relocate to [Queue]` on entry, `Drop in [Queue]` on commitment).
-  - Connected capacity eviction previews (`willEvict`), dimming low-priority
-    cards to 52% when dropping into a full queue.
-  - Preserved full color saturation on dragged cards during relocation by
-    bypassing dismissal desaturation filters.
+- **Multi-Stage Visual Feedback Pipeline & Landing Docks**:
+  - Upgraded [`RelocationTargets`] for both `Relocate` and `ReorderAndRelocate`
+    from tiny corner pills to on-location card-footprint **Landing Docks**
+    aligned with nominal safe-area + margin layout geometry
+    (`Utils.nominalAlignedRect`), automatically suppressing coarse docks over
+    mounted non-empty stacks.
+  - Added visible slot gap feedback inside mounted destination queues
+    (`_ExternalDropGapWidget`, including tail slot `gapIndex == visibleCount`),
+    a soft pulsing container halo (`_QueueExternalHalo`), subtle directional
+    lean, hover eviction warning cues when at `maxStackSize`, and a crisp
+    arrival pop-in spring on cross-queue drops (`isExternalDrop`).
+  - Added slot/target-change micro-haptics (`HapticFeedback.selectionClick()`),
+    remote container exit hysteresis with tail-slot bounds expansion, a 14px gap
+    midpoint gravity well, mid-drag snapshot version refresh, and single FSM
+    transition per pointer frame under `ReorderAndRelocate`.
+  - Added adaptive drop-zone de-overlapping (`resolveCandidateDockRects`),
+    nearest-center disambiguation for intersecting queues/docks, dynamic Z-axis
+    reordering (`QueueCoordinator.interactionFocus` + `bringToFront`), and
+    paint-order promotion in `RelocationTargets`.
+- **Atomic Synchronous Transfer (`moveWidget`)**:
+  - Added `QueueCoordinator.moveWidget` (`notification`,
+    `{required toPosition, targetIndex, permanent, migrateSiblings}`) for
+    atomic, synchronous cross-queue transfers.
+  - Implemented `QueueWidgetState.insertAt(notification, targetIndex)` with
+    graceful lowest-priority card eviction into `_pendingNotifications` when
+    maximum stack capacity is exceeded.
+  - Relocated cards hand off instantly at `AnimationController.value = 1.0` with
+    zero flicker or redundant entrance animations.
+- **Lifecycle & Telemetry**:
+  - Added `toIndex` metadata to `NotificationRelocated` event to track
+    destination slot index.
+  - Added optional `targetIndex` parameter to `NotificationController.relocate`,
+    `relocateById`, and `NotificationScopeState.relocate`.
 
-### Bug Fixes & Timer Resilience
+### Invariant Timer Engine & Queue-Level Stasis
 - **Unified Card-Level Invariant Engine**:
   - Replaced scattered boolean timer flags (`_isMouseHovering`, `_isDragPaused`,
     `_isContextMenuOpen`) with token-based set accounting
     (`Set<TimerPauseReason>`).
-  - Added single invariant getter `shouldTimerRun` that mathematically validates
-    that all pause tokens are released before ticking the auto-dismiss timer.
+  - Added single invariant getter `shouldTimerRun` that mathematically
+    validates that all pause tokens are released before ticking the
+    auto-dismiss timer.
   - Eliminated timer clobbering where ending a hover or drag could prematurely
     restart an expanded, pinned, or context-menu-active card's timer.
   - Added atomic dismissal serialization (`_isDismissing`) inside
     `NotificationWidgetState.dismiss` to guarantee idempotency across concurrent
     timeout, tap, swipe, and programmatic dismissal calls.
+- **Auto-Dismiss Timer Stasis & Recovery**:
+  - Fixed an issue where initiating and cancelling a swipe drag permanently
+    ditch-cancelled the auto-dismiss timer.
+  - Implemented `pauseDismissTimer()` on drag start and
+    `resumeDismissTimer()` on drag cancel/snap-back, preserving countdown
+    progress without timer loss or resets.
 - **Queue-Level Timer Stasis Architecture**:
-  - Integrated `NotificationTimerScope` into `QueueWidgetState` to
-    automatically pause auto-dismiss timers across an entire queue during
-    intra-queue reorder drags (`_reorderDragState`).
+  - Integrated `NotificationTimerScope` into `QueueWidgetState` to automatically
+    pause auto-dismiss timers across an entire queue during intra-queue reorder
+    drags (`_reorderDragState`).
   - Implemented cross-queue relocation stasis: whenever a card is dragged
     between queues, both the source and target queues freeze their timers,
     preventing cards from expiring underneath the user's active interaction.
@@ -77,17 +128,33 @@
     `QueueCoordinator`.
   - Hardened nested timer scopes in `QueueGroupWidget` to ensure child groups
     cannot override parent queue stasis.
-- **Interaction & Touch Target Polish**:
-  - Enlarged close button hit region to a comfortable 36x36 dp bounding box
-    while maintaining a refined 18 dp visual icon.
-  - Unified header touch target so tapping the notification title expands the
-    card even when `TapToDismiss` is configured on the card body.
-- **Auto-Dismiss Timer Stasis & Recovery**:
-  - Fixed an issue where initiating and cancelling a swipe drag permanently
-    ditch-cancelled the auto-dismiss timer.
-  - Implemented `pauseDismissTimer()` on drag start and `resumeDismissTimer()`
-    on drag cancel/snap-back, preserving countdown progress without timer loss
-    or resets.
+- **Atomic Backlog Purging (`clearBacklog`)**:
+  - Added optional `clearBacklog: false` parameter to
+    `NotificationController.dismissAll()` and `QueueCoordinator.dismissAll()`.
+  - When set to `true`, atomically flushes both visible active cards and pending
+    backlog entries, guaranteeing zero queued cards linger in memory or
+    re-emerge into the queue.
+
+### Multi-Tenant Viewports & Hardware Keyboard Isolation
+- **Scoped Hardware Keyboard Handlers**:
+  - Scoped `HardwareKeyboard.instance.addHandler` strictly to
+    `widget.useRootOverlay`. Scoped viewports (`useRootOverlay: false`) now rely
+    on tree-scoped `CallbackShortcuts`, eliminating global keyboard shortcut
+    collisions across multiple scopes and windows.
+- **Keyboard Shortcut Modifier Isolation**:
+  - `NotificationWidgetState._handleCardKeyEvent` now inspects modifier keys
+    (`Control`, `Meta`, `Alt`, `Shift`). App-level shortcuts such as
+    `Ctrl+Enter` or `Cmd+Enter` (e.g. Fire Draft) and `Ctrl+E` (Toggle Code
+    Editor) are no longer captured as card activations or shortcuts by whichever
+    card currently holds keyboard focus.
+  - Added `NotificationWidgetState.unfocus()` called on gesture drag completion
+    across all drag plugins (`ReorderAndRelocate`, `Relocate`, `Reorder`) so
+    relocated cards do not passively capture keyboard events.
+- **Overlay Viewport Clamping**:
+  - `_QueueOverlayLayoutDelegate` now clamps calculated collision offsets to
+    safe viewport boundaries (`padding.top` to `size.height - padding.bottom`),
+    preventing bottom-anchored queues from shifting off-screen or
+    unpredictably overlaying un-anchored screen regions.
 - **Intent Plugins Post-Drag Unfocus & Timer Hardening**:
   - Fixed an issue in `PinGesturePlugin` where pinning a notification
     unconditionally re-armed the auto-dismiss timer on drag end.
@@ -95,22 +162,41 @@
     timers on successfully acted-upon cards.
   - Added consistent post-drag `unfocus()` calls across `Pin`, `Snooze`, and
     `CustomAction` plugins.
-- **Atomic Backlog Purging with `clearBacklog` on `dismissAll`**:
-  - Added optional `clearBacklog: false` parameter to
-    `NotificationController.dismissAll()` and `QueueCoordinator.dismissAll()`.
-  - When set to `true`, atomically flushes both visible active cards and
-    pending backlog entries, guaranteeing zero queued cards linger in memory or
-    re-emerge into the queue.
-- **Embedded Virtual Multi-Window Stage in NFQ Studio**:
+
+### NFQ Studio: Embedded Virtual Multi-Window Stage
+- **Embedded Virtual Multi-Window Stage**:
   - Integrated an interactive `VirtualStageCanvas` directly into the Studio
     workbench with window chrome, local overlay isolation
-    (`NotificationScope(useRootOverlay: false)`), and stasis freezing.
-  - Configurator and inspector tools dynamically bind to whichever virtual
-    window holds active focus, eliminating UI bloat.
-  - Added targeted dispatch handle (`Target: Active / Win 1 / Win 2 / Both`)
-    in the Quick-Fire Cockpit for cross-window testing.
+    (`NotificationScope(useRootOverlay: false)`), and independent stasis
+    freezing.
+  - Added tactile workspace switching banner in `ConfiguratorPanel` and stage
+    header tabs (`[ Win 1 ]`, `[ Win 2 ]`) to configure queues per window
+    without affecting sibling viewports.
+  - Real-time event log and live radar stream rebinding dynamically updates when
+    switching the active virtual window.
+  - Added targeted dispatch handle (`Target: Active / Win 1 / Win 2 / Both`) in
+    the Quick-Fire Cockpit for cross-window testing.
+- **Asynchronous Dispatch Hardening**:
+  - Replaced fragile `controller.show()` calls in asynchronous delays/bursts
+    with `controller.tryShow(...)` across cockpit and scenario dispatches,
+    preventing `StateError` during window unmounting.
+- **Retired Dead Code**:
+  - Retired obsolete standalone prototype `multi_tenant_stage.dart` (-1,610
+    lines of code) and unified Scenario 17 under the live `VirtualStageCanvas`.
 
-### Deprecations & Cleanups
+### Usability & Touch Ergonomics
+- **Enlarged Touch Targets**:
+  - Enlarged close button hit region to a comfortable 36x36 dp bounding box
+    while maintaining a refined 18 dp visual icon.
+  - Unified header touch target so tapping the notification title expands the
+    card even when `TapToDismiss` is configured on the card body.
+- **Queue Dispatch Z-Order Promotion**:
+  - `QueueCoordinator.queue()` now automatically calls
+    `bringToFront(targetPosition)` when dispatching to an active queue,
+    ensuring the recipient queue is promoted to the top of the stack and
+    receives priority hit-testing over inactive queues.
+
+### Deprecations, Cleanups & CI
 - **Scheduled Removal of `DismissZone` for v0.8.0**:
   - Deprecated `DismissZone` enum and `Dismiss(zones: ...)` parameter.
   - Provided transparent backward compatibility bridge via
@@ -122,89 +208,6 @@
   - Removed orphaned `lib/src/notification/plugins.dart` shim.
   - Optimized 60/120Hz gesture FSM tick to bypass legacy zone computations when
     using modern egress.
-
-## [0.7.0] - 2026-11-12
-
-### Bug Fixes & Stability
-- **Keyboard Shortcut Modifier Isolation**:
-  - `NotificationWidgetState._handleCardKeyEvent` now inspects modifier
-    keys (`Control`, `Meta`, `Alt`, `Shift`). App-level shortcuts such as
-    `Ctrl+Enter` or `Cmd+Enter` (e.g. Fire Draft) and `Ctrl+E` (Toggle Code
-    Editor) are no longer captured as card activations or shortcuts by
-    whichever card currently holds keyboard focus.
-  - Resolved an issue where pressing `Ctrl+Enter` while testing notifications
-    dismissed the last relocated notification with `DismissReason.userTap`.
-  - Added `NotificationWidgetState.unfocus()` called on gesture drag completion
-    across all drag plugins (`ReorderAndRelocate`, `Relocate`, `Reorder`) so
-    relocated cards do not passively capture keyboard events.
-- **Queue Dispatch Z-Order Promotion**:
-  - `QueueCoordinator.queue()` now automatically calls `bringToFront(targetPosition)`
-    when dispatching to an active queue, ensuring the recipient queue is promoted
-    to the top of the stack and receives priority hit-testing over inactive queues.
-- **Overlay Viewport Clamping**:
-  - `_QueueOverlayLayoutDelegate` now clamps calculated collision offsets to safe
-    viewport boundaries (`padding.top` to `size.height - padding.bottom`), preventing
-    bottom-anchored queues from shifting off-screen or unpredictably overlaying
-    un-anchored screen regions.
-
-### Cross-Queue Slot Relocation (`FSM-02`)
-- **Fine-Grained Cross-Queue Slot Relocation**:
-  - Dragging a notification card out of its home queue and hovering over an
-    adjacent destination queue now previews a live insertion gap between
-    existing cards via smooth `Matrix4` card displacement (`previewExternalDrop`
-    and `clearExternalDrop`).
-  - Supported across both vertical stack orientations (`VerticalDirection.down`
-    and `VerticalDirection.up`).
-- **Sealed `DropTarget` Spatial Hierarchy**:
-  - Introduced strongly typed `@immutable DropTarget` models in
-    `drop_target_registry.dart`:
-    - `SlotTarget`: Slot-level target with destination queue `position`, inter-card
-      `gapIndex` ($0 \dots N$), and normalized proximity `progress`.
-    - `QueueTarget`: Coarse whole-queue target for unpopulated or unmounted
-      candidate queues.
-    - `NoTarget`: Unassigned drift in open screen space.
-- **Gesture FSM Maturation (`GestureRearranging`)**:
-  - Added sealed `GestureRearranging` state to `GestureStateMachine`, carrying
-    active `DropTarget`, `pointerPosition`, `cardRect`, and `homeContainerRect`.
-  - Unified drag feedback pipeline: `getActiveScale` smoothly scales cards during
-    rearranging without visual pop or scale resets.
-- **Drop Target Registry & Hysteresis Engine**:
-  - Implemented `QueueGeometrySnapshot` capturing container bounds, card bounds,
-    and gap anchors at drag lift-off for $O(1)$ spatial queries during movement.
-  - Created pure `resolveTarget` function with directional hysteresis to prevent
-    slot flicker and boundary hopping.
-- **Atomic Synchronous Transfer (`moveWidget`)**:
-  - Added `QueueCoordinator.moveWidget(notification, {required toPosition, targetIndex, permanent, migrateSiblings})`
-    for atomic, synchronous cross-queue transfers.
-  - Implemented `QueueWidgetState.insertAt(notification, targetIndex)` with
-    graceful lowest-priority card eviction into `_pendingNotifications` when
-    maximum stack capacity is exceeded.
-  - Relocated cards hand off instantly at `AnimationController.value = 1.0`
-    with zero flicker or redundant entrance animations.
-- **Lifecycle & Telemetry**:
-  - Added `toIndex` metadata to `NotificationRelocated` event to track destination
-    slot index.
-  - Added optional `targetIndex` parameter to `NotificationController.relocate`,
-    `relocateById`, and `NotificationScopeState.relocate`.
-- **Target Queue Visual Feedback & Mobile UX Polish**:
-  - Upgraded [`RelocationTargets`] for both `Relocate` and `ReorderAndRelocate`
-    from tiny corner pills to on-location card-footprint **Landing Docks**
-    aligned with nominal safe-area + margin layout geometry (`Utils.nominalAlignedRect`),
-    automatically suppressing coarse docks over mounted non-empty stacks.
-  - Added visible slot gap feedback inside mounted destination queues
-    (`_ExternalDropGapWidget`, including tail slot `gapIndex == visibleCount`),
-    a soft pulsing container halo (`_QueueExternalHalo`), subtle directional lean,
-    hover eviction warning cues when at `maxStackSize`, and a crisp arrival
-    pop-in spring on cross-queue drops (`isExternalDrop`).
-  - Added slot/target-change micro-haptics (`HapticFeedback.selectionClick()`),
-    remote container exit hysteresis with tail-slot bounds expansion, a 14px
-    gap midpoint gravity well, mid-drag snapshot version refresh, and single
-    FSM transition per pointer frame under `ReorderAndRelocate`.
-  - Added adaptive drop-zone de-overlapping (`resolveCandidateDockRects`),
-    nearest-center disambiguation for intersecting queues/docks, dynamic Z-axis
-    reordering (`QueueCoordinator.interactionFocus` + `bringToFront`, and
-    paint-order promotion in `RelocationTargets`), responsive compact dock
-    layouts for narrow screens, and crisp lock feedback on `LiftedFeedback`.
 - **CI**:
   - Updated GitHub Actions `Static Analysis` step to pass `--no-fatal-infos`
     so Flutter 3.50+ `material.dart` deprecation `info` notices do not fail CI

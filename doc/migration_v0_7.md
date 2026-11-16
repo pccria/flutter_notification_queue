@@ -1,7 +1,7 @@
 # Migration Guide: Upgrading to v0.7.0
 
 This guide details the architectural evolution, new features, and deprecation
-paths introduced in **v0.7.0** and **v0.7.1**, preparing your codebase for
+paths introduced in **v0.7.0**, preparing your codebase for
 the upcoming **v0.8.0** release.
 
 ---
@@ -139,7 +139,7 @@ NotificationQueue(
 In prior versions, initiating a drag on an auto-dismissing notification could
 reset or cancel the underlying timer unexpectedly.
 
-In **v0.7.1+**, the timer lifecycle is strictly preserved:
+In **v0.7.0+**, the timer lifecycle is strictly preserved:
 1. When a user touches or drags a card, the auto-dismiss timer enters **stasis**
    (`pauseDismissTimer()`), freezing countdown progress.
 2. If the user cancels the drag (releasing before threshold or snapping back),

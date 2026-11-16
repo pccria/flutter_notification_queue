@@ -1,10 +1,11 @@
 # FNQ Unified Development Roadmap & Tracking Board
 
-> **Current Active Version**: 0.7.x (Active Infrastructure Maturation)  
-> **Strategic Focus**: Multi-Tenancy Hardening, Egress Physics, Invariant
-> Stasis, and Reality Testing.  
-> **Baseline Quality**: `flutter analyze --fatal-warnings` — 0 issues |
-> `flutter test` — 425/425 passing | `example test` — 60/60 passing.
+> **Current Active Version**: 0.8.0-dev  
+> (Infrastructure Decomposition & Gesture Rationalization)  
+> **Strategic Focus**: Coordinator & Widget Decomposition, Gesture  
+> Unification, and Dead Code Purge.  
+> **Baseline Quality**: `flutter analyze --fatal-warnings` — 0 issues |  
+> `flutter test` — 425/425 passing | `example test` — 63/63 passing.
 
 ---
 
@@ -37,8 +38,8 @@ and stress-test core infrastructure** under real-world conditions:
 graph LR
     A["v0.5.2<br/>Grouping & Stasis<br/>(✅ Completed)"]
     B["v0.6.x<br/>Monolith & A11y<br/>(✅ Completed)"]
-    C["v0.7.x<br/>Egress, Stasis &<br/>Multi-Tenancy<br/>(🟡 Active)"]
-    D["v0.8.x<br/>Gesture Unification<br/>& Legacy Purge<br/>(🔵 Planned)"]
+    C["v0.7.0<br/>Egress, Stasis &<br/>Multi-Tenancy<br/>(✅ Completed)"]
+    D["v0.8.0<br/>Decomposition &<br/>Gesture Purge<br/>(🟡 Active)"]
     E["v0.9.x+<br/>Native Multi-Window<br/>(🟣 Exploratory)"]
     F["v1.0.0<br/>Eventual Stability<br/>Horizon<br/>(🎯 Target)"]
 
@@ -50,8 +51,8 @@ graph LR
 
     style A fill:#2ecc71,color:#fff
     style B fill:#2ecc71,color:#fff
-    style C fill:#f1c40f,color:#000
-    style D fill:#3498db,color:#fff
+    style C fill:#2ecc71,color:#fff
+    style D fill:#f1c40f,color:#000
     style E fill:#9b59b6,color:#fff
     style F fill:#34495e,color:#fff
 ```
@@ -60,8 +61,8 @@ graph LR
 |---|---|---|---|
 | **v0.5.0–v0.5.2** | **Stability & Grouping** | ✅ Completed | Snooze timer cleanup, error chaining, single source-of-truth pinning, `GroupCountBehavior`, peek card timer stasis. |
 | **v0.6.0–v0.6.1** | **Monolith & Platform** | ✅ Completed | 26-part monolith decomposition, WCAG 2.1 AA accessibility, desktop context menu engine, `NotificationThemeData`. |
-| **v0.7.x** | **Egress, Stasis & Multi-Tenancy** | 🟡 Active | Card-centric egress (`DismissEgress`), flight portal (`EgressFlightOverlay`), token invariant engine (`TimerPauseReason`), queue stasis, cross-queue slot relocation, Studio split-viewport multi-tenancy validation. |
-| **v0.8.x** | **Gesture Rationalization & Purge** | 📅 Planned | Unify spatial movement (`Reorder`/`Relocate` $\to$ 1 engine), card action framework, `DismissZone` dead code purge (~1,200 LOC). |
+| **v0.7.0** | **Egress, Stasis & Multi-Tenancy** | ✅ Completed | Card-centric egress (`DismissEgress`), flight portal (`EgressFlightOverlay`), token invariant engine (`TimerPauseReason`), queue stasis, cross-queue slot relocation, Studio split-viewport multi-tenancy validation, atomic `clearBacklog`. |
+| **v0.8.0** | **Decomposition & Gesture Purge** | 🟡 Active | Decompose `QueueCoordinator` and `NotificationWidget` into delegates/components, unify spatial movement (`Reorder`/`Relocate` $\to$ 1 engine), card action framework, `DismissZone` dead code purge (~1,200 LOC). |
 | **v0.9.x+** | **Native Multi-Window & Multi-View** | 🟣 Exploratory | 1:N multi-view coordination inside `NotificationController`, active-window routing, multi-display DPI invariance, 120Hz stress profiling. |
 | **v1.0.0** | **Eventual Stability Horizon** | 🎯 Target | Long-term API freeze and enterprise production guarantee, declared only after infrastructure is proven in real-world apps. |
 
@@ -132,7 +133,7 @@ Complexity Tiers:
 
 ---
 
-### Track 5: Release 0.7.x — Egress, Stasis & Multi-Tenancy (Active 🟡)
+### Track 5: Release 0.7.0 — Egress, Stasis, Multi-Tenancy & Studio Canvas (Completed ✅)
 
 | ID | Task Description | Priority | Complexity | Status | Target Files |
 |---|---|---|---|---|---|
@@ -151,10 +152,13 @@ Complexity Tiers:
 | **E-13** | Queue-level timer stasis (`NotificationTimerScope` for reorder, relocation, and programmatic pause) | 🔴 P0 | 🟡 Medium | ✅ Completed | `lib/src/notification_queue/queue_widget.dart`, `queue_coordinator.dart` |
 | **E-14** | Enlarged 36x36 close button hit area & unified header expand tap region | 🟢 P2 | 🟢 Low | ✅ Completed | `lib/src/notification/notification.dart` |
 | **E-15** | Studio Multi-Tenant Split-Viewport: validate concurrent 1:1 controllers, token isolation & teardowns | 🔴 P0 | 🟡 Medium | ✅ Completed | `example/`, `lib/src/core/` |
+| **E-16** | Atomic backlog purging: add `clearBacklog: false` parameter to `NotificationController.dismissAll()` | 🔴 P0 | 🟢 Low | ✅ Completed | `lib/src/core/notification_controller.dart`, `queue_coordinator.dart` |
+| **E-17** | Scope `HardwareKeyboard.instance.addHandler` to `widget.useRootOverlay` to prevent collisions | 🔴 P0 | 🟢 Low | ✅ Completed | `lib/src/core/notification_scope.dart` |
+| **E-18** | Native Studio Virtual Multi-Window stage (`VirtualStageCanvas`, workspace switcher, radar stream rebinding) | 🟡 P1 | 🔴 High | ✅ Completed | `example/lib/studio/` |
 
 ---
 
-### Track 6: Release 0.8.x — Gesture Rationalization & Legacy Purge (Planned 🔵)
+### Track 6: Release 0.8.0 — Architecture Decomposition & Gesture Rationalization (Active 🟡)
 
 | ID | Task Description | Priority | Complexity | Status | Target Files |
 |---|---|---|---|---|---|
@@ -164,6 +168,9 @@ Complexity Tiers:
 | **R-04** | Unified Spatial Movement: consolidate `Reorder`, `Relocate`, and `ReorderAndRelocate` into one engine | 🔴 P0 | 🔴 High | 📅 Planned | `lib/src/behaviors/drag_behavior.dart`, `plugins/` |
 | **R-05** | Rationalized Card Actions: decouple `Pin` and `Snooze` from full-card drag behaviors into card action model | 🟡 P1 | 🟡 Medium | 📅 Planned | `lib/src/behaviors/drag_intents.dart`, `plugins/` |
 | **R-06** | Align Studio configurator, code generator, and docs with rationalized interaction vocabulary | 🟢 P2 | 🟢 Low | 📅 Planned | `example/`, `doc/` |
+| **R-07** | Decompose `QueueCoordinator` into delegates (`QueueRelocationEngine`, `QueueStasisManager`, `QueueA11yAnnouncer`) | 🔴 P0 | 🔴 High | 🟡 In Progress | `lib/src/core/queue_coordinator.dart`, `lib/src/core/delegates/` |
+| **R-08** | Decompose `NotificationWidget` into subcomponents (`NotificationProgressBar`, `NotificationSwipeDismissible`) | 🟡 P1 | 🟡 Medium | 📅 Planned | `lib/src/notification/` |
+| **R-09** | Strongly-typed channel identifiers and tokens replacing loose strings | 🟢 P2 | 🟢 Low | 📅 Planned | `lib/src/channel/` |
 
 ---
 

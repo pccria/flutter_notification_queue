@@ -1018,7 +1018,7 @@ The major evolutionary phases across FNQ's history and active exploration:
   declared only when the underlying infrastructure has proven rock-solid
   across real desktop, web, and mobile production workloads.
 
-### 11.1 Token-Based Invariant Engine (Shipped in v0.7.1)
+### 11.1 Token-Based Invariant Engine (Shipped in v0.7.0)
 The legacy approach of managing countdowns through ad-hoc boolean flags
 (`_isMouseHovering`, `_isDragPaused`) was replaced with an immutable token set:
 
@@ -1035,13 +1035,13 @@ Any interaction (`drag`, `hover`, `touchHold`, `expanded`, `contextMenu`,
 `pinned`) acquires a discrete token. Releasing the interaction revokes the
 token. The timer runs if and only if zero pause tokens exist.
 
-### 11.2 Queue Stasis (`NotificationTimerScope`, Shipped in v0.7.1)
+### 11.2 Queue Stasis (`NotificationTimerScope`, Shipped in v0.7.0)
 Queues synchronize stasis across all rendered cards via
 `NotificationTimerScope`. During in-queue reordering, cross-queue relocation, or
 programmatic pause (`controller.pauseQueue`, `controller.pauseAll`), the entire
 queue halts countdowns without mutating individual card state tokens.
 
-### 11.3 Card-Centric Egress & Inertial Flight (Shipped in v0.7.0/v0.7.1)
+### 11.3 Card-Centric Egress & Inertial Flight (Shipped in v0.7.0)
 Swipe dismissals follow card-centric egress trajectories (`DismissEgress`)
 rather than hardcoded screen borders. Committing past dual thresholds
 (fractional displacement or ballistic `escapeVelocity`) detaches the card
@@ -1050,6 +1050,6 @@ immediately collapses the vacated slot beneath it.
 
 ---
 
-*Last updated: 2026-11-14 — Incorporates: architectural axioms, token-based
+*Last updated: 2026-11-16 — Incorporates: architectural axioms, token-based
 timer invariant engine, queue stasis subsystem, card-centric egress physics,
 cross-queue slot relocation, and complete version lineage tracking.*
