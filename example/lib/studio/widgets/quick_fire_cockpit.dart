@@ -8,7 +8,6 @@ import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 import '../bloc/notification_bloc.dart';
 import '../bloc/setup_bloc.dart';
 import '../bloc/studio_bloc.dart';
-import '../models/queue_setup.dart';
 import '../models/virtual_window_data.dart';
 import 'multi_tenant_stage.dart';
 
@@ -118,15 +117,6 @@ class QuickFireCockpit extends StatefulWidget {
     final String? targetWindowId,
   }) {
     final setupBloc = context.read<SetupBloc>();
-    final targetWindow = targetWindowId != null && targetWindowId != 'all'
-        ? setupBloc.getWindow(targetWindowId)
-        : setupBloc.state.activeWindow;
-    final channelSetup = (targetWindow ?? setupBloc.state.activeWindow)
-        .setup
-        .channels[channelName];
-    final targetPosition =
-        channelSetup?.position ?? setupBloc.state.activeQueuePosition;
-
     final notification = AppNotification(
       title: title,
       message: message,
@@ -138,18 +128,17 @@ class QuickFireCockpit extends StatefulWidget {
 
     if (targetWindowId == 'all') {
       for (final win in setupBloc.state.windows.values) {
-        if (win.isMounted) {
-          win.controller.show(
-            notification,
-            targetPosition: targetPosition,
-          );
+        if (win.isMounted && win.controller.isAttached) {
+          win.controller.show(notification);
         }
       }
     } else {
-      (targetWindow ?? setupBloc.state.activeWindow).controller.show(
-            notification,
-            targetPosition: targetPosition,
-          );
+      final target = targetWindowId != null
+          ? setupBloc.getWindow(targetWindowId)
+          : setupBloc.state.activeWindow;
+      if (target != null && target.isMounted && target.controller.isAttached) {
+        target.controller.show(notification);
+      }
     }
   }
 
@@ -158,11 +147,6 @@ class QuickFireCockpit extends StatefulWidget {
     final String? targetWindowId,
   }) {
     final setupBloc = context.read<SetupBloc>();
-    final targetWindow = targetWindowId != null && targetWindowId != 'all'
-        ? setupBloc.getWindow(targetWindowId)
-        : setupBloc.state.activeWindow;
-    final targetPosition = setupBloc.state.activeQueuePosition;
-
     final samples = [
       ('Synchronizing cache...', 'info'),
       ('Validated integrity hashes', 'success'),
@@ -180,18 +164,19 @@ class QuickFireCockpit extends StatefulWidget {
         );
         if (targetWindowId == 'all') {
           for (final win in setupBloc.state.windows.values) {
-            if (win.isMounted) {
-              win.controller.show(
-                notification,
-                targetPosition: targetPosition,
-              );
+            if (win.isMounted && win.controller.isAttached) {
+              win.controller.show(notification);
             }
           }
         } else {
-          (targetWindow ?? setupBloc.state.activeWindow).controller.show(
-                notification,
-                targetPosition: targetPosition,
-              );
+          final target = targetWindowId != null
+              ? setupBloc.getWindow(targetWindowId)
+              : setupBloc.state.activeWindow;
+          if (target != null &&
+              target.isMounted &&
+              target.controller.isAttached) {
+            target.controller.show(notification);
+          }
         }
       });
     }
@@ -202,26 +187,6 @@ class QuickFireCockpit extends StatefulWidget {
     final String? targetWindowId,
   }) {
     final setupBloc = context.read<SetupBloc>();
-    final targetWindow = targetWindowId != null && targetWindowId != 'all'
-        ? setupBloc.getWindow(targetWindowId)
-        : setupBloc.state.activeWindow;
-    final currentTarget = targetWindow ?? setupBloc.state.activeWindow;
-    final targetPosition = setupBloc.state.activeQueuePosition;
-
-    final currentQueue =
-        currentTarget.setup.queues[targetPosition] ?? const QueueSetup();
-    if (!currentQueue.groupingEnabled) {
-      setupBloc.add(
-        AddQueue(
-          targetPosition,
-          currentQueue.copyWith(
-            groupingEnabled: true,
-            groupingThreshold: 2,
-          ),
-        ),
-      );
-    }
-
     final messages = [
       'Hey, are you free this afternoon?',
       'Updates on the design sprint ready.',
@@ -236,22 +201,24 @@ class QuickFireCockpit extends StatefulWidget {
           title: 'Alice',
           message: msg,
           channelName: 'chat',
+          groupKey: 'chat_alice',
           dismissDuration: const Duration(seconds: 30),
         );
         if (targetWindowId == 'all') {
           for (final win in setupBloc.state.windows.values) {
-            if (win.isMounted) {
-              win.controller.show(
-                notification,
-                targetPosition: targetPosition,
-              );
+            if (win.isMounted && win.controller.isAttached) {
+              win.controller.show(notification);
             }
           }
         } else {
-          currentTarget.controller.show(
-            notification,
-            targetPosition: targetPosition,
-          );
+          final target = targetWindowId != null
+              ? setupBloc.getWindow(targetWindowId)
+              : setupBloc.state.activeWindow;
+          if (target != null &&
+              target.isMounted &&
+              target.controller.isAttached) {
+            target.controller.show(notification);
+          }
         }
       });
     }

@@ -438,25 +438,14 @@ class _VirtualWindowCard extends StatelessWidget {
                   bottom: Radius.circular(11),
                 ),
                 child: window.isMounted
-                    ? Overlay(
-                        key: ValueKey('window_overlay_${window.id}'),
-                        initialEntries: [
-                          OverlayEntry(
-                            builder: (final _) {
-                              final body = _VirtualWindowBody(
-                                window: window,
-                                isActive: isActive,
-                              );
-                              return window.controller.isAttached
-                                  ? body
-                                  : NotificationScope(
-                                      controller: window.controller,
-                                      useRootOverlay: false,
-                                      child: body,
-                                    );
-                            },
-                          ),
-                        ],
+                    ? NotificationScope(
+                        key: ValueKey('scope_${window.id}'),
+                        controller: window.controller,
+                        useRootOverlay: false,
+                        child: _VirtualWindowBody(
+                          window: window,
+                          isActive: isActive,
+                        ),
                       )
                     : _UnmountedWindowPlaceholder(
                         window: window,

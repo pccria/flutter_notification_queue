@@ -38,12 +38,12 @@ class NotificationOverlay extends StatefulWidget {
   /// If null, falls back to context's [NotificationScope].
   final QueueCoordinator? coordinator;
 
-  /// Whether the overlay portal should mount into the root [Overlay] or the
-  /// nearest ancestor [Overlay].
+  /// Whether notifications should mount into the root [Overlay] or stay
+  /// isolated within this widget's local subtree.
   ///
   /// Defaults to `true` (standard full-window layering). Set to `false` when
   /// embedding within an isolated virtual viewport, multi-tenant frame, or
-  /// container with its own local [Overlay].
+  /// container with local bounds containment.
   final bool useRootOverlay;
 
   /// Static router method for use in [MaterialApp.builder].
@@ -112,26 +112,27 @@ class _NotificationOverlayState extends State<NotificationOverlay>
     final coordinator = _attachedCoordinator!;
 
     // Dual Strategy:
-    // 1. If Overlay exists (e.g. used inside MaterialApp), use OverlayPortal.
-    // 2. If Overlay is missing (e.g. used in MaterialApp.builder), use Stack.
+    // 1. When useRootOverlay is true and an ancestor Overlay exists (e.g. used
+    //    inside MaterialApp), use OverlayPortal for full-window layering.
+    // 2. When useRootOverlay is false (scoped containment) or an ancestor
+    //    Overlay is missing (e.g. MaterialApp.builder), isolate notifications
+    //    to this widget subtree via a local Stack and dedicated Overlay.
     final hasOverlay = Overlay.maybeOf(context) != null;
 
-    if (hasOverlay) {
+    if (widget.useRootOverlay && hasOverlay) {
       return OverlayPortal(
         controller: _overlayPortalController,
         overlayChildBuilder: (final context) => _NotificationQueueStack(
           coordinator: coordinator,
         ),
-        overlayLocation: widget.useRootOverlay
-            ? OverlayChildLocation.rootOverlay
-            : OverlayChildLocation.nearestOverlay,
+        overlayLocation: OverlayChildLocation.rootOverlay,
         child: widget.child,
       );
     } else {
-      // When used in MaterialApp.builder, the Navigator's Overlay is a
-      // descendant (inside widget.child), not an ancestor. Notification
-      // widgets contain LongPressDraggable which requires an Overlay
-      // ancestor. We provide a minimal one here.
+      // When used with useRootOverlay: false or in MaterialApp.builder, the
+      // Navigator's Overlay may be a descendant or notifications must be
+      // strictly contained within this local box. We provide a dedicated
+      // local Overlay within a Stack.
       return Stack(
         textDirection: TextDirection.ltr,
         children: [

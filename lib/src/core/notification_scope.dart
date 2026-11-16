@@ -29,12 +29,12 @@ class NotificationScope extends StatefulWidget {
   /// The child widget subtree wrapped by this scope.
   final Widget child;
 
-  /// Whether the overlay portal should mount into the root [Overlay] or the
-  /// nearest ancestor [Overlay].
+  /// Whether notifications should mount into the root [Overlay] or stay
+  /// isolated within this widget's local subtree.
   ///
   /// Defaults to `true` (standard full-window layering). Set to `false` when
   /// embedding within an isolated virtual viewport, multi-tenant frame, or
-  /// container with its own local [Overlay].
+  /// container with local bounds containment.
   final bool useRootOverlay;
 
   /// Returns the nearest [NotificationController] bound in [context].

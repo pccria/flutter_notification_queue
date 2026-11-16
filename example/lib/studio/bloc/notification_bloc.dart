@@ -293,11 +293,6 @@ class NotificationBloc
       );
     }
 
-    final channelSetup = setupBloc.state.setup.channels[draft.channelName];
-    final targetPosition = draft.positionOverride ??
-        channelSetup?.position ??
-        setupBloc.state.activeQueuePosition;
-
     // Fire notification via NotificationController with target routing
     final notification = AppNotification(
       title: draft.title,
@@ -313,10 +308,20 @@ class NotificationBloc
           : null,
     );
 
+    final activeChannelSetup =
+        setupBloc.state.setup.channels[draft.channelName];
+    final activeTargetPosition = draft.positionOverride ??
+        activeChannelSetup?.position ??
+        setupBloc.state.activeQueuePosition;
+
     if (event.targetWindowId == 'all') {
       for (final win in setupBloc.state.windows.values) {
-        if (win.isMounted) {
-          win.controller.tryShow(
+        if (win.isMounted && win.controller.isAttached) {
+          final targetPosition = win.id == setupBloc.state.activeWindowId
+              ? activeTargetPosition
+              : (draft.positionOverride ??
+                  win.setup.channels[draft.channelName]?.position);
+          win.controller.show(
             notification,
             targetPosition: targetPosition,
           );
@@ -326,10 +331,16 @@ class NotificationBloc
       final target = event.targetWindowId != null
           ? setupBloc.getWindow(event.targetWindowId!)
           : setupBloc.state.activeWindow;
-      target?.controller.tryShow(
-        notification,
-        targetPosition: targetPosition,
-      );
+      if (target != null && target.isMounted && target.controller.isAttached) {
+        final targetPosition = target.id == setupBloc.state.activeWindowId
+            ? activeTargetPosition
+            : (draft.positionOverride ??
+                target.setup.channels[draft.channelName]?.position);
+        target.controller.show(
+          notification,
+          targetPosition: targetPosition,
+        );
+      }
     }
   }
 }

@@ -368,6 +368,119 @@ void main() {
 
       await sub.cancel();
     });
+
+    test(
+      'FirePreview targeting another window routes to that window '
+      'without leaking activeQueuePosition',
+      () async {
+        // Window 1 is active with topCenter
+        expect(
+          setupBloc.state.activeQueuePosition,
+          equals(QueuePosition.topCenter),
+        );
+
+        // Add Window 2 (which becomes active initially upon add)
+        setupBloc.add(const AddVirtualWindow());
+        await Future.delayed(Duration.zero);
+        final win2 = setupBloc.getWindow('win_2')!;
+        final coord2 = QueueCoordinator.fromController(win2.controller);
+        // ignore: invalid_use_of_internal_member
+        win2.controller.attach(coord2);
+        addTearDown(coord2.dispose);
+
+        // Configure Window 2 to have only bottomLeft queue
+        setupBloc
+          ..add(const AddQueue(QueuePosition.bottomLeft))
+          ..add(const RemoveQueue(QueuePosition.topCenter));
+        await Future.delayed(Duration.zero);
+
+        // Switch active window back to Window 1 and set its queue to topRight
+        setupBloc
+          ..add(const SelectActiveWindow('win_1'))
+          ..add(const SelectActiveQueue(QueuePosition.topRight));
+        await Future.delayed(Duration.zero);
+
+        expect(setupBloc.state.activeWindowId, equals('win_1'));
+        expect(
+          setupBloc.state.activeQueuePosition,
+          equals(QueuePosition.topRight),
+        );
+
+        // Listen for events on both windows
+        final events1 = <NotificationEvent>[];
+        final sub1 = coordinator.events.listen(events1.add);
+        addTearDown(sub1.cancel);
+
+        final events2 = <NotificationEvent>[];
+        final sub2 = coord2.events.listen(events2.add);
+        addTearDown(sub2.cancel);
+
+        // Fire targeting Window 2 without position override
+        notificationBloc.add(const FirePreview(targetWindowId: 'win_2'));
+        await Future.delayed(Duration.zero);
+
+        // Window 1 receives nothing
+        expect(events1, isEmpty);
+
+        // Window 2 receives notification routed to its own queue (bottomLeft),
+        // NOT Window 1's activeQueuePosition (topRight)!
+        expect(events2, hasLength(1));
+        final queued2 = events2.first as NotificationQueued;
+        expect(
+          queued2.notification.queue.position,
+          equals(QueuePosition.bottomLeft),
+        );
+      },
+    );
+
+    test('FirePreview targeting "all" routes cleanly to each window', () async {
+      // Add Window 2
+      setupBloc.add(const AddVirtualWindow());
+      await Future.delayed(Duration.zero);
+      final win2 = setupBloc.getWindow('win_2')!;
+      final coord2 = QueueCoordinator.fromController(win2.controller);
+      // ignore: invalid_use_of_internal_member
+      win2.controller.attach(coord2);
+      addTearDown(coord2.dispose);
+
+      // Give Window 2 bottomLeft queue
+      setupBloc
+        ..add(const AddQueue(QueuePosition.bottomLeft))
+        ..add(const RemoveQueue(QueuePosition.topCenter));
+      await Future.delayed(Duration.zero);
+
+      // Make Window 1 active with topRight
+      setupBloc
+        ..add(const SelectActiveWindow('win_1'))
+        ..add(const SelectActiveQueue(QueuePosition.topRight));
+      await Future.delayed(Duration.zero);
+
+      final events1 = <NotificationEvent>[];
+      final sub1 = coordinator.events.listen(events1.add);
+      addTearDown(sub1.cancel);
+
+      final events2 = <NotificationEvent>[];
+      final sub2 = coord2.events.listen(events2.add);
+      addTearDown(sub2.cancel);
+
+      // Fire to 'all'
+      notificationBloc.add(const FirePreview(targetWindowId: 'all'));
+      await Future.delayed(Duration.zero);
+
+      expect(events1, hasLength(1));
+      final queued1 = events1.first as NotificationQueued;
+      expect(
+        queued1.notification.queue.position,
+        equals(QueuePosition.topRight),
+      );
+
+      expect(events2, hasLength(1));
+      final queued2 = events2.first as NotificationQueued;
+      expect(
+        queued2.notification.queue.position,
+        equals(QueuePosition.bottomLeft),
+      );
+    });
   });
 
   group('StudioHome FAB Widget Tests', () {
@@ -394,10 +507,7 @@ void main() {
               theme: StudioTheme.dark(),
               builder: (final context, final child) {
                 StudioTheme.update(context);
-                return NotificationScope(
-                  controller: setupBloc.controller,
-                  child: child!,
-                );
+                return child!;
               },
               home: const StudioHome(),
             ),
@@ -458,10 +568,7 @@ void main() {
               theme: StudioTheme.dark(),
               builder: (final context, final child) {
                 StudioTheme.update(context);
-                return NotificationScope(
-                  controller: setupBloc.controller,
-                  child: child!,
-                );
+                return child!;
               },
               home: const StudioHome(),
             ),
@@ -844,10 +951,7 @@ void main() {
               home: Builder(
                 builder: (final context) {
                   StudioTheme.update(context);
-                  return NotificationScope(
-                    controller: setupBloc.controller,
-                    child: const StudioHome(),
-                  );
+                  return const StudioHome();
                 },
               ),
             ),
