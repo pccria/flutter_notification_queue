@@ -43,13 +43,17 @@ class QueueSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text(
-              '${setupState.setup.queues.length} ACTIVE POSITION(S)',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-                color: StudioTheme.colorScheme.onSurface.withValues(alpha: 0.5),
+            Flexible(
+              child: Text(
+                '${setupState.setup.queues.length} ACTIVE POSITION(S)',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color:
+                      StudioTheme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
               ),
             ),
             const Spacer(),
@@ -232,15 +236,17 @@ class _QueueEditorState extends State<_QueueEditor> {
                   color: colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  '${position.name.toUpperCase()} CONFIGURATION',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
+                Expanded(
+                  child: Text(
+                    '${position.name.toUpperCase()} CONFIGURATION',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
                   ),
                 ),
-                const Spacer(),
                 if (activePositions.length > 1)
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 16),
@@ -1230,7 +1236,9 @@ class _DismissGroupButton extends StatelessWidget {
             ),
             icon: const Icon(Icons.layers_clear_outlined, size: 14),
             label: const Text('DISMISS ACTIVE GROUP'),
-            onPressed: () => NotificationScope.of(context).dismissGroup(
+            onPressed: () => (NotificationScope.maybeOf(context) ??
+                    context.read<SetupBloc>().state.controller)
+                .dismissGroup(
               _defaultGroupKey,
             ),
           ),

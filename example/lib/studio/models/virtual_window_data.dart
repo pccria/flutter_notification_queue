@@ -11,9 +11,10 @@ class VirtualWindowData {
     required this.accentColor,
     required this.setup,
     required this.controller,
+    final GlobalKey? globalKey,
     this.isMounted = true,
     this.isPaused = false,
-  });
+  }) : globalKey = globalKey ?? GlobalKey();
 
   /// Unique identifier (e.g. `'win_1'`, `'win_2'`).
   final String id;
@@ -31,6 +32,10 @@ class VirtualWindowData {
   /// viewport scope.
   final NotificationController controller;
 
+  /// Stable [GlobalKey] to allow seamless element re-parenting across layouts
+  /// without re-attaching or triggering 1:1 controller scope invariants.
+  final GlobalKey globalKey;
+
   /// Whether this window's [NotificationScope] is currently mounted.
   final bool isMounted;
 
@@ -42,6 +47,7 @@ class VirtualWindowData {
     final Color? accentColor,
     final StudioSetup? setup,
     final NotificationController? controller,
+    final GlobalKey? globalKey,
     final bool? isMounted,
     final bool? isPaused,
   }) =>
@@ -51,6 +57,7 @@ class VirtualWindowData {
         accentColor: accentColor ?? this.accentColor,
         setup: setup ?? this.setup,
         controller: controller ?? this.controller,
+        globalKey: globalKey ?? this.globalKey,
         isMounted: isMounted ?? this.isMounted,
         isPaused: isPaused ?? this.isPaused,
       );

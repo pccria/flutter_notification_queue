@@ -302,7 +302,7 @@ class _ProgrammaticControlsState extends State<_ProgrammaticControls> {
       channelName: channelName,
       dismissDuration: const Duration(seconds: 20),
     );
-    NotificationScope.of(context).show(n);
+    widget.setupState.controller.show(n);
     setState(() {
       _activeDemo = n;
       _activePosition = pos;
@@ -312,7 +312,7 @@ class _ProgrammaticControlsState extends State<_ProgrammaticControls> {
 
   void _dismissDemo() {
     if (_activeDemo != null) {
-      NotificationScope.of(context).dismiss(_activeDemo!);
+      widget.setupState.controller.dismiss(_activeDemo!);
       setState(() {
         _activeDemo = null;
         _activePosition = null;
@@ -323,7 +323,7 @@ class _ProgrammaticControlsState extends State<_ProgrammaticControls> {
 
   void _snoozeDemo() {
     if (_activeDemo != null) {
-      NotificationScope.of(context).snooze(
+      widget.setupState.controller.snooze(
         _activeDemo!,
         const Duration(seconds: 5),
       );
@@ -334,12 +334,12 @@ class _ProgrammaticControlsState extends State<_ProgrammaticControls> {
     if (_activeDemo == null) {
       return;
     }
-    final scope = NotificationScope.of(context);
+    final controller = widget.setupState.controller;
     if (_isPinned) {
-      scope.unpin(_activeDemo!);
+      controller.unpin(_activeDemo!);
       setState(() => _isPinned = false);
     } else {
-      scope.pin(_activeDemo!);
+      controller.pin(_activeDemo!);
       setState(() => _isPinned = true);
     }
   }
@@ -361,7 +361,7 @@ class _ProgrammaticControlsState extends State<_ProgrammaticControls> {
       orElse: () => queues.last,
     );
 
-    NotificationScope.of(context).relocate(_activeDemo!, targetPos);
+    widget.setupState.controller.relocate(_activeDemo!, targetPos);
     setState(() {
       _activePosition = targetPos;
     });

@@ -219,6 +219,21 @@ class NotificationController {
   /// controller.
   bool get isAttached => _attachedState != null;
 
+  /// List of notification widgets currently visible and active in this
+  /// controller's attached scope.
+  List<NotificationWidget> get activeNotifications =>
+      coordinator?.activeNotifications ?? const [];
+
+  /// List of notification widgets currently queued and waiting for display in
+  /// this controller's attached scope.
+  List<NotificationWidget> get pendingNotifications =>
+      coordinator?.pendingNotifications ?? const [];
+
+  /// Returns the current effective queue position for [position], accounting
+  /// for active relocations.
+  QueuePosition getEffectiveQueuePosition(final QueuePosition position) =>
+      configuration.getEffectiveQueuePosition(position) ?? position;
+
   /// Stable broadcast stream of all notification lifecycle events.
   ///
   /// This stream **persists across `NotificationScope` mount and unmount
@@ -256,11 +271,14 @@ class NotificationController {
   /// `NotificationScopeState.initState()`.
   @internal
   void attach(final NotificationScopeState state) {
+    if (_attachedState == state) {
+      return;
+    }
     assert(
-      _attachedState == null,
-      'NotificationController is already attached to a NotificationScope. '
+      !isAttached,
       'A controller may only be used with one scope at a time. '
-      'Create a separate controller for each independent notification surface.',
+      'If you are reusing a controller, ensure the previous '
+      'NotificationScope has fully unmounted.',
     );
     _attachedState = state;
     _stateSub = state.events.listen((final event) {
@@ -272,7 +290,10 @@ class NotificationController {
 
   /// Internal detachment protocol called by `NotificationScopeState.dispose()`.
   @internal
-  void detach() {
+  void detach([final NotificationScopeState? state]) {
+    if (state != null && _attachedState != state) {
+      return;
+    }
     _stateSub?.cancel();
     _stateSub = null;
     _attachedState = null;

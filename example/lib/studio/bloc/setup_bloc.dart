@@ -379,9 +379,8 @@ class SetupBloc extends Bloc<SetupEvent, SetupState> {
 
       final newWindows = Map<String, VirtualWindowData>.from(state.windows)
         ..remove(event.id);
-      final newActive = state.activeWindowId == event.id
-          ? 'win_1'
-          : state.activeWindowId;
+      final newActive =
+          state.activeWindowId == event.id ? 'win_1' : state.activeWindowId;
 
       emit(
         state.copyWith(

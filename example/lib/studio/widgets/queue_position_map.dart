@@ -234,7 +234,7 @@ class QueuePositionMap extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  'Slave (Dashed Border / Link Color)',
+                  'Relocated (Slave)',
                   style: TextStyle(
                     fontSize: 9,
                     color: colorScheme.onSurface.withValues(alpha: 0.5),

@@ -67,6 +67,10 @@ void _stagger(
   }
 }
 
+NotificationController _ctrl(final BuildContext context) =>
+    NotificationScope.maybeOf(context) ??
+    context.read<SetupBloc>().state.controller;
+
 final _scenarios = [
   // ── 1. System Health ──
   _Scenario(
@@ -75,7 +79,7 @@ final _scenarios = [
     icon: Icons.monitor_heart_outlined,
     color: const Color(0xFFEF4444),
     onFire: (final context) {
-      _stagger(NotificationScope.of(context), [
+      _stagger(_ctrl(context), [
         AppNotification(
           title: 'Service Degraded',
           message: 'Database connection pool exhausted. '
@@ -105,7 +109,7 @@ final _scenarios = [
     color: const Color(0xFF38BDF8),
     onFire: (final context) {
       _stagger(
-        NotificationScope.of(context),
+        _ctrl(context),
         [
           const AppNotification(
             title: 'Alex liked your post',
@@ -142,7 +146,7 @@ final _scenarios = [
     icon: Icons.cloud_done_outlined,
     color: const Color(0xFF22C55E),
     onFire: (final context) {
-      NotificationScope.of(context).show(
+      _ctrl(context).show(
         AppNotification(
           title: 'Sync Complete',
           message: '142 files synced to cloud. 2.3 GB transferred.',
@@ -164,7 +168,7 @@ final _scenarios = [
     icon: Icons.security_outlined,
     color: const Color(0xFFF97316),
     onFire: (final context) {
-      NotificationScope.of(context).show(
+      _ctrl(context).show(
         AppNotification(
           title: '⚠ Unrecognised Sign-In Attempt',
           message: 'Login from Lagos, Nigeria · Chrome on Windows. '
@@ -187,7 +191,7 @@ final _scenarios = [
     icon: Icons.bolt_outlined,
     color: const Color(0xFFA855F7),
     onFire: (final context) {
-      final scope = NotificationScope.of(context);
+      final scope = _ctrl(context);
       final channels = ['info', 'success', 'warning', 'error'];
       final messages = [
         ('Build #47 passed', 'All 312 tests green in 4.2s.'),
@@ -226,7 +230,7 @@ final _scenarios = [
     color: const Color(0xFF14B8A6),
     onFire: (final context) {
       _stagger(
-        NotificationScope.of(context),
+        _ctrl(context),
         [
           // 1 — TapToDismiss (explicit, same as default)
           const AppNotification(
@@ -280,7 +284,7 @@ final _scenarios = [
     icon: Icons.pin_drop_outlined,
     color: const Color(0xFFF59E0B),
     onFire: (final context) {
-      final scope = NotificationScope.of(context);
+      final scope = _ctrl(context);
       late final AppNotification notification;
       notification = AppNotification(
         title: 'CRITICAL SECURITY UPDATE',
@@ -307,7 +311,7 @@ final _scenarios = [
     icon: Icons.sort_rounded,
     color: const Color(0xFFF43F5E),
     onFire: (final context) {
-      final scope = NotificationScope.of(context);
+      final scope = _ctrl(context);
       // 1. Enqueue 2 low priority notifications staggered
       _stagger(
         scope,
@@ -381,7 +385,7 @@ final _scenarios = [
         setupBloc.add(const AddQueue(QueuePosition.topRight));
       }
 
-      final controller = NotificationScope.of(context);
+      final controller = _ctrl(context);
       final items = [
         (
           const AppNotification(
@@ -429,7 +433,7 @@ final _scenarios = [
     icon: Icons.mark_chat_unread_outlined,
     color: const Color(0xFF0EA5E9),
     onFire: (final context) {
-      final scope = NotificationScope.of(context);
+      final scope = _ctrl(context);
       final setupBloc = context.read<SetupBloc>();
       // Automatically configure topRight queue to have groupingEnabled = true
       final existingQueue =
@@ -505,7 +509,7 @@ final _scenarios = [
     icon: Icons.layers_clear_outlined,
     color: const Color(0xFF06B6D4),
     onFire: (final context) {
-      final scope = NotificationScope.of(context);
+      final scope = _ctrl(context);
       final setupBloc = context.read<SetupBloc>();
       // Automatically configure bottomLeft queue to have groupingEnabled = true
       final existingQueue =
@@ -587,7 +591,7 @@ final _scenarios = [
     icon: Icons.filter_9_plus_outlined,
     color: const Color(0xFF8B5CF6),
     onFire: (final context) {
-      final scope = NotificationScope.of(context);
+      final scope = _ctrl(context);
       final setupBloc = context.read<SetupBloc>();
       final existingQueue =
           setupBloc.state.setup.queues[QueuePosition.topRight] ??
@@ -643,7 +647,7 @@ final _scenarios = [
     icon: Icons.snooze_rounded,
     color: const Color(0xFFFB7185),
     onFire: (final context) {
-      final scope = NotificationScope.of(context);
+      final scope = _ctrl(context);
       late final AppNotification notification;
       notification = AppNotification(
         title: 'Meeting in 15 Minutes',
@@ -668,7 +672,7 @@ final _scenarios = [
     icon: Icons.push_pin_rounded,
     color: const Color(0xFFF59E0B),
     onFire: (final context) {
-      final scope = NotificationScope.of(context);
+      final scope = _ctrl(context);
       late final AppNotification notification;
       notification = AppNotification(
         title: '⚠ Active Security Incident',
@@ -698,7 +702,7 @@ final _scenarios = [
     icon: Icons.palette_outlined,
     color: const Color(0xFF8B5CF6),
     onFire: (final context) {
-      NotificationScope.of(context).show(
+      _ctrl(context).show(
         const AppNotification(
           title: 'Content Accent Override',
           message: 'Tints card accent without overriding channel typography.',
@@ -717,7 +721,7 @@ final _scenarios = [
     icon: Icons.alt_route_rounded,
     color: const Color(0xFF06B6D4),
     onFire: (final context) {
-      NotificationScope.of(context).show(
+      _ctrl(context).show(
         const AppNotification(
           title: 'Dynamic Routing Override',
           message: 'Routed to bottomCenter via dispatch targetPosition!',

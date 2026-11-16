@@ -160,8 +160,11 @@ class _NotificationScopeState extends State<NotificationScope> {
     super.didUpdateWidget(oldWidget);
     if (widget.controller != oldWidget.controller) {
       _eventSub?.cancel();
-      oldWidget.controller.detach();
-      _coordinator.dispose();
+      oldWidget.controller.detach(_coordinator);
+      final oldCoordinator = _coordinator;
+      WidgetsBinding.instance.addPostFrameCallback((final _) {
+        oldCoordinator.dispose();
+      });
       _initCoordinator();
     }
   }
@@ -170,7 +173,7 @@ class _NotificationScopeState extends State<NotificationScope> {
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleHardwareKey);
     _eventSub?.cancel();
-    widget.controller.detach();
+    widget.controller.detach(_coordinator);
     _coordinator.dispose();
     super.dispose();
   }

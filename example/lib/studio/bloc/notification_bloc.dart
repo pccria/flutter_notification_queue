@@ -316,7 +316,7 @@ class NotificationBloc
     if (event.targetWindowId == 'all') {
       for (final win in setupBloc.state.windows.values) {
         if (win.isMounted) {
-          win.controller.show(
+          win.controller.tryShow(
             notification,
             targetPosition: targetPosition,
           );
@@ -326,7 +326,7 @@ class NotificationBloc
       final target = event.targetWindowId != null
           ? setupBloc.getWindow(event.targetWindowId!)
           : setupBloc.state.activeWindow;
-      target?.controller.show(
+      target?.controller.tryShow(
         notification,
         targetPosition: targetPosition,
       );

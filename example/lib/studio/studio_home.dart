@@ -80,7 +80,7 @@ class _StudioShellState extends State<_StudioShell> {
   @override
   Widget build(final BuildContext context) => LayoutBuilder(
         builder: (final context, final constraints) {
-          final isNarrow = constraints.maxWidth <= 1000;
+          final isNarrow = constraints.maxWidth < 1100;
           final colorScheme = Theme.of(context).colorScheme;
 
           return Scaffold(
@@ -97,8 +97,10 @@ class _StudioShellState extends State<_StudioShell> {
                       fontSize: isNarrow ? 16 : 18,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  const _VersionBadge(),
+                  if (constraints.maxWidth >= 600) ...[
+                    const SizedBox(width: 6),
+                    const _VersionBadge(),
+                  ],
                 ],
               ),
               centerTitle: !isNarrow,
@@ -140,13 +142,6 @@ class _StudioShellState extends State<_StudioShell> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Tooltip(
-                    message: 'Virtual Stage',
-                    child: IconButton(
-                      icon: const Icon(Icons.splitscreen_rounded, size: 20),
-                      onPressed: () => setState(() => _tabIndex = 0),
-                    ),
-                  ),
                 ] else ...[
                   // Desktop Pane Toggles
                   BlocBuilder<StudioBloc, StudioState>(
@@ -199,25 +194,66 @@ class _StudioShellState extends State<_StudioShell> {
                     ),
                   ),
                 ],
-                IconButton(
-                  onPressed: () => ProjectInfoDialog.show(context),
-                  icon: const Icon(Icons.info_outline, size: 20),
-                  tooltip: 'About & Project Info',
-                ),
-                BlocBuilder<StudioBloc, StudioState>(
-                  builder: (final context, final state) => IconButton(
-                    onPressed: () {
-                      context.read<StudioBloc>().add(const ToggleTheme());
+                if (isNarrow && constraints.maxWidth < 450) ...[
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    tooltip: 'More Options',
+                    onSelected: (final value) {
+                      if (value == 'theme') {
+                        context.read<StudioBloc>().add(const ToggleTheme());
+                      } else if (value == 'info') {
+                        ProjectInfoDialog.show(context);
+                      }
                     },
-                    icon: Icon(
-                      state.themeMode == ThemeMode.dark
-                          ? Icons.light_mode_outlined
-                          : Icons.dark_mode_outlined,
-                      size: 20,
-                    ),
-                    tooltip: 'Toggle Theme',
+                    itemBuilder: (final context) => [
+                      PopupMenuItem(
+                        value: 'theme',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? Icons.light_mode_outlined
+                                  : Icons.dark_mode_outlined,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text('Toggle Theme'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'info',
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, size: 18),
+                            SizedBox(width: 8),
+                            Text('Project Info'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ] else ...[
+                  IconButton(
+                    onPressed: () => ProjectInfoDialog.show(context),
+                    icon: const Icon(Icons.info_outline, size: 20),
+                    tooltip: 'About & Project Info',
+                  ),
+                  BlocBuilder<StudioBloc, StudioState>(
+                    builder: (final context, final state) => IconButton(
+                      onPressed: () {
+                        context.read<StudioBloc>().add(const ToggleTheme());
+                      },
+                      icon: Icon(
+                        state.themeMode == ThemeMode.dark
+                            ? Icons.light_mode_outlined
+                            : Icons.dark_mode_outlined,
+                        size: 20,
+                      ),
+                      tooltip: 'Toggle Theme',
+                    ),
+                  ),
+                ],
                 const SizedBox(width: 6),
               ],
             ),
@@ -272,124 +308,162 @@ class _StudioShellState extends State<_StudioShell> {
 
   Widget _wideLayout(final double totalWidth) =>
       BlocBuilder<StudioBloc, StudioState>(
-        builder: (final context, final state) => Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ── Configurator & Virtual Stage Canvas ──
-            if (state.isStageOpen) ...[
-              SizedBox(
-                width: state.configuratorWidth,
-                child: const ConfiguratorPanel(),
-              ),
-              PaneSplitter(
-                tooltip: 'Drag to resize Configurator / '
-                    'Double-click to collapse Stage',
-                onDoubleClick: () => context
-                    .read<StudioBloc>()
-                    .add(const ToggleStage(open: false)),
-                onDragDelta: (final delta) {
-                  context.read<StudioBloc>().add(
-                        ResizeConfigurator(
-                          delta: delta,
-                          totalWidth: totalWidth,
-                        ),
-                      );
-                },
-              ),
-              const Expanded(
-                child: VirtualStageCanvas(),
-              ),
-            ] else ...[
-              const Expanded(
-                child: ConfiguratorPanel(),
-              ),
-            ],
+        builder: (final context, final state) {
+          final availableWidth = totalWidth - 40.0;
+          final maxConfig = state.isStageOpen
+              ? (availableWidth * 0.38).clamp(
+                  StudioState.minConfiguratorWidth,
+                  StudioState.maxConfiguratorWidth,
+                )
+              : availableWidth;
+          final effectiveConfigWidth = state.isStageOpen
+              ? state.configuratorWidth.clamp(
+                  StudioState.minConfiguratorWidth,
+                  maxConfig,
+                )
+              : null;
 
-            // ── Code Editor Pane & Splitter ──
-            if (state.isCodeEditorOpen) ...[
-              PaneSplitter(
-                tooltip:
-                    'Drag to resize / Double-click to collapse Code Editor',
-                onDoubleClick: () => context
-                    .read<StudioBloc>()
-                    .add(const ToggleCodeEditor(open: false)),
-                onDragDelta: (final delta) {
-                  context.read<StudioBloc>().add(
-                        ResizeCodeEditor(
-                          delta: delta,
-                          totalWidth: totalWidth,
-                        ),
-                      );
-                },
-              ),
-              SizedBox(
-                width: state.codeEditorWidth,
-                child: const CodeEditorPanel(),
-              ),
-            ] else ...[
-              CollapsedPaneRail(
-                icon: Icons.code,
-                label: 'CODE',
-                tooltip: 'Expand Code Editor',
-                onExpand: () => context
-                    .read<StudioBloc>()
-                    .add(const ToggleCodeEditor(open: true)),
-                onDragExpand: (final delta) {
-                  if (delta < 0) {
+          final remainingAfterConfig =
+              availableWidth - (effectiveConfigWidth ?? 0.0);
+          final maxCode = (remainingAfterConfig * 0.45).clamp(
+            StudioState.minCodeEditorWidth,
+            StudioState.maxCodeEditorWidth,
+          );
+          final effectiveCodeWidth = state.codeEditorWidth.clamp(
+            StudioState.minCodeEditorWidth,
+            maxCode,
+          );
+
+          final remainingAfterCode = remainingAfterConfig -
+              (state.isCodeEditorOpen ? effectiveCodeWidth : 28.0);
+          final maxEvent = remainingAfterCode.clamp(
+            StudioState.minEventLogWidth,
+            StudioState.maxEventLogWidth,
+          );
+          final effectiveEventWidth = state.eventLogWidth.clamp(
+            StudioState.minEventLogWidth,
+            maxEvent,
+          );
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Configurator & Virtual Stage Canvas ──
+              if (state.isStageOpen) ...[
+                SizedBox(
+                  width: effectiveConfigWidth,
+                  child: const ConfiguratorPanel(),
+                ),
+                PaneSplitter(
+                  tooltip: 'Drag to resize Configurator / '
+                      'Double-click to collapse Stage',
+                  onDoubleClick: () => context
+                      .read<StudioBloc>()
+                      .add(const ToggleStage(open: false)),
+                  onDragDelta: (final delta) {
+                    context.read<StudioBloc>().add(
+                          ResizeConfigurator(
+                            delta: delta,
+                            totalWidth: totalWidth,
+                          ),
+                        );
+                  },
+                ),
+                const Expanded(
+                  child: VirtualStageCanvas(),
+                ),
+              ] else ...[
+                const Expanded(
+                  child: ConfiguratorPanel(),
+                ),
+              ],
+
+              // ── Code Editor Pane & Splitter ──
+              if (state.isCodeEditorOpen) ...[
+                PaneSplitter(
+                  tooltip:
+                      'Drag to resize / Double-click to collapse Code Editor',
+                  onDoubleClick: () => context
+                      .read<StudioBloc>()
+                      .add(const ToggleCodeEditor(open: false)),
+                  onDragDelta: (final delta) {
                     context.read<StudioBloc>().add(
                           ResizeCodeEditor(
                             delta: delta,
                             totalWidth: totalWidth,
                           ),
                         );
-                  }
-                },
-              ),
-            ],
+                  },
+                ),
+                SizedBox(
+                  width: effectiveCodeWidth,
+                  child: const CodeEditorPanel(),
+                ),
+              ] else ...[
+                CollapsedPaneRail(
+                  icon: Icons.code,
+                  label: 'CODE',
+                  tooltip: 'Expand Code Editor',
+                  onExpand: () => context
+                      .read<StudioBloc>()
+                      .add(const ToggleCodeEditor(open: true)),
+                  onDragExpand: (final delta) {
+                    if (delta < 0) {
+                      context.read<StudioBloc>().add(
+                            ResizeCodeEditor(
+                              delta: delta,
+                              totalWidth: totalWidth,
+                            ),
+                          );
+                    }
+                  },
+                ),
+              ],
 
-            // ── Event Stream Pane & Splitter ──
-            if (state.isEventLogOpen) ...[
-              PaneSplitter(
-                tooltip:
-                    'Drag to resize / Double-click to collapse Event Stream',
-                onDoubleClick: () => context
-                    .read<StudioBloc>()
-                    .add(const ToggleEventLog(open: false)),
-                onDragDelta: (final delta) {
-                  context.read<StudioBloc>().add(
-                        ResizeEventLog(
-                          delta: delta,
-                          totalWidth: totalWidth,
-                        ),
-                      );
-                },
-              ),
-              SizedBox(
-                width: state.eventLogWidth,
-                child: const EventLogPanel(),
-              ),
-            ] else ...[
-              CollapsedPaneRail(
-                icon: Icons.stream_rounded,
-                label: 'EVENTS',
-                tooltip: 'Expand Event Stream',
-                onExpand: () => context
-                    .read<StudioBloc>()
-                    .add(const ToggleEventLog(open: true)),
-                onDragExpand: (final delta) {
-                  if (delta < 0) {
+              // ── Event Stream Pane & Splitter ──
+              if (state.isEventLogOpen) ...[
+                PaneSplitter(
+                  tooltip:
+                      'Drag to resize / Double-click to collapse Event Stream',
+                  onDoubleClick: () => context
+                      .read<StudioBloc>()
+                      .add(const ToggleEventLog(open: false)),
+                  onDragDelta: (final delta) {
                     context.read<StudioBloc>().add(
                           ResizeEventLog(
                             delta: delta,
                             totalWidth: totalWidth,
                           ),
                         );
-                  }
-                },
-              ),
+                  },
+                ),
+                SizedBox(
+                  width: effectiveEventWidth,
+                  child: const EventLogPanel(),
+                ),
+              ] else ...[
+                CollapsedPaneRail(
+                  icon: Icons.stream_rounded,
+                  label: 'EVENTS',
+                  tooltip: 'Expand Event Stream',
+                  onExpand: () => context
+                      .read<StudioBloc>()
+                      .add(const ToggleEventLog(open: true)),
+                  onDragExpand: (final delta) {
+                    if (delta < 0) {
+                      context.read<StudioBloc>().add(
+                            ResizeEventLog(
+                              delta: delta,
+                              totalWidth: totalWidth,
+                            ),
+                          );
+                    }
+                  },
+                ),
+              ],
             ],
-          ],
-        ),
+          );
+        },
       );
 
   Widget _narrowLayout() => IndexedStack(

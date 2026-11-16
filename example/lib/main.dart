@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
 import 'studio/bloc/notification_bloc.dart';
 import 'studio/bloc/setup_bloc.dart';
@@ -10,10 +9,6 @@ import 'studio/studio_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // NotificationController is managed reactively by SetupBloc —
-  // NotificationScope is mounted in MaterialApp.builder below.
-
   runApp(const NFQStudioApp());
 }
 
@@ -40,12 +35,7 @@ class NFQStudioApp extends StatelessWidget {
             themeMode: state.themeMode,
             builder: (final context, final child) {
               StudioTheme.update(context);
-              return BlocBuilder<SetupBloc, SetupState>(
-                builder: (final context, final _) => NotificationScope(
-                  controller: context.read<SetupBloc>().controller,
-                  child: child!,
-                ),
-              );
+              return child!;
             },
             home: const StudioHome(),
           ),

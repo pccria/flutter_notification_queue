@@ -147,9 +147,9 @@ class QuickFireCockpit extends StatefulWidget {
       }
     } else {
       (targetWindow ?? setupBloc.state.activeWindow).controller.show(
-        notification,
-        targetPosition: targetPosition,
-      );
+            notification,
+            targetPosition: targetPosition,
+          );
     }
   }
 
@@ -189,9 +189,9 @@ class QuickFireCockpit extends StatefulWidget {
           }
         } else {
           (targetWindow ?? setupBloc.state.activeWindow).controller.show(
-            notification,
-            targetPosition: targetPosition,
-          );
+                notification,
+                targetPosition: targetPosition,
+              );
         }
       });
     }

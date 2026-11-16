@@ -31,14 +31,13 @@ class _LiveStageRadarState extends State<LiveStageRadar> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _eventSub?.cancel();
-    final scope = NotificationScope.maybeOf(context);
-    if (scope != null) {
-      _eventSub = scope.events.listen((final _) {
-        if (mounted) {
-          setState(() {});
-        }
-      });
-    }
+    final scope =
+        NotificationScope.maybeOf(context) ?? widget.setupState.controller;
+    _eventSub = scope.events.listen((final _) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -49,12 +48,13 @@ class _LiveStageRadarState extends State<LiveStageRadar> {
 
   @override
   Widget build(final BuildContext context) {
-    final coordinator = NotificationScope.maybeCoordinatorOf(context);
+    final controller =
+        NotificationScope.maybeOf(context) ?? widget.setupState.controller;
     final colorScheme = StudioTheme.colorScheme;
     final isDark = StudioTheme.isDark;
 
-    final activeNotifications = coordinator?.activeNotifications ?? [];
-    final pendingNotifications = coordinator?.pendingNotifications ?? [];
+    final activeNotifications = controller.activeNotifications;
+    final pendingNotifications = controller.pendingNotifications;
 
     // Count active items per position
     final activeCounts = <QueuePosition, int>{};
@@ -72,14 +72,10 @@ class _LiveStageRadarState extends State<LiveStageRadar> {
 
     // Check relocations
     final relocations = <QueuePosition, QueuePosition>{};
-    if (coordinator != null) {
-      for (final pos in QueuePosition.values) {
-        final effective = coordinator.configuration.getEffectiveQueuePosition(
-          pos,
-        );
-        if (effective != null && effective != pos) {
-          relocations[pos] = effective;
-        }
+    for (final pos in QueuePosition.values) {
+      final effective = controller.getEffectiveQueuePosition(pos);
+      if (effective != pos) {
+        relocations[pos] = effective;
       }
     }
 
@@ -206,7 +202,9 @@ class _LiveStageRadarState extends State<LiveStageRadar> {
                         ),
                       ),
                       onPressed: totalActive > 0
-                          ? () => NotificationScope.of(context).dismissNewest()
+                          ? () => (NotificationScope.maybeOf(context) ??
+                                  widget.setupState.controller)
+                              .dismissNewest()
                           : null,
                     ),
                     OutlinedButton.icon(
@@ -230,7 +228,9 @@ class _LiveStageRadarState extends State<LiveStageRadar> {
                         ),
                       ),
                       onPressed: totalActive > 0
-                          ? () => NotificationScope.of(context).dismissAll()
+                          ? () => (NotificationScope.maybeOf(context) ??
+                                  widget.setupState.controller)
+                              .dismissAll()
                           : null,
                     ),
                   ],

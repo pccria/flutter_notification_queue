@@ -72,12 +72,12 @@ class StudioState {
     this.isCodeEditorOpen = true,
     this.eventLogWidth = 280.0,
     this.isEventLogOpen = true,
-    this.isStageOpen = false,
-    this.configuratorWidth = 420.0,
+    this.isStageOpen = true,
+    this.configuratorWidth = 380.0,
   });
 
-  static const double minMainPaneWidth = 360.0;
-  static const double minConfiguratorWidth = 340.0;
+  static const double minMainPaneWidth = 340.0;
+  static const double minConfiguratorWidth = 320.0;
   static const double maxConfiguratorWidth = 650.0;
   static const double minCodeEditorWidth = 280.0;
   static const double maxCodeEditorWidth = 900.0;
@@ -185,9 +185,12 @@ class StudioBloc extends Bloc<StudioEvent, StudioState> {
     });
 
     on<ToggleStage>((final event, final emit) {
+      final willOpen = event.open ?? !state.isStageOpen;
       emit(
         state.copyWith(
-          isStageOpen: event.open ?? !state.isStageOpen,
+          isStageOpen: willOpen,
+          isCodeEditorOpen: !willOpen && state.isCodeEditorOpen,
+          isEventLogOpen: !willOpen && state.isEventLogOpen,
         ),
       );
     });
@@ -208,8 +211,8 @@ class StudioBloc extends Bloc<StudioEvent, StudioState> {
           isCodeEditorOpen: true,
           eventLogWidth: 280.0,
           isEventLogOpen: true,
-          isStageOpen: false,
-          configuratorWidth: 420.0,
+          isStageOpen: true,
+          configuratorWidth: 380.0,
         ),
       );
     });

@@ -138,6 +138,7 @@ class _NotificationOverlayState extends State<NotificationOverlay>
           widget.child,
           Positioned.fill(
             child: Overlay(
+              key: ObjectKey(coordinator),
               initialEntries: [
                 OverlayEntry(
                   builder: (final context) => _NotificationQueueStack(

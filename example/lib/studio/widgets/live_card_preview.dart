@@ -41,13 +41,13 @@ class LiveCardPreview extends StatelessWidget {
     final channel = channelSetup.toNotificationChannel();
 
     // Resolve target position and relocation
-    final coordinator = NotificationScope.maybeCoordinatorOf(context);
+    final controller =
+        NotificationScope.maybeOf(context) ?? setupState.controller;
     final targetPosition = draft.positionOverride ??
         channelSetup.position ??
         setupState.activeQueuePosition;
     final effectivePosition =
-        coordinator?.configuration.getEffectiveQueuePosition(targetPosition) ??
-            targetPosition;
+        controller.getEffectiveQueuePosition(targetPosition);
     final isRelocated = effectivePosition != targetPosition;
 
     // Resolve queue setup & style

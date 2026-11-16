@@ -1724,19 +1724,35 @@ class NotificationWidgetState extends State<NotificationWidget>
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: _toggleExpanded,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _getExpandButton(isExpanded: isExpanded),
-              if (hasTitle) ...[
-                const SizedBox(width: 4),
-                Expanded(
-                  child: _getTitle(isExpanded: isExpanded),
-                ),
-              ] else ...[
-                const Spacer(),
-              ],
-            ],
+          child: LayoutBuilder(
+            builder: (final context, final constraints) {
+              final maxW = constraints.maxWidth;
+              if (maxW < 16) {
+                return const SizedBox.shrink();
+              }
+              final buttonSize = maxW < 36.0 ? maxW : 36.0;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: buttonSize,
+                    height: 36,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: _getExpandButton(isExpanded: isExpanded),
+                    ),
+                  ),
+                  if (hasTitle && maxW >= 56) ...[
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: _getTitle(isExpanded: isExpanded),
+                    ),
+                  ] else ...[
+                    const Spacer(),
+                  ],
+                ],
+              );
+            },
           ),
         ),
       );

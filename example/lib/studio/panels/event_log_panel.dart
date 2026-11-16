@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
+import '../bloc/setup_bloc.dart';
 import '../bloc/studio_bloc.dart';
 
 /// Filter categories for the event log stream.
@@ -56,7 +57,8 @@ class _EventLogPanelState extends State<EventLogPanel> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _sub?.cancel();
-    final scope = NotificationScope.of(context);
+    final scope = NotificationScope.maybeOf(context) ??
+        context.read<SetupBloc>().state.controller;
     final history = scope.getHistory();
     _events.clear();
     _activeIds.clear();
@@ -269,7 +271,9 @@ class _EventLogPanelState extends State<EventLogPanel> {
                         message: 'Clear log',
                         child: InkWell(
                           onTap: () {
-                            NotificationScope.of(context).clearHistory();
+                            (NotificationScope.maybeOf(context) ??
+                                    context.read<SetupBloc>().state.controller)
+                                .clearHistory();
                             setState(() {
                               _events.clear();
                               _activeIds.clear();

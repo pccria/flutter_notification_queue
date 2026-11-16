@@ -59,6 +59,7 @@ class VirtualStageCanvas extends StatelessWidget {
                                 maxHeight: 680,
                               ),
                               child: _VirtualWindowCard(
+                                key: win1.globalKey,
                                 window: win1,
                                 isActive: win1.id == activeId,
                                 onFocus: () => context
@@ -88,6 +89,7 @@ class VirtualStageCanvas extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: _VirtualWindowCard(
+                                  key: win1.globalKey,
                                   window: win1,
                                   isActive: win1.id == activeId,
                                   onFocus: () => context
@@ -108,6 +110,7 @@ class VirtualStageCanvas extends StatelessWidget {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _VirtualWindowCard(
+                                  key: win2.globalKey,
                                   window: win2,
                                   isActive: win2.id == activeId,
                                   onFocus: () => context
@@ -136,6 +139,7 @@ class VirtualStageCanvas extends StatelessWidget {
                           children: [
                             Expanded(
                               child: _VirtualWindowCard(
+                                key: win1.globalKey,
                                 window: win1,
                                 isActive: win1.id == activeId,
                                 onFocus: () => context
@@ -156,6 +160,7 @@ class VirtualStageCanvas extends StatelessWidget {
                             const SizedBox(height: 12),
                             Expanded(
                               child: _VirtualWindowCard(
+                                key: win2.globalKey,
                                 window: win2,
                                 isActive: win2.id == activeId,
                                 onFocus: () => context
@@ -220,9 +225,11 @@ class _StageHeader extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (final context, final constraints) {
-          final isCompact = constraints.maxWidth < 560;
-          final isVeryCompact = constraints.maxWidth < 360;
-          final isUltraCompact = constraints.maxWidth < 240;
+          final width = constraints.maxWidth;
+          final isNarrow = width < 500;
+          final isCompact = width < 380;
+          final isTiny = width < 260;
+          final isMicro = width < 160;
 
           return Row(
             children: [
@@ -231,16 +238,18 @@ class _StageHeader extends StatelessWidget {
                 size: 16,
                 color: colorScheme.primary,
               ),
-              const SizedBox(width: 6),
-              const Text(
-                'STAGE',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
+              if (!isMicro) ...[
+                const SizedBox(width: 6),
+                const Text(
+                  'STAGE',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
                 ),
-              ),
-              if (!isVeryCompact) ...[
+              ],
+              if (!isCompact) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding:
@@ -269,7 +278,7 @@ class _StageHeader extends StatelessWidget {
                   ),
                 ),
               ],
-              if (!isCompact) ...[
+              if (!isNarrow) ...[
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
@@ -284,8 +293,15 @@ class _StageHeader extends StatelessWidget {
                 ),
               ],
               const Spacer(),
-              if (!isUltraCompact) ...[
-                if (windowCount == 1) ...[
+              if (windowCount == 1) ...[
+                if (isTiny)
+                  IconButton(
+                    icon: const Icon(Icons.add_to_photos_outlined, size: 16),
+                    tooltip: 'Add Window 2 (Beta)',
+                    onPressed: onAddWindow,
+                    visualDensity: VisualDensity.compact,
+                  )
+                else
                   FilledButton.icon(
                     style: FilledButton.styleFrom(
                       visualDensity: VisualDensity.compact,
@@ -304,7 +320,16 @@ class _StageHeader extends StatelessWidget {
                     ),
                     onPressed: onAddWindow,
                   ),
-                ] else ...[
+              ] else ...[
+                if (isTiny)
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    tooltip: 'Close Window 2',
+                    color: const Color(0xFFEF4444),
+                    onPressed: onRemoveWindow2,
+                    visualDensity: VisualDensity.compact,
+                  )
+                else
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
@@ -325,9 +350,8 @@ class _StageHeader extends StatelessWidget {
                     ),
                     onPressed: onRemoveWindow2,
                   ),
-                ],
-                const SizedBox(width: 4),
               ],
+              const SizedBox(width: 4),
               Tooltip(
                 message: 'Dismiss all notifications',
                 child: IconButton(
@@ -353,6 +377,7 @@ class _VirtualWindowCard extends StatelessWidget {
     required this.onToggleMount,
     required this.onClear,
     required this.onClose,
+    super.key,
   });
 
   final VirtualWindowData window;
@@ -414,22 +439,22 @@ class _VirtualWindowCard extends StatelessWidget {
                 ),
                 child: window.isMounted
                     ? Overlay(
+                        key: ValueKey('window_overlay_${window.id}'),
                         initialEntries: [
                           OverlayEntry(
-                            builder: (final _) =>
-                                !window.controller.isAttached
-                                    ? NotificationScope(
-                                        controller: window.controller,
-                                        useRootOverlay: false,
-                                        child: _VirtualWindowBody(
-                                          window: window,
-                                          isActive: isActive,
-                                        ),
-                                      )
-                                    : _VirtualWindowBody(
-                                        window: window,
-                                        isActive: isActive,
-                                      ),
+                            builder: (final _) {
+                              final body = _VirtualWindowBody(
+                                window: window,
+                                isActive: isActive,
+                              );
+                              return window.controller.isAttached
+                                  ? body
+                                  : NotificationScope(
+                                      controller: window.controller,
+                                      useRootOverlay: false,
+                                      child: body,
+                                    );
+                            },
                           ),
                         ],
                       )
@@ -479,101 +504,114 @@ class _WindowChrome extends StatelessWidget {
           ),
         ),
       ),
-      child: Row(
-        children: [
-          // macOS style traffic light dots
-          _TrafficDot(
-            color: const Color(0xFFEF4444),
-            tooltip: window.id == 'win_2'
-                ? 'Remove Window 2'
-                : (window.isMounted ? 'Unmount Surface' : 'Mount Surface'),
-            onTap: window.id == 'win_2' ? onClose : onToggleMount,
-          ),
-          const SizedBox(width: 6),
-          _TrafficDot(
-            color: const Color(0xFFF59E0B),
-            tooltip: window.isPaused
-                ? 'Resume Queue Timers'
-                : 'Pause Queue Timers (Stasis)',
-            onTap: onToggleStasis,
-            child: window.isPaused
-                ? const Icon(Icons.pause, size: 8, color: Colors.black87)
-                : null,
-          ),
-          const SizedBox(width: 6),
-          _TrafficDot(
-            color: const Color(0xFF10B981),
-            tooltip: 'Dismiss Notifications in Window',
-            onTap: onClear,
-          ),
-          const SizedBox(width: 12),
+      child: LayoutBuilder(
+        builder: (final context, final constraints) {
+          final width = constraints.maxWidth;
+          final isNarrow = width < 320;
+          final isCompact = width < 220;
 
-          Icon(
-            window.id == 'win_1'
-                ? Icons.desktop_windows_outlined
-                : Icons.web_asset_outlined,
-            size: 14,
-            color: window.accentColor,
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              window.title,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+          return Row(
+            children: [
+              // macOS style traffic light dots
+              _TrafficDot(
+                color: const Color(0xFFEF4444),
+                tooltip: window.id == 'win_2'
+                    ? 'Remove Window 2'
+                    : (window.isMounted ? 'Unmount Surface' : 'Mount Surface'),
+                onTap: window.id == 'win_2' ? onClose : onToggleMount,
+              ),
+              const SizedBox(width: 6),
+              _TrafficDot(
+                color: const Color(0xFFF59E0B),
+                tooltip: window.isPaused
+                    ? 'Resume Queue Timers'
+                    : 'Pause Queue Timers (Stasis)',
+                onTap: onToggleStasis,
+                child: window.isPaused
+                    ? const Icon(Icons.pause, size: 8, color: Colors.black87)
+                    : null,
+              ),
+              const SizedBox(width: 6),
+              _TrafficDot(
+                color: const Color(0xFF10B981),
+                tooltip: 'Dismiss Notifications in Window',
+                onTap: onClear,
+              ),
+              const SizedBox(width: 8),
+
+              Icon(
+                window.id == 'win_1'
+                    ? Icons.desktop_windows_outlined
+                    : Icons.web_asset_outlined,
+                size: 14,
                 color: window.accentColor,
               ),
-            ),
-          ),
-          const SizedBox(width: 6),
+              if (!isCompact) ...[
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    window.title,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: window.accentColor,
+                    ),
+                  ),
+                ),
+              ],
 
-          if (isActive)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-              decoration: BoxDecoration(
-                color: window.accentColor.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: window.accentColor.withValues(alpha: 0.45),
+              if (isActive && !isNarrow) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: window.accentColor.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: window.accentColor.withValues(alpha: 0.45),
+                    ),
+                  ),
+                  child: Text(
+                    'EDITING',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                      color: window.accentColor,
+                    ),
+                  ),
                 ),
-              ),
-              child: Text(
-                'EDITING',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
-                  color: window.accentColor,
-                ),
-              ),
-            ),
+              ],
 
-          const Spacer(),
+              const Spacer(),
 
-          if (window.isPaused) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+              if (window.isPaused) ...[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: const Text(
+                    '⏸ STASIS',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFF59E0B),
+                    ),
+                  ),
                 ),
-              ),
-              child: const Text(
-                '⏸ STASIS',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFFF59E0B),
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-          ],
-        ],
+                const SizedBox(width: 6),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -642,73 +680,118 @@ class _VirtualWindowBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Mock application header
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 32,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.search,
-                        size: 14,
-                        color: colorScheme.onSurface.withValues(alpha: 0.4),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Search workspace...',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: colorScheme.onSurface.withValues(alpha: 0.4),
+          LayoutBuilder(
+            builder: (final context, final constraints) {
+              final isCompact = constraints.maxWidth < 280;
+              final isTiny = constraints.maxWidth < 240;
+              final showSearch = constraints.maxWidth >= 180;
+
+              return Row(
+                children: [
+                  if (showSearch)
+                    Expanded(
+                      child: Container(
+                        height: 32,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: colorScheme.outlineVariant
+                                .withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: ClipRect(
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.search,
+                                size: 14,
+                                color: colorScheme.onSurface
+                                    .withValues(alpha: 0.4),
+                              ),
+                              if (!isTiny) ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Search workspace...',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: colorScheme.onSurface
+                                          .withValues(alpha: 0.4),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.tonalIcon(
-                style: FilledButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
-                icon: const Icon(Icons.bolt_rounded, size: 14),
-                label: const Text(
-                  'Ping',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-                ),
-                onPressed: () {
-                  final channelName = window.setup.channels.keys.isNotEmpty
-                      ? window.setup.channels.keys.first
-                      : 'info';
-                  final timeStr =
-                      DateTime.now().toIso8601String().substring(11, 19);
-                  window.controller.show(
-                    AppNotification(
-                      title: 'Ping from ${window.title}',
-                      message: 'Isolated window event at $timeStr',
-                      channelName: channelName,
-                      dismissDuration: const Duration(seconds: 4),
+                    )
+                  else
+                    const Spacer(),
+                  const SizedBox(width: 6),
+                  if (isCompact)
+                    IconButton(
+                      icon: const Icon(Icons.bolt_rounded, size: 16),
+                      tooltip: 'Ping',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        final channelName =
+                            window.setup.channels.keys.isNotEmpty
+                                ? window.setup.channels.keys.first
+                                : 'info';
+                        final timeStr =
+                            DateTime.now().toIso8601String().substring(11, 19);
+                        window.controller.show(
+                          AppNotification(
+                            title: 'Ping from ${window.title}',
+                            message: 'Isolated window event at $timeStr',
+                            channelName: channelName,
+                            dismissDuration: const Duration(seconds: 4),
+                          ),
+                        );
+                      },
+                    )
+                  else
+                    FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      icon: const Icon(Icons.bolt_rounded, size: 14),
+                      label: const Text(
+                        'Ping',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      onPressed: () {
+                        final channelName =
+                            window.setup.channels.keys.isNotEmpty
+                                ? window.setup.channels.keys.first
+                                : 'info';
+                        final timeStr =
+                            DateTime.now().toIso8601String().substring(11, 19);
+                        window.controller.show(
+                          AppNotification(
+                            title: 'Ping from ${window.title}',
+                            message: 'Isolated window event at $timeStr',
+                            channelName: channelName,
+                            dismissDuration: const Duration(seconds: 4),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-            ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 14),
 
@@ -735,8 +818,7 @@ class _VirtualWindowBody extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'CONFIGURATION '
-                        '($queueCount queues • $channelCount channels)',
+                        'CONFIG ($queueCount Q • $channelCount CH)',
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 9,
@@ -853,6 +935,8 @@ class _MockFeedCard extends StatelessWidget {
               children: [
                 Text(
                   title,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -860,6 +944,8 @@ class _MockFeedCard extends StatelessWidget {
                 ),
                 Text(
                   subtitle,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                   style: TextStyle(
                     fontSize: 10,
                     color: colorScheme.onSurface.withValues(alpha: 0.6),
