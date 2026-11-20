@@ -25,37 +25,59 @@ final class QueueStasisManager {
       _pausedQueuesNotifier.value.contains(position);
 
   /// Pauses auto-dismiss timers for all notifications in [position].
-  void pauseQueue(final QueuePosition position) {
+  ///
+  /// Returns `true` if the queue entered stasis, or `false` if it was already
+  /// paused or this manager is disposed.
+  bool pauseQueue(final QueuePosition position) {
     if (_isDisposed || _pausedQueuesNotifier.value.contains(position)) {
-      return;
+      return false;
     }
     _pausedQueuesNotifier.value = {..._pausedQueuesNotifier.value, position};
+    return true;
   }
 
   /// Resumes auto-dismiss timers for all notifications in [position].
-  void resumeQueue(final QueuePosition position) {
+  ///
+  /// Returns `true` if the queue exited stasis, or `false` if it was not
+  /// paused or this manager is disposed.
+  bool resumeQueue(final QueuePosition position) {
     if (_isDisposed || !_pausedQueuesNotifier.value.contains(position)) {
-      return;
+      return false;
     }
     final next = Set<QueuePosition>.of(_pausedQueuesNotifier.value)
       ..remove(position);
     _pausedQueuesNotifier.value = next;
+    return true;
   }
 
   /// Pauses auto-dismiss timers for all notifications across all queues.
-  void pauseAll() {
+  ///
+  /// Returns the set of queue positions that newly entered stasis.
+  Set<QueuePosition> pauseAll() {
     if (_isDisposed) {
-      return;
+      return const {};
     }
-    _pausedQueuesNotifier.value = Set.of(QueuePosition.values);
+    final current = _pausedQueuesNotifier.value;
+    final all = Set.of(QueuePosition.values);
+    final newlyPaused = all.difference(current);
+    if (newlyPaused.isNotEmpty) {
+      _pausedQueuesNotifier.value = all;
+    }
+    return newlyPaused;
   }
 
   /// Resumes auto-dismiss timers for all notifications across all queues.
-  void resumeAll() {
+  ///
+  /// Returns the set of queue positions that exited stasis.
+  Set<QueuePosition> resumeAll() {
     if (_isDisposed) {
-      return;
+      return const {};
     }
-    _pausedQueuesNotifier.value = {};
+    final previouslyPaused = Set<QueuePosition>.of(_pausedQueuesNotifier.value);
+    if (previouslyPaused.isNotEmpty) {
+      _pausedQueuesNotifier.value = const {};
+    }
+    return previouslyPaused;
   }
 
   /// Disposes the underlying stasis notifier.

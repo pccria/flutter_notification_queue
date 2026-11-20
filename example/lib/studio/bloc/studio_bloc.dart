@@ -43,20 +43,10 @@ final class ToggleEventLog extends StudioEvent {
   final bool? open;
 }
 
-final class ToggleStage extends StudioEvent {
-  const ToggleStage({this.open});
+final class ToggleSplitView extends StudioEvent {
+  const ToggleSplitView({this.enabled});
 
-  final bool? open;
-}
-
-final class ResizeConfigurator extends StudioEvent {
-  const ResizeConfigurator({
-    required this.delta,
-    required this.totalWidth,
-  });
-
-  final double delta;
-  final double totalWidth;
+  final bool? enabled;
 }
 
 final class ResetPaneLayout extends StudioEvent {
@@ -72,13 +62,10 @@ class StudioState {
     this.isCodeEditorOpen = true,
     this.eventLogWidth = 280.0,
     this.isEventLogOpen = true,
-    this.isStageOpen = true,
-    this.configuratorWidth = 380.0,
+    this.isSplitView = false,
   });
 
   static const double minMainPaneWidth = 340.0;
-  static const double minConfiguratorWidth = 320.0;
-  static const double maxConfiguratorWidth = 650.0;
   static const double minCodeEditorWidth = 280.0;
   static const double maxCodeEditorWidth = 900.0;
   static const double minEventLogWidth = 220.0;
@@ -89,8 +76,7 @@ class StudioState {
   final bool isCodeEditorOpen;
   final double eventLogWidth;
   final bool isEventLogOpen;
-  final bool isStageOpen;
-  final double configuratorWidth;
+  final bool isSplitView;
 
   StudioState copyWith({
     final ThemeMode? themeMode,
@@ -98,8 +84,7 @@ class StudioState {
     final bool? isCodeEditorOpen,
     final double? eventLogWidth,
     final bool? isEventLogOpen,
-    final bool? isStageOpen,
-    final double? configuratorWidth,
+    final bool? isSplitView,
   }) =>
       StudioState(
         themeMode: themeMode ?? this.themeMode,
@@ -107,8 +92,7 @@ class StudioState {
         isCodeEditorOpen: isCodeEditorOpen ?? this.isCodeEditorOpen,
         eventLogWidth: eventLogWidth ?? this.eventLogWidth,
         isEventLogOpen: isEventLogOpen ?? this.isEventLogOpen,
-        isStageOpen: isStageOpen ?? this.isStageOpen,
-        configuratorWidth: configuratorWidth ?? this.configuratorWidth,
+        isSplitView: isSplitView ?? this.isSplitView,
       );
 }
 
@@ -184,24 +168,9 @@ class StudioBloc extends Bloc<StudioEvent, StudioState> {
       );
     });
 
-    on<ToggleStage>((final event, final emit) {
-      final willOpen = event.open ?? !state.isStageOpen;
-      emit(
-        state.copyWith(
-          isStageOpen: willOpen,
-          isCodeEditorOpen: !willOpen && state.isCodeEditorOpen,
-          isEventLogOpen: !willOpen && state.isEventLogOpen,
-        ),
-      );
-    });
-
-    on<ResizeConfigurator>((final event, final emit) {
-      final newWidth = state.configuratorWidth + event.delta;
-      final clamped = newWidth.clamp(
-        StudioState.minConfiguratorWidth,
-        StudioState.maxConfiguratorWidth,
-      );
-      emit(state.copyWith(configuratorWidth: clamped));
+    on<ToggleSplitView>((final event, final emit) {
+      final willSplit = event.enabled ?? !state.isSplitView;
+      emit(state.copyWith(isSplitView: willSplit));
     });
 
     on<ResetPaneLayout>((final event, final emit) {
@@ -211,8 +180,7 @@ class StudioBloc extends Bloc<StudioEvent, StudioState> {
           isCodeEditorOpen: true,
           eventLogWidth: 280.0,
           isEventLogOpen: true,
-          isStageOpen: true,
-          configuratorWidth: 380.0,
+          isSplitView: false,
         ),
       );
     });

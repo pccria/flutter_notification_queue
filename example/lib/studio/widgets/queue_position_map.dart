@@ -1,7 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
+import '../bloc/setup_bloc.dart';
 import '../models/queue_setup.dart';
 import '../studio_theme.dart';
 
@@ -350,6 +352,21 @@ class _PositionCell extends StatelessWidget {
             '(Slave of ${_description(masterPosition!)})'
         : _description(position);
 
+    final activeCount = context.select<SetupBloc, int>((final bloc) {
+      final win = bloc.state.activeWindow;
+      if (!win.isMounted || !win.controller.isAttached) {
+        return 0;
+      }
+      return win.controller.activeNotifications
+          .where((final n) => n.queue.position == position)
+          .length;
+    });
+
+    final isPaused = context.select<SetupBloc, bool>((final bloc) {
+      final win = bloc.state.activeWindow;
+      return win.isPaused;
+    });
+
     return Tooltip(
       message: tooltipMessage,
       child: GestureDetector(
@@ -384,6 +401,51 @@ class _PositionCell extends StatelessWidget {
                         color: border,
                         borderRadius: 8.0,
                       ),
+                    ),
+                  ),
+                ),
+              // ── Live Occupancy Count Dot (Spatial Radar) ──
+              if (isActive && activeCount > 0)
+                Positioned(
+                  top: 3,
+                  left: 4,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.black.withValues(alpha: 0.35)
+                          : groupColor.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.5)
+                            : groupColor,
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Text(
+                      '$activeCount',
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: 'monospace',
+                        color: isSelected ? Colors.white : textColor,
+                      ),
+                    ),
+                  ),
+                ),
+              if (isActive && isPaused)
+                Positioned(
+                  bottom: 3,
+                  left: 4,
+                  child: Text(
+                    '⏸',
+                    style: TextStyle(
+                      fontSize: 8,
+                      color: isSelected
+                          ? Colors.white
+                          : colorScheme.error.withValues(alpha: 0.8),
                     ),
                   ),
                 ),

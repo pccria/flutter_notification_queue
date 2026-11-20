@@ -157,6 +157,36 @@ controller.tryShow(
 
 ## 🎨 Common Recipes & Use Cases
 
+### 📦 Scoped & Embedded Overlays (Multi-Tenant & Split-Screen)
+
+By default, `NotificationScope` attaches to the root `Overlay` of your `MaterialApp`. When building multi-tenant dashboards, split-screen desktop applications, or embedded preview panels, you can constrain notifications entirely to a local sub-tree by setting `useRootOverlay: false`:
+
+```dart
+// Confines the notification queue overlay to this specific panel/card
+Widget buildTenantWorkspace(
+  BuildContext context,
+  NotificationController tenantController,
+) {
+  return SizedBox(
+    width: 480,
+    height: 720,
+    child: Stack(
+      children: [
+        // Underlying application UI
+        const TenantDashboardView(),
+
+        // Localized Notification Overlay (confined strictly to this Stack)
+        NotificationScope(
+          controller: tenantController,
+          useRootOverlay: false, // Prevents notifications escaping to the root window
+          child: const SizedBox.expand(),
+        ),
+      ],
+    ),
+  );
+}
+```
+
 ### Custom Actions & Tap Behaviors
 
 Configure how users interact with the card surface or action buttons:

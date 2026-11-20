@@ -4,26 +4,32 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_notification_queue/flutter_notification_queue.dart';
 
 import 'bloc/notification_bloc.dart';
+import 'bloc/setup_bloc.dart';
 import 'bloc/studio_bloc.dart';
 import 'panels/code_editor_panel.dart';
 import 'panels/configurator_panel.dart';
 import 'panels/event_log_panel.dart';
 import 'studio_theme.dart';
+import 'widgets/overlay/studio_overlay_host.dart';
 import 'widgets/pane_splitter.dart';
 import 'widgets/project_info_dialog.dart';
 import 'widgets/quick_fire_cockpit.dart';
-import 'widgets/virtual_stage_canvas.dart';
 
 /// The root layout for NFQ Studio.
 ///
-/// Provides [StudioBloc] and renders a responsive split-pane layout:
-/// - **Wide screens**: Configurator (left) + Code Editor (right)
-/// - **Narrow screens**: Tabbed view with bottom navigation & preview FAB
+/// Features a transparent pass-through HUD overlay layer ([StudioOverlayHost])
+/// mounted over the interactive Studio application workbench.
 class StudioHome extends StatelessWidget {
   const StudioHome({super.key});
 
   @override
-  Widget build(final BuildContext context) => const _StudioShell();
+  Widget build(final BuildContext context) => const Stack(
+        fit: StackFit.expand,
+        children: [
+          _StudioShell(),
+          StudioOverlayHost(),
+        ],
+      );
 }
 
 class _StudioShell extends StatefulWidget {
@@ -84,26 +90,39 @@ class _StudioShellState extends State<_StudioShell> {
           final colorScheme = Theme.of(context).colorScheme;
 
           return Scaffold(
-            extendBodyBehindAppBar: true,
             appBar: AppBar(
-              title: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    isNarrow ? 'NFQ' : 'NFQ STUDIO',
-                    style: TextStyle(
-                      letterSpacing: isNarrow ? 1.2 : 3,
-                      fontWeight: FontWeight.w900,
-                      fontSize: isNarrow ? 16 : 18,
-                    ),
+              title: BlocBuilder<SetupBloc, SetupState>(
+                builder: (final context, final setupState) =>
+                    SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        isNarrow ? 'NFQ' : 'NFQ STUDIO',
+                        style: TextStyle(
+                          letterSpacing: isNarrow ? 1.2 : 3,
+                          fontWeight: FontWeight.w900,
+                          fontSize: isNarrow ? 16 : 18,
+                        ),
+                      ),
+                      if (constraints.maxWidth >= 600) ...[
+                        const SizedBox(width: 6),
+                        const _VersionBadge(),
+                      ],
+                      if (isNarrow && setupState.windows.length > 1) ...[
+                        const SizedBox(width: 8),
+                        _MobileWorkspacePill(setupState: setupState),
+                      ],
+                      if (!isNarrow) ...[
+                        const SizedBox(width: 16),
+                        _DesktopWorkspaceBar(setupState: setupState),
+                      ],
+                    ],
                   ),
-                  if (constraints.maxWidth >= 600) ...[
-                    const SizedBox(width: 6),
-                    const _VersionBadge(),
-                  ],
-                ],
+                ),
               ),
-              centerTitle: !isNarrow,
+              centerTitle: false,
               backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
               elevation: 0,
               actions: [
@@ -149,18 +168,6 @@ class _StudioShellState extends State<_StudioShell> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _PaneToggleAction(
-                          icon: Icons.splitscreen_rounded,
-                          label: 'STAGE',
-                          isOpen: state.isStageOpen,
-                          tooltip: state.isStageOpen
-                              ? 'Hide Virtual Stage Canvas'
-                              : 'Show Virtual Stage Canvas',
-                          onPressed: () => context
-                              .read<StudioBloc>()
-                              .add(const ToggleStage()),
-                        ),
-                        const SizedBox(width: 4),
-                        _PaneToggleAction(
                           icon: Icons.code,
                           label: 'CODE',
                           isOpen: state.isCodeEditorOpen,
@@ -203,9 +210,25 @@ class _StudioShellState extends State<_StudioShell> {
                         context.read<StudioBloc>().add(const ToggleTheme());
                       } else if (value == 'info') {
                         ProjectInfoDialog.show(context);
+                      } else if (value == 'split') {
+                        context.read<StudioBloc>().add(const ToggleSplitView());
                       }
                     },
                     itemBuilder: (final context) => [
+                      PopupMenuItem(
+                        value: 'split',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.splitscreen_rounded, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              context.read<StudioBloc>().state.isSplitView
+                                  ? 'Single Mode'
+                                  : 'Dual Split Mode',
+                            ),
+                          ],
+                        ),
+                      ),
                       PopupMenuItem(
                         value: 'theme',
                         child: Row(
@@ -284,10 +307,6 @@ class _StudioShellState extends State<_StudioShell> {
                         .withValues(alpha: 0.38),
                     items: const [
                       BottomNavigationBarItem(
-                        icon: Icon(Icons.splitscreen_rounded),
-                        label: 'Stage',
-                      ),
-                      BottomNavigationBarItem(
                         icon: Icon(Icons.tune),
                         label: 'Configure',
                       ),
@@ -310,22 +329,7 @@ class _StudioShellState extends State<_StudioShell> {
       BlocBuilder<StudioBloc, StudioState>(
         builder: (final context, final state) {
           final availableWidth = totalWidth - 40.0;
-          final maxConfig = state.isStageOpen
-              ? (availableWidth * 0.38).clamp(
-                  StudioState.minConfiguratorWidth,
-                  StudioState.maxConfiguratorWidth,
-                )
-              : availableWidth;
-          final effectiveConfigWidth = state.isStageOpen
-              ? state.configuratorWidth.clamp(
-                  StudioState.minConfiguratorWidth,
-                  maxConfig,
-                )
-              : null;
-
-          final remainingAfterConfig =
-              availableWidth - (effectiveConfigWidth ?? 0.0);
-          final maxCode = (remainingAfterConfig * 0.45).clamp(
+          final maxCode = (availableWidth * 0.45).clamp(
             StudioState.minCodeEditorWidth,
             StudioState.maxCodeEditorWidth,
           );
@@ -334,7 +338,7 @@ class _StudioShellState extends State<_StudioShell> {
             maxCode,
           );
 
-          final remainingAfterCode = remainingAfterConfig -
+          final remainingAfterCode = availableWidth -
               (state.isCodeEditorOpen ? effectiveCodeWidth : 28.0);
           final maxEvent = remainingAfterCode.clamp(
             StudioState.minEventLogWidth,
@@ -348,35 +352,10 @@ class _StudioShellState extends State<_StudioShell> {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Configurator & Virtual Stage Canvas ──
-              if (state.isStageOpen) ...[
-                SizedBox(
-                  width: effectiveConfigWidth,
-                  child: const ConfiguratorPanel(),
-                ),
-                PaneSplitter(
-                  tooltip: 'Drag to resize Configurator / '
-                      'Double-click to collapse Stage',
-                  onDoubleClick: () => context
-                      .read<StudioBloc>()
-                      .add(const ToggleStage(open: false)),
-                  onDragDelta: (final delta) {
-                    context.read<StudioBloc>().add(
-                          ResizeConfigurator(
-                            delta: delta,
-                            totalWidth: totalWidth,
-                          ),
-                        );
-                  },
-                ),
-                const Expanded(
-                  child: VirtualStageCanvas(),
-                ),
-              ] else ...[
-                const Expanded(
-                  child: ConfiguratorPanel(),
-                ),
-              ],
+              // ── Main Workbench: Full Multi-Column Configurator ──
+              const Expanded(
+                child: ConfiguratorPanel(),
+              ),
 
               // ── Code Editor Pane & Splitter ──
               if (state.isCodeEditorOpen) ...[
@@ -469,12 +448,216 @@ class _StudioShellState extends State<_StudioShell> {
   Widget _narrowLayout() => IndexedStack(
         index: _tabIndex,
         children: const [
-          VirtualStageCanvas(),
           ConfiguratorPanel(),
           CodeEditorPanel(),
           EventLogPanel(),
         ],
       );
+}
+
+class _DesktopWorkspaceBar extends StatelessWidget {
+  const _DesktopWorkspaceBar({required this.setupState});
+
+  final SetupState setupState;
+
+  @override
+  Widget build(final BuildContext context) {
+    final windows = setupState.windows.values.toList();
+    final activeId = setupState.activeWindowId;
+
+    return BlocBuilder<StudioBloc, StudioState>(
+      builder: (final context, final studioState) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ...windows.map((final win) {
+                  final isFocused = win.id == activeId;
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => context
+                        .read<SetupBloc>()
+                        .add(SelectActiveWindow(win.id)),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isFocused
+                            ? win.accentColor.withValues(alpha: 0.22)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isFocused
+                              ? win.accentColor.withValues(alpha: 0.6)
+                              : Colors.transparent,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: win.accentColor,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            win.title,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight:
+                                  isFocused ? FontWeight.w800 : FontWeight.w600,
+                              color: isFocused
+                                  ? win.accentColor
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.65),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+                if (windows.length == 1)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: IconButton(
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      tooltip: 'Add Scope B (Beta)',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        context.read<SetupBloc>().add(const AddVirtualWindow());
+                        context
+                            .read<StudioBloc>()
+                            .add(const ToggleSplitView(enabled: true));
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (windows.length > 1) ...[
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                side: BorderSide(
+                  color: studioState.isSplitView
+                      ? const Color(0xFF8B5CF6)
+                      : Theme.of(context)
+                          .colorScheme
+                          .outlineVariant
+                          .withValues(alpha: 0.3),
+                ),
+              ),
+              icon: Icon(
+                studioState.isSplitView
+                    ? Icons.splitscreen_rounded
+                    : Icons.fullscreen_rounded,
+                size: 14,
+                color: studioState.isSplitView ? const Color(0xFF8B5CF6) : null,
+              ),
+              label: Text(
+                studioState.isSplitView ? 'Split View' : 'Single View',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color:
+                      studioState.isSplitView ? const Color(0xFF8B5CF6) : null,
+                ),
+              ),
+              onPressed: () =>
+                  context.read<StudioBloc>().add(const ToggleSplitView()),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileWorkspacePill extends StatelessWidget {
+  const _MobileWorkspacePill({required this.setupState});
+
+  final SetupState setupState;
+
+  @override
+  Widget build(final BuildContext context) {
+    final active = setupState.activeWindow;
+    return Material(
+      color: active.accentColor.withValues(alpha: 0.16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: active.accentColor.withValues(alpha: 0.5),
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          final nextId =
+              setupState.activeWindowId == 'win_1' ? 'win_2' : 'win_1';
+          context.read<SetupBloc>().add(SelectActiveWindow(nextId));
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: active.accentColor,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                setupState.activeWindowId == 'win_1' ? 'Alpha' : 'Beta',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: active.accentColor,
+                ),
+              ),
+              const SizedBox(width: 2),
+              Icon(
+                Icons.swap_horiz_rounded,
+                size: 11,
+                color: active.accentColor,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PaneToggleAction extends StatelessWidget {

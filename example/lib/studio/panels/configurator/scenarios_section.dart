@@ -6,7 +6,6 @@ import '../../bloc/setup_bloc.dart';
 import '../../bloc/studio_bloc.dart';
 import '../../models/channel_setup.dart';
 import '../../models/queue_setup.dart';
-import '../../studio_theme.dart';
 
 /// A curated set of one-click demo scenarios that showcase different FNQ
 /// features in realistic use cases.
@@ -18,26 +17,30 @@ class ScenariosSection extends StatelessWidget {
   const ScenariosSection({super.key});
 
   @override
-  Widget build(final BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'One-click demos — fires into your current configuration.',
-            style: TextStyle(
-              fontSize: 10,
-              fontStyle: FontStyle.italic,
-              color: StudioTheme.colorScheme.onSurface.withValues(alpha: 0.45),
-            ),
+  Widget build(final BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'One-click demos — fires into your current configuration.',
+          style: TextStyle(
+            fontSize: 10,
+            fontStyle: FontStyle.italic,
+            color: colorScheme.onSurface.withValues(alpha: 0.45),
           ),
-          const SizedBox(height: 12),
-          ..._scenarios.map(
-            (final s) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _ScenarioTile(scenario: s),
-            ),
+        ),
+        const SizedBox(height: 12),
+        ..._scenarios.map(
+          (final s) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _ScenarioTile(scenario: s),
           ),
-        ],
-      );
+        ),
+      ],
+    );
+  }
 }
 
 class _Scenario {
@@ -733,35 +736,38 @@ final _scenarios = [
     },
   ),
 
-  // ── 17. Multi-Tenant Split-Viewport Stage (v0.7.x) ──
+  // ── 17. Multi-Scope HUD Isolation (v0.7.x) ──
   _Scenario(
-    title: 'Multi-Tenant Split-Viewport Stage',
+    title: 'Multi-Scope HUD Isolation',
     subtitle: 'Dual 1:1 controllers, independent stasis tokens, '
-        'isolated drag registries & teardowns',
+        'split transparent HUD overlay zones',
     icon: Icons.splitscreen_rounded,
     color: const Color(0xFF6366F1),
     onFire: (final context) {
-      context.read<StudioBloc>().add(const ToggleStage(open: true));
       final setupBloc = context.read<SetupBloc>();
       if (setupBloc.state.windows.length == 1) {
         setupBloc.add(const AddVirtualWindow());
       }
+      context.read<StudioBloc>().add(const ToggleSplitView(enabled: true));
+
       Future.delayed(const Duration(milliseconds: 300), () {
         final win1 = setupBloc.getWindow('win_1');
         final win2 = setupBloc.getWindow('win_2');
         win1?.controller.tryShow(
           const AppNotification(
             title: 'Workspace A (Alpha)',
-            message: 'Primary production queue active.',
-            channelName: 'system',
+            message: 'Primary production queue in Scope A.',
+            channelName: 'info',
+            accentColor: Color(0xFF6366F1),
             dismissDuration: Duration(seconds: 8),
           ),
         );
         win2?.controller.tryShow(
           const AppNotification(
             title: 'Workspace B (Beta)',
-            message: 'Secondary isolated queue running concurrently.',
-            channelName: 'orders',
+            message: 'Secondary isolated queue in Scope B.',
+            channelName: 'success',
+            accentColor: Color(0xFF10B981),
             dismissDuration: Duration(seconds: 8),
           ),
         );
@@ -776,7 +782,7 @@ class _ScenarioTile extends StatelessWidget {
 
   @override
   Widget build(final BuildContext context) {
-    final colorScheme = StudioTheme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
       color: Colors.transparent,

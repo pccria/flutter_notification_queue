@@ -386,6 +386,7 @@ class _QuickFireCockpitState extends State<QuickFireCockpit> {
             _CockpitChip(
               label: 'Info',
               icon: Icons.info_outline,
+              keycap: '1',
               accentColor: const Color(0xFF51B4F9),
               onTap: () => QuickFireCockpit._fireQuickPreset(
                 context,
@@ -399,6 +400,7 @@ class _QuickFireCockpitState extends State<QuickFireCockpit> {
             _CockpitChip(
               label: 'Success',
               icon: Icons.check_circle_outline,
+              keycap: '2',
               accentColor: const Color(0xFF2D7512),
               onTap: () => QuickFireCockpit._fireQuickPreset(
                 context,
@@ -412,6 +414,7 @@ class _QuickFireCockpitState extends State<QuickFireCockpit> {
             _CockpitChip(
               label: 'Warning',
               icon: Icons.warning_amber_rounded,
+              keycap: '3',
               accentColor: const Color(0xFFC97725),
               onTap: () => QuickFireCockpit._fireQuickPreset(
                 context,
@@ -425,6 +428,7 @@ class _QuickFireCockpitState extends State<QuickFireCockpit> {
             _CockpitChip(
               label: 'Critical',
               icon: Icons.error_outline,
+              keycap: '4',
               accentColor: const Color(0xFFD03332),
               onTap: () => QuickFireCockpit._fireQuickPreset(
                 context,
@@ -464,6 +468,7 @@ class _QuickFireCockpitState extends State<QuickFireCockpit> {
             _CockpitChip(
               label: 'Burst 3x',
               icon: Icons.auto_awesome_motion_rounded,
+              keycap: 'B',
               accentColor: const Color(0xFFEC4899),
               onTap: () => QuickFireCockpit._fireBurst(
                 context,
@@ -485,22 +490,29 @@ class _QuickFireCockpitState extends State<QuickFireCockpit> {
             // ── Multi-Window Stage Actions ──
             if (setupState.windows.length == 1) ...[
               _CockpitChip(
-                label: '+ Window',
+                label: '+ Scope B',
                 icon: Icons.add_to_photos_outlined,
                 accentColor: const Color(0xFF06B6D4),
                 onTap: () {
                   context.read<SetupBloc>().add(const AddVirtualWindow());
-                  context.read<StudioBloc>().add(const ToggleStage(open: true));
+                  context
+                      .read<StudioBloc>()
+                      .add(const ToggleSplitView(enabled: true));
                 },
               ),
             ] else ...[
               _CockpitChip(
-                label: 'Close Win 2',
+                label: 'Close Scope B',
                 icon: Icons.close_fullscreen_rounded,
                 accentColor: const Color(0xFFEF4444),
-                onTap: () => context
-                    .read<SetupBloc>()
-                    .add(const RemoveVirtualWindow('win_2')),
+                onTap: () {
+                  context
+                      .read<SetupBloc>()
+                      .add(const RemoveVirtualWindow('win_2'));
+                  context
+                      .read<StudioBloc>()
+                      .add(const ToggleSplitView(enabled: false));
+                },
               ),
             ],
             // ── Keyboard Shortcuts Guide ──
@@ -813,6 +825,38 @@ class _QuickFireBottomSheet extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 14),
+          // Dual Split Mode Toggle
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              side: BorderSide(
+                color: colorScheme.primary.withValues(alpha: 0.45),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            icon: const Icon(Icons.splitscreen_rounded, size: 16),
+            label: Text(
+              context.watch<StudioBloc>().state.isSplitView
+                  ? 'SWITCH TO SINGLE OVERLAY'
+                  : 'SWITCH TO DUAL SPLIT OVERLAY',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+              ),
+            ),
+            onPressed: () {
+              final setupBloc = context.read<SetupBloc>();
+              if (setupBloc.state.windows.length == 1) {
+                setupBloc.add(const AddVirtualWindow());
+              }
+              context.read<StudioBloc>().add(const ToggleSplitView());
+              Navigator.of(context).pop();
+            },
+          ),
         ],
       ),
     );
@@ -872,12 +916,14 @@ class _CockpitChip extends StatelessWidget {
     required this.icon,
     required this.accentColor,
     required this.onTap,
+    this.keycap,
   });
 
   final String label;
   final IconData icon;
   final Color accentColor;
   final VoidCallback onTap;
+  final String? keycap;
 
   @override
   Widget build(final BuildContext context) {
@@ -908,6 +954,28 @@ class _CockpitChip extends StatelessWidget {
                 color: colorScheme.onSurface.withValues(alpha: 0.82),
               ),
             ),
+            if (keycap != null) ...[
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: colorScheme.onSurface.withValues(alpha: 0.16),
+                  ),
+                ),
+                child: Text(
+                  keycap!,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'monospace',
+                    color: colorScheme.onSurface.withValues(alpha: 0.55),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -980,6 +1048,64 @@ class _WindowTargetSelector extends StatelessWidget {
   @override
   Widget build(final BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    if (screenWidth >= 900) {
+      final isWin1 = targetWindowId == 'win_1' ||
+          (targetWindowId == null && activeWindowId == 'win_1');
+      final isWin2 = targetWindowId == 'win_2' ||
+          (targetWindowId == null && activeWindowId == 'win_2');
+      final isBoth = targetWindowId == 'all';
+
+      return Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: colorScheme.onSurface.withValues(alpha: 0.12),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: Text(
+                'Route:',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.4,
+                  color: colorScheme.onSurface.withValues(alpha: 0.45),
+                ),
+              ),
+            ),
+            _RoutePill(
+              label: 'Scope A',
+              isSelected: isWin1,
+              accentColor: const Color(0xFF6366F1),
+              onTap: () => onSelected('win_1'),
+            ),
+            const SizedBox(width: 3),
+            _RoutePill(
+              label: 'Scope B',
+              isSelected: isWin2,
+              accentColor: const Color(0xFF10B981),
+              onTap: () => onSelected('win_2'),
+            ),
+            const SizedBox(width: 3),
+            _RoutePill(
+              label: 'Both ⚡',
+              isSelected: isBoth,
+              accentColor: const Color(0xFF8B5CF6),
+              onTap: () => onSelected('all'),
+            ),
+          ],
+        ),
+      );
+    }
 
     String label;
     if (targetWindowId == null) {
@@ -1159,6 +1285,78 @@ class _WindowTargetSelector extends StatelessWidget {
               Icons.arrow_drop_down_rounded,
               size: 16,
               color: colorScheme.primary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RoutePill extends StatelessWidget {
+  const _RoutePill({
+    required this.label,
+    required this.isSelected,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(final BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? accentColor.withValues(alpha: 0.22)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected
+                ? accentColor.withValues(alpha: 0.6)
+                : Colors.transparent,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: accentColor.withValues(alpha: 0.25),
+                    blurRadius: 6,
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? accentColor
+                    : colorScheme.onSurface.withValues(alpha: 0.3),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                color: isSelected
+                    ? accentColor
+                    : colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
             ),
           ],
         ),

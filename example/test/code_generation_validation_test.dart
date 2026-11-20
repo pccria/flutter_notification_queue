@@ -46,6 +46,28 @@ void main() {
       expect(code, contains("title: 'Release Notification'"));
     });
 
+    test('scopedOverlay includes useRootOverlay: false containment snippet',
+        () {
+      final setup = StudioSetup.withDefaults();
+      const draft = NotificationDraft();
+
+      final code = generateCode(
+        setup: setup,
+        draft: draft,
+        scope: CodeSnippetScope.scopedOverlay,
+      );
+
+      expect(
+        code,
+        contains(
+          '// NFQ Studio — Scoped / Embedded Overlay Setup (v${NotificationController.version})',
+        ),
+      );
+      expect(code, contains('useRootOverlay: false'));
+      expect(code, contains('NotificationScope('));
+      expect(code, contains('buildScopedContainer'));
+    });
+
     test('fullSetup emits maxHistoryEntries when non-zero and omits when zero',
         () {
       const zeroHistorySetup = StudioSetup(
@@ -806,12 +828,18 @@ void main() {
           scope: CodeSnippetScope.queuesOnly,
         );
 
+        final scopedCode = generateCode(
+          setup: setup,
+          draft: draft,
+          scope: CodeSnippetScope.scopedOverlay,
+        );
+
         // Construct a valid standalone Dart file incorporating snippets.
         const pkgImport =
             'package:flutter_notification_queue/flutter_notification_queue.dart';
         final testDartFile = StringBuffer()
           ..writeln(
-            '// ignore_for_file: unused_local_variable, '
+            '// ignore_for_file: unused_local_variable, unused_element, '
             'prefer_const_constructors, cascade_invocations, '
             'lines_longer_than_80_chars',
           )
@@ -825,8 +853,9 @@ void main() {
           ..writeln(channelsCode)
           ..writeln('  // --- 3. Queues Only Snippet ---')
           ..writeln(queuesCode)
-          ..writeln('}')
-          ..writeln();
+          ..writeln('  // --- 4. Scoped Overlay Snippet ---')
+          ..writeln(scopedCode)
+          ..write('}');
 
         final tempFile = File('test/temp_codegen_harness.dart');
         await tempFile.writeAsString(testDartFile.toString());

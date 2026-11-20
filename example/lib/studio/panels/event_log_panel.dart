@@ -34,6 +34,7 @@ class _EventLogPanelState extends State<EventLogPanel> {
 
   final _events = <_LogEntry>[];
   final _activeIds = <String>{};
+  final _shownTimestamps = <String, DateTime>{};
   StreamSubscription<NotificationEvent>? _sub;
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
@@ -110,20 +111,32 @@ class _EventLogPanelState extends State<EventLogPanel> {
     final NotificationEvent event, {
     required final bool recordOnly,
   }) {
+    int? lifespanMs;
     switch (event) {
       case NotificationQueued(:final notification):
         _activeIds.add(notification.id);
+        _shownTimestamps[notification.id] = DateTime.now();
       case NotificationDismissed(:final notification):
         _activeIds.remove(notification.id);
+        final shown = _shownTimestamps.remove(notification.id);
+        if (shown != null) {
+          lifespanMs = DateTime.now().difference(shown).inMilliseconds;
+        }
       case QueueOverflowed(:final dropped):
         _activeIds.remove(dropped.id);
+        _shownTimestamps.remove(dropped.id);
       case NotificationGroupDismissed():
         break;
       default:
         break;
     }
 
-    final entry = _LogEntry(event: event, time: DateTime.now());
+    final entry = _LogEntry(
+      event: event,
+      time: DateTime.now(),
+      windowId: _lastActiveWindowId,
+      lifespanMs: lifespanMs,
+    );
     if (recordOnly) {
       _events.add(entry);
     } else {
@@ -161,7 +174,9 @@ class _EventLogPanelState extends State<EventLogPanel> {
       case EventLogFilter.alerts:
         return event is QueueOverflowed ||
             event is QueuePositionRelocated ||
-            event is NotificationChannelRouteUpdated;
+            event is NotificationChannelRouteUpdated ||
+            event is QueuePaused ||
+            event is QueueResumed;
     }
   }
 
@@ -445,6 +460,8 @@ class _EventLogPanelState extends State<EventLogPanel> {
                     return _EventTile(
                       entry: entry,
                       isSelected: isSelected,
+                      isFirst: i == 0,
+                      isLast: i == filtered.length - 1,
                       onTap: () {
                         setState(() {
                           _selectedEntry = isSelected ? null : entry;
@@ -466,11 +483,15 @@ class _EventTile extends StatelessWidget {
     required this.entry,
     required this.isSelected,
     required this.onTap,
+    this.isFirst = false,
+    this.isLast = false,
   });
 
   final _LogEntry entry;
   final bool isSelected;
   final VoidCallback onTap;
+  final bool isFirst;
+  final bool isLast;
 
   @override
   Widget build(final BuildContext context) {
@@ -498,7 +519,7 @@ class _EventTile extends StatelessWidget {
                   children: [
                     // Time
                     SizedBox(
-                      width: 50,
+                      width: 44,
                       child: Text(
                         _formatTime(entry.time),
                         style: TextStyle(
@@ -509,16 +530,12 @@ class _EventTile extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    // Color dot
-                    Container(
-                      margin: const EdgeInsets.only(top: 5),
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: meta.color,
-                      ),
+                    const SizedBox(width: 3),
+                    // Timeline Rail & Semantic Glowing Node
+                    _TimelineRailNode(
+                      color: meta.color,
+                      isFirst: isFirst,
+                      isLast: isLast,
                     ),
                     const SizedBox(width: 8),
                     // Content
@@ -531,36 +548,43 @@ class _EventTile extends StatelessWidget {
                               Expanded(
                                 child: LayoutBuilder(
                                   builder: (final context, final constraints) =>
-                                      Row(
+                                      Wrap(
+                                    spacing: 5,
+                                    runSpacing: 2,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
                                     children: [
-                                      ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          maxWidth: meta.badge != null
-                                              ? (constraints.maxWidth - 36)
-                                                  .clamp(0.0, double.infinity)
-                                              : constraints.maxWidth,
-                                        ),
-                                        child: Text(
-                                          meta.label,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: colorScheme.onSurface
-                                                .withValues(alpha: 0.85),
-                                          ),
+                                      Text(
+                                        meta.label,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: colorScheme.onSurface
+                                              .withValues(alpha: 0.85),
                                         ),
                                       ),
-                                      if (meta.badge != null) ...[
-                                        const SizedBox(width: 6),
-                                        Flexible(
-                                          child: _Badge(
-                                            label: meta.badge!,
-                                            color: meta.color,
-                                          ),
+                                      if (entry.windowId != null)
+                                        _Badge(
+                                          label: entry.windowId == 'win_1'
+                                              ? 'Scope A'
+                                              : 'Scope B',
+                                          color: entry.windowId == 'win_1'
+                                              ? const Color(0xFF6366F1)
+                                              : const Color(0xFF10B981),
                                         ),
-                                      ],
+                                      if (entry.lifespanMs != null)
+                                        _Badge(
+                                          label: _formatLifespan(
+                                            entry.lifespanMs!,
+                                          ),
+                                          color: const Color(0xFF10B981),
+                                          tooltip: 'Lifespan on screen',
+                                        ),
+                                      if (meta.badge != null)
+                                        _Badge(
+                                          label: meta.badge!,
+                                          color: meta.color,
+                                        ),
                                     ],
                                   ),
                                 ),
@@ -611,6 +635,9 @@ class _EventTile extends StatelessWidget {
       '${t.hour.toString().padLeft(2, '0')}:'
       '${t.minute.toString().padLeft(2, '0')}:'
       '${t.second.toString().padLeft(2, '0')}';
+
+  String _formatLifespan(final int ms) =>
+      '⏱ ${(ms / 1000.0).toStringAsFixed(1)}s';
 }
 
 // ── Inspector Drawer ────────────────────────────────────────────────────────
@@ -856,6 +883,12 @@ class _InspectorDrawer extends StatelessWidget {
         map['From'] = from.name;
         map['To'] = to.name;
         map['Permanent'] = '$permanent';
+      case QueuePaused(:final position):
+        map['Queue'] = position.name;
+        map['State'] = 'Stasis (Paused)';
+      case QueueResumed(:final position):
+        map['Queue'] = position.name;
+        map['State'] = 'Active (Resumed)';
       case NotificationChannelRouteUpdated(
           :final channelName,
           :final oldPosition,
@@ -1038,6 +1071,22 @@ class _EventMeta {
             badge: channelName,
             subtitle: '${oldPosition.name} → ${newPosition.name}',
           ),
+        QueuePaused(:final position) => _EventMeta(
+            label: 'Queue Paused',
+            color: isDark
+                ? const Color(0xFFF59E0B) // amber-500
+                : const Color(0xFFB45309), // amber-700
+            badge: position.name,
+            subtitle: 'Auto-dismiss stasis entered',
+          ),
+        QueueResumed(:final position) => _EventMeta(
+            label: 'Queue Resumed',
+            color: isDark
+                ? const Color(0xFF10B981) // emerald-500
+                : const Color(0xFF047857), // emerald-700
+            badge: position.name,
+            subtitle: 'Auto-dismiss stasis exited',
+          ),
       };
 }
 
@@ -1124,11 +1173,75 @@ class _EmptyState extends StatelessWidget {
       );
 }
 
+// ── Timeline Rail Node ──────────────────────────────────────────────────────
+
+class _TimelineRailNode extends StatelessWidget {
+  const _TimelineRailNode({
+    required this.color,
+    required this.isFirst,
+    required this.isLast,
+  });
+
+  final Color color;
+  final bool isFirst;
+  final bool isLast;
+
+  @override
+  Widget build(final BuildContext context) {
+    final lineColor =
+        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
+
+    return SizedBox(
+      width: 14,
+      height: 24,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          // Vertical timeline rail line
+          if (!isFirst || !isLast)
+            Positioned(
+              top: isFirst ? 9 : 0,
+              bottom: isLast ? 15 : 0,
+              child: Container(
+                width: 1.5,
+                color: lineColor,
+              ),
+            ),
+          // Semantic glowing node dot
+          Container(
+            margin: const EdgeInsets.only(top: 5),
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.6),
+                  blurRadius: 5,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Data model ──────────────────────────────────────────────────────────────
 
 class _LogEntry {
-  const _LogEntry({required this.event, required this.time});
+  const _LogEntry({
+    required this.event,
+    required this.time,
+    this.windowId,
+    this.lifespanMs,
+  });
 
   final NotificationEvent event;
   final DateTime time;
+  final String? windowId;
+  final int? lifespanMs;
 }

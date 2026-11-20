@@ -290,6 +290,8 @@ class _CodeEditorPanelState extends State<CodeEditorPanel> {
       switch (_selectedScope) {
         CodeSnippetScope.fullSetup =>
           '📁 Place in lib/main.dart — wraps your root MaterialApp via builder.',
+        CodeSnippetScope.scopedOverlay =>
+          '📦 Embedded / Multi-Tenant — wraps local panels with useRootOverlay: false.',
         CodeSnippetScope.dispatchOnly =>
           '⚡ Contextless dispatch — call from any Bloc, Service, or ViewModel '
               'without BuildContext.',

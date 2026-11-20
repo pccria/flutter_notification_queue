@@ -338,5 +338,88 @@ void main() {
         expect(find.text('Item 2'), findsNothing);
       },
     );
+
+    testWidgets(
+      'pauseQueue, resumeQueue, pauseAll, resumeAll emit telemetry events',
+      (final tester) async {
+        final controller = NotificationController(
+          channels: {
+            const NotificationChannel(
+              name: 'alerts',
+              position: QueuePosition.topRight,
+            ),
+          },
+          queues: {
+            const NotificationQueue(position: QueuePosition.topRight),
+            const NotificationQueue(position: QueuePosition.bottomLeft),
+          },
+        );
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (final context, final child) => NotificationScope(
+              controller: controller,
+              child: child!,
+            ),
+            home: const Scaffold(body: Center(child: Text('Home'))),
+          ),
+        );
+
+        final events = <NotificationEvent>[];
+        final subscription = controller.events.listen(events.add);
+        addTearDown(subscription.cancel);
+
+        // Pause topRight
+        controller.pauseQueue(QueuePosition.topRight);
+        await tester.pump();
+        expect(events, hasLength(1));
+        expect(events.first, isA<QueuePaused>());
+        expect((events.first as QueuePaused).position, QueuePosition.topRight);
+
+        // Idempotent pause - no duplicate event
+        controller.pauseQueue(QueuePosition.topRight);
+        await tester.pump();
+        expect(events, hasLength(1));
+
+        // Resume topRight
+        controller.resumeQueue(QueuePosition.topRight);
+        await tester.pump();
+        expect(events, hasLength(2));
+        expect(events[1], isA<QueueResumed>());
+        expect((events[1] as QueueResumed).position, QueuePosition.topRight);
+
+        // Idempotent resume - no duplicate event
+        controller.resumeQueue(QueuePosition.topRight);
+        await tester.pump();
+        expect(events, hasLength(2));
+
+        // Pause all queues
+        events.clear();
+        controller.pauseAll();
+        await tester.pump();
+        // Emits QueuePaused for every position in QueuePosition.values
+        expect(
+          events.whereType<QueuePaused>().map((final e) => e.position).toSet(),
+          Set.of(QueuePosition.values),
+        );
+
+        // Resume all queues
+        events.clear();
+        controller.resumeAll();
+        await tester.pump();
+        // Emits QueueResumed for every position in QueuePosition.values
+        expect(
+          events.whereType<QueueResumed>().map((final e) => e.position).toSet(),
+          Set.of(QueuePosition.values),
+        );
+
+        // Resume all again when none are paused - no events
+        events.clear();
+        controller.resumeAll();
+        await tester.pump();
+        expect(events, isEmpty);
+      },
+    );
   });
 }

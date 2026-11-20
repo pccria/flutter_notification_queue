@@ -25,7 +25,9 @@ export 'src/core/core.dart'
         NotificationUnpinned,
         NotificationUpdated,
         QueueOverflowed,
-        QueuePositionRelocated;
+        QueuePaused,
+        QueuePositionRelocated,
+        QueueResumed;
 export 'src/enums/enums.dart';
 export 'src/models/offset_pair.dart';
 export 'src/notification/notification.dart'

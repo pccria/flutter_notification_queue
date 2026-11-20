@@ -11,6 +11,9 @@ enum CodeSnippetScope {
   /// Complete controller, scope, channels, and dispatch setup.
   fullSetup('Full Setup', Icons.settings_suggest_outlined),
 
+  /// Multi-tenant or embedded setup with local overlay containment.
+  scopedOverlay('Scoped Overlay', Icons.layers_outlined),
+
   /// Just the `controller.show(AppNotification(...))` dispatch statement.
   dispatchOnly('Dispatch Only', Icons.bolt_rounded),
 
@@ -89,16 +92,62 @@ String generateCode({
         ..writeln(');')
         ..writeln()
         ..writeln('// 1. Attach NotificationScope to your widget tree:')
+        ..writeln('// Root overlay (Standard):')
         ..writeln('// MaterialApp(')
         ..writeln('//   builder: (context, child) => NotificationScope(')
         ..writeln('//     controller: controller,')
         ..writeln('//     child: child!,')
         ..writeln('//   ),')
         ..writeln('// );')
+        ..writeln('//')
+        ..writeln(
+          '// Scoped / Embedded overlay (Multi-Tenant or Split-Screen):',
+        )
+        ..writeln('// NotificationScope(')
+        ..writeln('//   controller: controller,')
+        ..writeln('//   useRootOverlay: false,')
+        ..writeln('//   child: localWorkspaceWidget,')
+        ..writeln('// );')
         ..writeln()
         ..writeln('// 2. Dispatch a notification:');
 
       _writeDispatch(buf, draft);
+      break;
+
+    case CodeSnippetScope.scopedOverlay:
+      buf
+        ..writeln(
+          '// NFQ Studio — Scoped / Embedded Overlay Setup '
+          '(v${NotificationController.version})\n',
+        )
+        ..writeln(
+          '// Confines notifications strictly to a local container sub-tree.',
+        )
+        ..writeln(
+          '// Ideal for multi-tenant split-screens, dashboards, or previews.',
+        )
+        ..writeln(
+          'Widget buildScopedContainer(final BuildContext context) => '
+          'SizedBox(',
+        )
+        ..writeln('      width: 480,')
+        ..writeln('      height: 720,')
+        ..writeln('      child: Stack(')
+        ..writeln('        children: [')
+        ..writeln('          // Underlying workspace UI')
+        ..writeln('          const Center(child: Text("Workspace View")),')
+        ..writeln()
+        ..writeln('          // Localized Notification Overlay')
+        ..writeln('          NotificationScope(')
+        ..writeln('            controller: controller,')
+        ..writeln(
+          '            useRootOverlay: false, // Local containment',
+        )
+        ..writeln('            child: const SizedBox.expand(),')
+        ..writeln('          ),')
+        ..writeln('        ],')
+        ..writeln('      ),')
+        ..writeln('    );');
       break;
   }
 

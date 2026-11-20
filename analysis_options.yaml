@@ -6,6 +6,9 @@ analyzer:
     - ".dart_tool/**"
     - "example/build/**"
     - "example/.dart_tool/**"
+  errors:
+    experimental_member_use: ignore
+    deprecated_member_use: ignore
 
 
 linter:

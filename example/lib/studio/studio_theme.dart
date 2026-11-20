@@ -6,9 +6,9 @@ import 'package:flutter/material.dart';
 class StudioTheme {
   StudioTheme._();
 
-  static late ThemeData _theme;
-  static late ColorScheme _colorScheme;
-  static late bool _isDark;
+  static ThemeData _theme = dark();
+  static ColorScheme _colorScheme = _theme.colorScheme;
+  static bool _isDark = true;
 
   static ThemeData get theme => _theme;
   static ColorScheme get colorScheme => _colorScheme;

@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.7.2] - 2026-11-21
+
+### Core Telemetry & Stasis Events
+- **Queue Stasis Telemetry**:
+  - Introduced `QueuePaused` and `QueueResumed` events to the core
+    `NotificationEvent` sealed hierarchy on `NotificationController.events`
+    and `QueueCoordinator.events`.
+  - Emitted whenever a queue enters or exits programmatic timer stasis via
+    `pauseQueue()`, `resumeQueue()`, `pauseAll()`, or `resumeAll()`.
+  - Exposed `QueuePaused` and `QueueResumed` in
+    `package:flutter_notification_queue/flutter_notification_queue.dart`.
+
+### Scoped Overlay Isolation & Documentation
+- **Scoped Overlay Recipe**:
+  - Documented local overlay containment using
+    `NotificationScope(useRootOverlay: false)` in `README.md` for multi-tenant
+    split-screens, dashboards, and embedded previews.
+  - Added dedicated `Scoped Overlay` snippet generator to NFQ Studio's
+    Code Generator (`CodeSnippetScope.scopedOverlay`).
+
+### Example Studio HUD & Experience Evolution
+- **Transparent HUD Overlay Overhaul**:
+  - Replaced obstructive stage canvas with a 100% transparent pass-through
+    overlay (`IgnorePointer`) featuring a subtle glowing outer perimeter
+    (`BlurStyle.outer`, `1.2px` hairline) with zero interior color or tint wash.
+  - Removed floating zone badges/labels to prevent obstructing application
+    top bars and action controls.
+- **Interactive Gesture Sandbox**:
+  - Introduced interactive swipe physics in `LiveCardPreview` with dynamic
+    drag resistance, commit threshold indicators (`DISMISS` / `SNOOZE`),
+    and realistic elastic snap-back.
+- **Chronological Event Timeline Rail**:
+  - Redesigned `EventLogPanel` with a connected visual timeline rail,
+    live card lifespan telemetry (`⏱ X.Xs`), multi-scope tags, and stasis badges.
+
+### Tooling & Android Gradle
+- **Build System Modernization**:
+  - Upgraded Android Gradle Plugin to 9.1.1 in Studio example.
+
 ## [0.7.1] - 2026-11-17
 
 ### Architecture Modularization & Clean Code

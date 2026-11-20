@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -146,10 +147,10 @@ class LiveCardPreview extends StatelessWidget {
           ),
           const Divider(height: 1, thickness: 1),
 
-          // ── Preview Viewport (Checker / Ambient Canvas) ──
+          // ── Preview Viewport (Checker / Interactive Gesture Sandbox) ──
           Padding(
             padding: const EdgeInsets.all(14),
-            child: _CardCanvas(
+            child: _InteractiveGestureCanvas(
               theme: theme,
               draft: draft,
               channelSetup: channelSetup,
@@ -209,6 +210,306 @@ class LiveCardPreview extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Interactive Gesture Sandbox ─────────────────────────────────────────────
+
+class _InteractiveGestureCanvas extends StatefulWidget {
+  const _InteractiveGestureCanvas({
+    required this.theme,
+    required this.draft,
+    required this.channelSetup,
+    required this.channel,
+  });
+
+  final NotificationTheme theme;
+  final NotificationDraft draft;
+  final ChannelSetup channelSetup;
+  final NotificationChannel channel;
+
+  @override
+  State<_InteractiveGestureCanvas> createState() =>
+      _InteractiveGestureCanvasState();
+}
+
+class _InteractiveGestureCanvasState extends State<_InteractiveGestureCanvas>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  Animation<double>? _springAnim;
+
+  double _dragOffset = 0.0;
+  bool _isDragging = false;
+  String? _simulationBanner;
+  Timer? _bannerTimer;
+
+  static const double _threshold = 85.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    )..addListener(() {
+        if (_springAnim != null) {
+          setState(() {
+            _dragOffset = _springAnim!.value;
+          });
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _bannerTimer?.cancel();
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _onHorizontalDragStart(final DragStartDetails details) {
+    _animController.stop();
+    setState(() {
+      _isDragging = true;
+      _simulationBanner = null;
+    });
+  }
+
+  void _onHorizontalDragUpdate(final DragUpdateDetails details) {
+    setState(() {
+      _dragOffset += details.delta.dx;
+      // Damped resistance past 140px
+      if (_dragOffset.abs() > 140.0) {
+        final excess = _dragOffset.abs() - 140.0;
+        final sign = _dragOffset.sign;
+        _dragOffset = sign * (140.0 + excess * 0.35);
+      }
+    });
+  }
+
+  void _onHorizontalDragEnd(final DragEndDetails details) {
+    setState(() => _isDragging = false);
+
+    if (_dragOffset >= _threshold) {
+      // Swiped Right -> Dismiss Simulation
+      _triggerOutcome('SIMULATED: SWIPED TO DISMISS', slideOutDx: 350.0);
+    } else if (_dragOffset <= -_threshold) {
+      // Swiped Left -> Snooze Simulation
+      _triggerOutcome('SIMULATED: SNOOZED (5.0s)', slideOutDx: -350.0);
+    } else {
+      // Below threshold -> Spring Snapback to center
+      _springBack();
+    }
+  }
+
+  void _triggerOutcome(final String label, {required final double slideOutDx}) {
+    _springAnim = Tween<double>(begin: _dragOffset, end: slideOutDx).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+    );
+    _animController.forward(from: 0.0).then((final _) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _simulationBanner = label;
+        _dragOffset = 0.0;
+      });
+      _bannerTimer?.cancel();
+      _bannerTimer = Timer(const Duration(milliseconds: 2200), () {
+        if (mounted) {
+          setState(() => _simulationBanner = null);
+        }
+      });
+    });
+  }
+
+  void _springBack() {
+    _springAnim = Tween<double>(begin: _dragOffset, end: 0.0).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.elasticOut),
+    );
+    _animController.duration = const Duration(milliseconds: 550);
+    _animController.forward(from: 0.0);
+  }
+
+  @override
+  Widget build(final BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final progress = (_dragOffset.abs() / _threshold).clamp(0.0, 1.0);
+    final isDismiss = _dragOffset > 0;
+    final isSnooze = _dragOffset < 0;
+    final activeColor = isDismiss
+        ? const Color(0xFF10B981) // Emerald
+        : isSnooze
+            ? const Color(0xFFF59E0B) // Amber
+            : colorScheme.primary;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Interactive Gesture Surface
+        MouseRegion(
+          cursor: _isDragging
+              ? SystemMouseCursors.grabbing
+              : SystemMouseCursors.grab,
+          child: GestureDetector(
+            onHorizontalDragStart: _onHorizontalDragStart,
+            onHorizontalDragUpdate: _onHorizontalDragUpdate,
+            onHorizontalDragEnd: _onHorizontalDragEnd,
+            child: Transform.translate(
+              offset: Offset(_dragOffset, 0),
+              child: Transform.rotate(
+                angle: _dragOffset * 0.0003,
+                child: _CardCanvas(
+                  theme: widget.theme,
+                  draft: widget.draft,
+                  channelSetup: widget.channelSetup,
+                  channel: widget.channel,
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // ── Gesture Feedback & Telemetry Bar ──
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _isDragging
+                  ? activeColor.withValues(alpha: 0.5)
+                  : colorScheme.outlineVariant.withValues(alpha: 0.15),
+            ),
+          ),
+          child: Column(
+            children: [
+              LayoutBuilder(
+                builder: (final context, final constraints) {
+                  final isCompact = constraints.maxWidth < 270;
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.snooze_rounded,
+                            size: 11,
+                            color: isSnooze
+                                ? const Color(0xFFF59E0B)
+                                : colorScheme.onSurface.withValues(alpha: 0.45),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            isCompact ? '← SNOOZE' : '← SNOOZE (5s)',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight:
+                                  isSnooze ? FontWeight.w800 : FontWeight.w600,
+                              color: isSnooze
+                                  ? const Color(0xFFF59E0B)
+                                  : colorScheme.onSurface
+                                      .withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Flexible(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            _simulationBanner ??
+                                (_isDragging
+                                    ? '${(progress * 100).toInt()}% THRESHOLD'
+                                    : (isCompact
+                                        ? 'TEST DRAG'
+                                        : 'DRAG TO TEST')),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontFamily: _isDragging ? 'monospace' : null,
+                              fontWeight: FontWeight.w800,
+                              color: _isDragging || _simulationBanner != null
+                                  ? activeColor
+                                  : colorScheme.onSurface
+                                      .withValues(alpha: 0.4),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'DISMISS →',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight:
+                                  isDismiss ? FontWeight.w800 : FontWeight.w600,
+                              color: isDismiss
+                                  ? const Color(0xFF10B981)
+                                  : colorScheme.onSurface
+                                      .withValues(alpha: 0.5),
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Icon(
+                            Icons.check_circle_outline,
+                            size: 11,
+                            color: isDismiss
+                                ? const Color(0xFF10B981)
+                                : colorScheme.onSurface.withValues(alpha: 0.45),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 5),
+              // Dynamic Fill Meter
+              ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: SizedBox(
+                  height: 3,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        color: colorScheme.onSurface.withValues(alpha: 0.08),
+                      ),
+                      if (isDismiss)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: FractionallySizedBox(
+                            widthFactor: progress,
+                            child: Container(color: const Color(0xFF10B981)),
+                          ),
+                        )
+                      else if (isSnooze)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: FractionallySizedBox(
+                            widthFactor: progress,
+                            child: Container(color: const Color(0xFFF59E0B)),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

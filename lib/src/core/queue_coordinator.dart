@@ -181,21 +181,37 @@ class QueueCoordinator implements NotificationScopeState {
 
   /// Pauses auto-dismiss timers for all notifications in [position].
   @override
-  void pauseQueue(final QueuePosition position) =>
-      _stasisManager.pauseQueue(position);
+  void pauseQueue(final QueuePosition position) {
+    if (_stasisManager.pauseQueue(position)) {
+      emitEvent(QueuePaused(position: position));
+    }
+  }
 
   /// Resumes auto-dismiss timers for all notifications in [position].
   @override
-  void resumeQueue(final QueuePosition position) =>
-      _stasisManager.resumeQueue(position);
+  void resumeQueue(final QueuePosition position) {
+    if (_stasisManager.resumeQueue(position)) {
+      emitEvent(QueueResumed(position: position));
+    }
+  }
 
   /// Pauses auto-dismiss timers for all notifications across all queues.
   @override
-  void pauseAll() => _stasisManager.pauseAll();
+  void pauseAll() {
+    final paused = _stasisManager.pauseAll();
+    for (final pos in paused) {
+      emitEvent(QueuePaused(position: pos));
+    }
+  }
 
   /// Resumes auto-dismiss timers for all notifications across all queues.
   @override
-  void resumeAll() => _stasisManager.resumeAll();
+  void resumeAll() {
+    final resumed = _stasisManager.resumeAll();
+    for (final pos in resumed) {
+      emitEvent(QueueResumed(position: pos));
+    }
+  }
 
   /// Active snooze timers that need to be cancelled if the coordinator
   /// detaches or disposes.

@@ -1,26 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_notification_queue_example/main.dart';
+import 'package:flutter_notification_queue_example/studio/widgets/overlay/studio_overlay_host.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('NFQStudioApp full lifecycle smoke test across screen sizes',
-      (final tester) async {
-    final sizes = [
-      const Size(1920, 1080),
-      const Size(1280, 800),
-      const Size(1024, 768),
-      const Size(800, 600),
-      const Size(400, 800),
-    ];
+  const sizes = [
+    Size(1920, 1080),
+    Size(1280, 800),
+    Size(1024, 768),
+    Size(800, 600),
+    Size(400, 800),
+  ];
 
-    for (final size in sizes) {
-      debugPrint('=== TESTING SIZE: $size ===');
+  for (final size in sizes) {
+    testWidgets('NFQStudioApp smoke test on $size', (final tester) async {
       await tester.binding.setSurfaceSize(size);
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       await tester.pumpWidget(const NFQStudioApp());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
+
+      // StudioOverlayHost is mounted in the widget tree
+      expect(find.byType(StudioOverlayHost), findsOneWidget);
 
       // Try firing preview draft
       final fireDraft = find.text('FIRE DRAFT');
@@ -35,33 +37,29 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
       }
 
-      // Try toggling STAGE if button exists
-      final stageButton = find.widgetWithText(InkWell, 'STAGE');
-      if (stageButton.evaluate().isNotEmpty) {
-        await tester.tap(stageButton.first, warnIfMissed: false);
+      // Add Scope B if button is visible
+      final addScope = find.text('+ Scope B');
+      if (addScope.evaluate().isNotEmpty) {
+        await tester.tap(addScope.first, warnIfMissed: false);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
-        // In stage, check for + Win 2
-        final addWin2 = find.text('+ Win 2');
-        if (addWin2.evaluate().isNotEmpty) {
-          await tester.tap(addWin2.first, warnIfMissed: false);
+        // Switch to Workspace B (Beta) tab if found
+        final win2Text = find.text('Workspace B (Beta)');
+        if (win2Text.evaluate().isNotEmpty) {
+          await tester.tap(win2Text.first, warnIfMissed: false);
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 300));
+        }
 
-          // Try clicking Workspace B (Beta) to focus Window 2
-          final win2Text = find.text('Workspace B (Beta)');
-          if (win2Text.evaluate().isNotEmpty) {
-            await tester.tap(win2Text.first, warnIfMissed: false);
-            await tester.pump();
-            await tester.pump(const Duration(milliseconds: 300));
-          }
+        // Try toggling split view if button is found
+        final splitBtn = find.text('Split View');
+        if (splitBtn.evaluate().isNotEmpty) {
+          await tester.tap(splitBtn.first, warnIfMissed: false);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
         }
       }
-
-      // Reset widget tree for next size
-      await tester.pumpWidget(const SizedBox());
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-  });
+    });
+  }
 }

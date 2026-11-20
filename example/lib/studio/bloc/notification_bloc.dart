@@ -327,7 +327,7 @@ class NotificationBloc
       for (final win in setupBloc.state.windows.values) {
         if (win.isMounted && win.controller.isAttached) {
           final targetPosition = resolvePositionForWindow(win);
-          win.controller.show(
+          win.controller.tryShow(
             notification,
             targetPosition: targetPosition,
           );
@@ -339,7 +339,7 @@ class NotificationBloc
           : setupBloc.state.activeWindow;
       if (target != null && target.isMounted && target.controller.isAttached) {
         final targetPosition = resolvePositionForWindow(target);
-        target.controller.show(
+        target.controller.tryShow(
           notification,
           targetPosition: targetPosition,
         );

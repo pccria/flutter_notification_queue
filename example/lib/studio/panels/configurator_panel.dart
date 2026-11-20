@@ -53,8 +53,6 @@ class _ConfiguratorPanelState extends State<ConfiguratorPanel> {
                 if (isMobile) {
                   return Column(
                     children: [
-                      if (setupState.windows.length > 1)
-                        _buildWorkspaceSwitcher(setupState),
                       _buildMobileSubBar(),
                       Expanded(
                         child: ListView(
@@ -72,134 +70,16 @@ class _ConfiguratorPanelState extends State<ConfiguratorPanel> {
                   );
                 }
 
-                return Column(
-                  children: [
-                    if (setupState.windows.length > 1)
-                      _buildWorkspaceSwitcher(setupState),
-                    Expanded(
-                      child: _buildDesktopContent(
-                        constraints.maxWidth,
-                        setupState,
-                        draft,
-                      ),
-                    ),
-                  ],
+                return _buildDesktopContent(
+                  constraints.maxWidth,
+                  setupState,
+                  draft,
                 );
               },
             ),
           );
         },
       );
-
-  Widget _buildWorkspaceSwitcher(final SetupState setupState) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final activeId = setupState.activeWindowId;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.dashboard_customize_outlined,
-                size: 13,
-                color: colorScheme.primary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'TARGET VIEWPORT CONFIGURATION',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.1,
-                  color: colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: setupState.windows.values.map((final win) {
-              final isFocused = win.id == activeId;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: Material(
-                    color: isFocused
-                        ? win.accentColor.withValues(alpha: 0.18)
-                        : colorScheme.surfaceContainerLow
-                            .withValues(alpha: 0.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(
-                        color: isFocused
-                            ? win.accentColor
-                            : colorScheme.outlineVariant.withValues(alpha: 0.3),
-                        width: isFocused ? 1.5 : 1,
-                      ),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => context
-                          .read<SetupBloc>()
-                          .add(SelectActiveWindow(win.id)),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 6,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: win.accentColor,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                win.title,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: isFocused
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  color: isFocused
-                                      ? colorScheme.onSurface
-                                      : colorScheme.onSurface
-                                          .withValues(alpha: 0.7),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildMobileSubBar() {
     final colorScheme = Theme.of(context).colorScheme;

@@ -43,6 +43,8 @@ enum DismissReason {
 ///     case NotificationRelocated():
 ///     case NotificationReordered():
 ///     case QueueOverflowed():
+///     case QueuePaused():
+///     case QueueResumed():
 ///   }
 /// });
 /// ```
@@ -350,6 +352,30 @@ final class QueuePositionRelocated extends NotificationEvent {
   @override
   String toString() => 'QueuePositionRelocated(from: ${from.name}, '
       'to: ${to.name}, permanent: $permanent)';
+}
+
+/// Emitted when a queue enters timer stasis via
+/// [NotificationController.pauseQueue] or [NotificationController.pauseAll].
+final class QueuePaused extends NotificationEvent {
+  const QueuePaused({required this.position});
+
+  /// The queue position whose auto-dismiss timers were paused.
+  final QueuePosition position;
+
+  @override
+  String toString() => 'QueuePaused(position: ${position.name})';
+}
+
+/// Emitted when a queue exits timer stasis via
+/// [NotificationController.resumeQueue] or [NotificationController.resumeAll].
+final class QueueResumed extends NotificationEvent {
+  const QueueResumed({required this.position});
+
+  /// The queue position whose auto-dismiss timers were resumed.
+  final QueuePosition position;
+
+  @override
+  String toString() => 'QueueResumed(position: ${position.name})';
 }
 
 /// Emitted when a channel's default queue route is updated at runtime.
